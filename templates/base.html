@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}DurielBiz POS{% endblock %}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    {% block extra_head %}{% endblock %}
+</head>
+<body class="min-h-screen bg-slate-100 text-slate-900">
+    <div class="flex min-h-screen">
+        <aside class="hidden w-64 bg-slate-900 text-slate-100 lg:block">
+            <div class="border-b border-slate-800 px-6 py-5">
+                <h1 class="text-xl font-semibold">DurielBiz POS</h1>
+                <p class="mt-1 text-sm text-slate-400">Desktop-first retail starter</p>
+            </div>
+            <nav class="space-y-1 px-4 py-4 text-sm">
+                {% if request.user.role == 'admin' or request.user.role == 'cashier' or request.user.role == 'manager' %}
+                    <a href="{% url 'reports:dashboard' %}" class="block rounded-lg px-3 py-2 hover:bg-slate-800">Dashboard</a>
+                {% endif %}
+                {% if request.user.role == 'admin' or request.user.role == 'cashier' %}
+                    <a href="{% url 'sales:pos' %}" class="block rounded-lg px-3 py-2 hover:bg-slate-800">POS Terminal</a>
+                {% endif %}
+                {% if request.user.role == 'admin' or request.user.role == 'inventory' %}
+                    <a href="{% url 'products:list' %}" class="block rounded-lg px-3 py-2 hover:bg-slate-800">Products</a>
+                    <a href="{% url 'products:category-list' %}" class="block rounded-lg px-3 py-2 hover:bg-slate-800">Categories</a>
+                    <a href="{% url 'suppliers:list' %}" class="block rounded-lg px-3 py-2 hover:bg-slate-800">Suppliers</a>
+                    <a href="{% url 'purchases:list' %}" class="block rounded-lg px-3 py-2 hover:bg-slate-800">Purchases</a>
+                    <a href="{% url 'inventory:overview' %}" class="block rounded-lg px-3 py-2 hover:bg-slate-800">Inventory</a>
+                {% endif %}
+                {% if request.user.role == 'admin' %}
+                    <a href="{% url 'sales:customer-list' %}" class="block rounded-lg px-3 py-2 hover:bg-slate-800">Customers</a>
+                    <a href="{% url 'sales:history' %}" class="block rounded-lg px-3 py-2 hover:bg-slate-800">Sales History</a>
+                    <a href="{% url 'accounts:activity-log' %}" class="block rounded-lg px-3 py-2 hover:bg-slate-800">Activity Log</a>
+                    <a href="{% url 'reports:branch-list' %}" class="block rounded-lg px-3 py-2 hover:bg-slate-800">Branches</a>
+                    <a href="{% url 'reports:business-settings' %}" class="block rounded-lg px-3 py-2 hover:bg-slate-800">Business Settings</a>
+                    <a href="{% url 'accounts:admin-center' %}" class="block rounded-lg px-3 py-2 hover:bg-slate-800">Admin</a>
+                {% endif %}
+            </nav>
+        </aside>
+
+        <main class="flex-1">
+            <header class="border-b border-slate-200 bg-white">
+                <div class="flex items-center justify-between px-6 py-4">
+                    <div>
+                        <p class="text-sm text-slate-500">Welcome back</p>
+                        <h2 class="text-lg font-semibold">{{ request.user.get_full_name|default:request.user.username }}</h2>
+                        <p class="mt-1 text-sm text-slate-500">
+                            {% if request.user.role == 'admin' %}
+                                Access: All branches
+                            {% elif request.user.branch %}
+                                Branch: {{ request.user.branch.name }}
+                            {% else %}
+                                Branch: Not assigned
+                            {% endif %}
+                        </p>
+                    </div>
+                    <div class="flex items-center gap-3 text-sm">
+                        {% if request.user.role == 'admin' %}
+                            <span class="rounded-full bg-indigo-50 px-3 py-1 text-indigo-700">All Branches</span>
+                        {% elif request.user.branch %}
+                            <span class="rounded-full bg-emerald-50 px-3 py-1 text-emerald-700">{{ request.user.branch.name }}</span>
+                        {% endif %}
+                        <span class="rounded-full bg-slate-100 px-3 py-1">{{ request.user.get_role_display|default:"User" }}</span>
+                        <form method="post" action="{% url 'accounts:logout' %}">
+                            {% csrf_token %}
+                            <button class="rounded-lg border border-slate-300 px-3 py-2 hover:bg-slate-50">Logout</button>
+                        </form>
+                    </div>
+                </div>
+            </header>
+
+            <div class="px-6 py-6">
+                {% block content %}{% endblock %}
+            </div>
+        </main>
+    </div>
+
+    <div id="toastContainer" class="fixed bottom-5 right-5 z-50 flex w-full max-w-sm flex-col gap-3"></div>
+
+    {% if request.user.is_authenticated %}
+        <script>
+            function showToast(message, type = 'info') {
+                const container = document.getElementById('toastContainer');
+                const toast = document.createElement('div');
+                const styles = {
+                    info: 'border-slate-300 bg-white text-slate-800',
+                    success: 'border-emerald-200 bg-emerald-50 text-emerald-800',
+                    warning: 'border-amber-200 bg-amber-50 text-amber-800',
+                    error: 'border-rose-200 bg-rose-50 text-rose-800'
+                };
+                toast.className = `pointer-events-auto rounded-2xl border px-4 py-3 text-sm shadow-lg transition ${styles[type] || styles.info}`;
+                toast.textContent = message;
+                container.appendChild(toast);
+                setTimeout(() => {
+                    toast.classList.add('opacity-0', 'translate-y-2');
+                    setTimeout(() => toast.remove(), 300);
+                }, 5000);
+            }
+
+            const serverMessages = [
+                {% for message in messages %}
+                    {text: '{{ message|escapejs }}', tags: '{{ message.tags|default:"info"|escapejs }}'},
+                {% endfor %}
+            ];
+            serverMessages.forEach(item => {
+                const tag = item.tags.includes('error') ? 'error' : item.tags.includes('warning') ? 'warning' : item.tags.includes('success') ? 'success' : 'info';
+                showToast(item.text, tag);
+            });
+
+            let lastExpiryNotification = '';
+            async function checkExpiringProducts() {
+                const response = await fetch("{% url 'notifications:expiring-products' %}");
+                if (!response.ok) return;
+                const data = await response.json();
+                if (data.length > 0) {
+                    const names = data.slice(0, 3).map(item => item.name).join(", ");
+                    const message = `Expiry alert: ${names}${data.length > 3 ? "..." : ""}`;
+                    if (message !== lastExpiryNotification) {
+                        showToast(message, 'warning');
+                        lastExpiryNotification = message;
+                    }
+                }
+            }
+            setInterval(checkExpiringProducts, 1800000);
+            checkExpiringProducts();
+        </script>
+    {% endif %}
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

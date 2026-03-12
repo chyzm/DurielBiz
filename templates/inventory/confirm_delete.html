@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+
+{% block title %}Delete Adjustment | DurielBiz POS{% endblock %}
+
+{% block content %}
+    <section class="mx-auto max-w-xl rounded-2xl bg-white p-6 shadow-sm">
+        <h3 class="text-lg font-semibold">Delete Adjustment</h3>
+        <p class="mt-2 text-sm text-slate-500">Delete this manual inventory adjustment for <span class="font-medium text-slate-900">{{ log.product.name }}</span>. Only the latest stock event for the product can be deleted.</p>
+        <form method="post" class="mt-6 flex justify-end gap-3">
+            {% csrf_token %}
+            <a href="{% url 'inventory:detail' log.pk %}" class="rounded-xl border border-slate-300 px-4 py-2 text-sm">Cancel</a>
+            <button class="rounded-xl bg-rose-600 px-4 py-2 text-sm text-white">Delete Adjustment</button>
+        </form>
+    </section>
+{% endblock %}

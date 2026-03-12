@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+
+{% block title %}Business Settings | DurielBiz POS{% endblock %}
+
+{% block content %}
+    <section class="mx-auto max-w-3xl rounded-2xl bg-white p-6 shadow-sm">
+        <div class="mb-6">
+            <h3 class="text-lg font-semibold">Business Settings</h3>
+            <p class="text-sm text-slate-500">Set your business name, contact details, receipt footer, and loyalty rules.</p>
+        </div>
+        <form method="post" class="grid gap-5 md:grid-cols-2">
+            {% csrf_token %}
+            {% for field in form %}
+                <div class="{% if field.name == 'address' or field.name == 'sync_dashboard_url' or field.name == 'cloud_sync_token' %}md:col-span-2{% endif %}">
+                    {% if field.field.widget.input_type == 'checkbox' %}
+                        <label class="flex items-center gap-3 text-sm font-medium text-slate-700">
+                            {{ field }}
+                            <span>{{ field.label }}</span>
+                        </label>
+                    {% else %}
+                        <label class="block text-sm font-medium text-slate-700">{{ field.label }}</label>
+                        {{ field }}
+                    {% endif %}
+                    {% for error in field.errors %}
+                        <p class="mt-1 text-xs text-rose-600">{{ error }}</p>
+                    {% endfor %}
+                </div>
+            {% endfor %}
+            <div class="md:col-span-2 flex justify-end">
+                <button class="rounded-xl bg-slate-900 px-4 py-2 text-sm text-white">Save Settings</button>
+            </div>
+        </form>
+    </section>
+{% endblock %}

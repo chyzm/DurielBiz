@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+
+{% block title %}{% if supplier %}Edit Supplier{% else %}Add Supplier{% endif %} | DurielBiz POS{% endblock %}
+
+{% block content %}
+    <section class="mx-auto max-w-3xl rounded-2xl bg-white p-6 shadow-sm">
+        <div class="mb-6 flex items-center justify-between">
+            <div>
+                <h3 class="text-lg font-semibold">{% if supplier %}Edit Supplier{% else %}Add Supplier{% endif %}</h3>
+                <p class="text-sm text-slate-500">Store supplier contact details and notes.</p>
+            </div>
+            <a href="{% url 'suppliers:list' %}" class="rounded-xl border border-slate-300 px-4 py-2 text-sm">Back</a>
+        </div>
+        <form method="post" class="grid gap-5 md:grid-cols-2">
+            {% csrf_token %}
+            {% for field in form %}
+                <div class="{% if field.name == 'address' or field.name == 'notes' %}md:col-span-2{% endif %}">
+                    <label class="block text-sm font-medium text-slate-700">{{ field.label }}</label>
+                    {{ field }}
+                    {% for error in field.errors %}
+                        <p class="mt-1 text-xs text-rose-600">{{ error }}</p>
+                    {% endfor %}
+                </div>
+            {% endfor %}
+            <div class="md:col-span-2 flex justify-end gap-3">
+                <a href="{% url 'suppliers:list' %}" class="rounded-xl border border-slate-300 px-4 py-2 text-sm">Cancel</a>
+                <button class="rounded-xl bg-slate-900 px-4 py-2 text-sm text-white">{% if supplier %}Save Changes{% else %}Save Supplier{% endif %}</button>
+            </div>
+        </form>
+    </section>
+{% endblock %}
