@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+
+{% block title %}{{ user_obj.username }} | DurielBiz POS{% endblock %}
+
+{% block content %}
+    <section class="grid gap-6 lg:grid-cols-3">
+        <div class="rounded-2xl bg-white p-6 shadow-sm lg:col-span-2">
+            <div class="flex items-start justify-between gap-4">
+                <div>
+                    <h3 class="text-2xl font-semibold">{{ user_obj.username }}</h3>
+                    <p class="mt-1 text-sm text-slate-500">{{ user_obj.get_full_name|default:"No full name" }}</p>
+                </div>
+                <span class="rounded-full px-3 py-1 text-xs {% if user_obj.is_active %}bg-emerald-100 text-emerald-700{% else %}bg-slate-200 text-slate-700{% endif %}">
+                    {% if user_obj.is_active %}Active{% else %}Inactive{% endif %}
+                </span>
+            </div>
+
+            <dl class="mt-6 grid gap-4 md:grid-cols-2">
+                <div class="rounded-xl bg-slate-50 p-4"><dt class="text-sm text-slate-500">Role</dt><dd class="mt-1 font-semibold">{{ user_obj.get_role_display }}</dd></div>
+                <div class="rounded-xl bg-slate-50 p-4"><dt class="text-sm text-slate-500">Email</dt><dd class="mt-1 font-semibold">{{ user_obj.email|default:"—" }}</dd></div>
+                <div class="rounded-xl bg-slate-50 p-4"><dt class="text-sm text-slate-500">Phone</dt><dd class="mt-1 font-semibold">{{ user_obj.phone_number|default:"—" }}</dd></div>
+                <div class="rounded-xl bg-slate-50 p-4"><dt class="text-sm text-slate-500">Staff Access</dt><dd class="mt-1 font-semibold">{% if user_obj.is_staff %}Yes{% else %}No{% endif %}</dd></div>
+                <div class="rounded-xl bg-slate-50 p-4"><dt class="text-sm text-slate-500">Joined</dt><dd class="mt-1 font-semibold">{{ user_obj.date_joined|date:"d M Y, H:i" }}</dd></div>
+                <div class="rounded-xl bg-slate-50 p-4"><dt class="text-sm text-slate-500">Last Login</dt><dd class="mt-1 font-semibold">{{ user_obj.last_login|date:"d M Y, H:i"|default:"—" }}</dd></div>
+            </dl>
+        </div>
+
+        <div class="rounded-2xl bg-white p-6 shadow-sm">
+            <h4 class="text-lg font-semibold">Actions</h4>
+            <div class="mt-4 space-y-3 text-sm">
+                <a href="{% url 'accounts:user-update' user_obj.pk %}" class="block rounded-xl bg-slate-900 px-4 py-3 text-center text-white">Edit User</a>
+                <a href="{% url 'accounts:user-delete' user_obj.pk %}" class="block rounded-xl border border-rose-300 px-4 py-3 text-center text-rose-700">Delete User</a>
+                <a href="{% url 'accounts:user-management' %}" class="block rounded-xl border border-slate-300 px-4 py-3 text-center">Back to Users</a>
+            </div>
+        </div>
+    </section>
+{% endblock %}

@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+
+{% block title %}Branches | DurielBiz POS{% endblock %}
+
+{% block content %}
+    <section class="grid gap-6 lg:grid-cols-3">
+        <div class="rounded-2xl bg-white p-6 shadow-sm">
+            <div class="mb-5">
+                <h3 class="text-lg font-semibold">Add Branch</h3>
+                <p class="text-sm text-slate-500">Create branches for sync exports and multi-branch reporting.</p>
+            </div>
+            <form method="post" class="space-y-4">
+                {% csrf_token %}
+                {% for error in form.non_field_errors %}
+                    <div class="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{{ error }}</div>
+                {% endfor %}
+                {% for field in form %}
+                    <div>
+                        {% if field.field.widget.input_type == 'checkbox' %}
+                            <label class="flex items-center gap-3 text-sm font-medium text-slate-700">
+                                {{ field }}
+                                <span>{{ field.label }}</span>
+                            </label>
+                        {% else %}
+                            <label class="block text-sm font-medium text-slate-700">{{ field.label }}</label>
+                            {{ field }}
+                        {% endif %}
+                        {% for error in field.errors %}
+                            <p class="mt-1 text-xs text-rose-600">{{ error }}</p>
+                        {% endfor %}
+                    </div>
+                {% endfor %}
+                <button class="w-full rounded-xl bg-slate-900 px-4 py-2 text-sm text-white">Create Branch</button>
+            </form>
+        </div>
+
+        <div class="rounded-2xl bg-white p-6 shadow-sm lg:col-span-2">
+            <div class="mb-5 flex items-center justify-between">
+                <div>
+                    <h3 class="text-lg font-semibold">Branch Directory</h3>
+                    <p class="text-sm text-slate-500">Branches available for receipts, transactions, and sync exports.</p>
+                </div>
+                <a href="{% url 'reports:business-settings' %}" class="rounded-xl border border-slate-300 px-4 py-2 text-sm">Business Settings</a>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-slate-200 text-sm">
+                    <thead>
+                        <tr class="text-left text-slate-500">
+                            <th class="py-3 pr-4">Name</th>
+                            <th class="py-3 pr-4">Code</th>
+                            <th class="py-3 pr-4">Phone</th>
+                            <th class="py-3 pr-4">Status</th>
+                            <th class="py-3">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                        {% for branch in branches %}
+                            <tr>
+                                <td class="py-4 pr-4 font-medium">{{ branch.name }}</td>
+                                <td class="py-4 pr-4">{{ branch.code }}</td>
+                                <td class="py-4 pr-4">{{ branch.phone|default:"—" }}</td>
+                                <td class="py-4 pr-4">
+                                    <span class="rounded-full px-2 py-1 text-xs {% if branch.is_active %}bg-emerald-100 text-emerald-700{% else %}bg-slate-200 text-slate-700{% endif %}">
+                                        {% if branch.is_active %}Active{% else %}Inactive{% endif %}
+                                    </span>
+                                </td>
+                                <td class="py-4">
+                                    <div class="flex gap-3 text-xs">
+                                        <a href="{% url 'reports:branch-update' branch.pk %}" class="text-slate-700 hover:underline">Edit</a>
+                                        <a href="{% url 'reports:branch-delete' branch.pk %}" class="text-rose-700 hover:underline">Delete</a>
+                                    </div>
+                                </td>
+                            </tr>
+                        {% empty %}
+                            <tr><td colspan="5" class="py-10 text-center text-slate-500">No branches created yet.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% include "includes/pagination.html" with page_obj=branches page_param="page" %}
+        </div>
+    </section>
+{% endblock %}

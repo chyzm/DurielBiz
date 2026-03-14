@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+
+{% block title %}Categories | DurielBiz POS{% endblock %}
+
+{% block content %}
+    <section class="rounded-2xl bg-white p-5 shadow-sm">
+        <div class="flex items-center justify-between">
+            <div>
+                <h3 class="text-lg font-semibold">Categories</h3>
+                <p class="text-sm text-slate-500">Organize products into manageable groups.</p>
+            </div>
+            <div class="flex gap-2">
+                <a href="{% url 'products:list' %}" class="rounded-xl border border-slate-300 px-4 py-2 text-sm">Products</a>
+                <a href="{% url 'products:category-create' %}" class="rounded-xl bg-slate-900 px-4 py-2 text-sm text-white">Add Category</a>
+            </div>
+        </div>
+
+        <div class="mt-5 overflow-x-auto">
+            <table class="min-w-full divide-y divide-slate-200 text-sm">
+                <thead>
+                    <tr class="text-left text-slate-500">
+                        <th class="py-3 pr-4">Name</th>
+                        <th class="py-3 pr-4">Products</th>
+                        <th class="py-3 pr-4">Description</th>
+                        <th class="py-3">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    {% for category in categories %}
+                        <tr>
+                            <td class="py-4 pr-4"><a href="{% url 'products:category-detail' category.pk %}" class="font-medium hover:underline">{{ category.name }}</a></td>
+                            <td class="py-4 pr-4">{{ category.product_count }}</td>
+                            <td class="py-4 pr-4">{{ category.description|default:"—"|truncatechars:80 }}</td>
+                            <td class="py-4">
+                                <div class="flex gap-3 text-xs">
+                                    <a href="{% url 'products:category-update' category.pk %}" class="text-slate-700 hover:underline">Edit</a>
+                                    <a href="{% url 'products:category-delete' category.pk %}" class="text-rose-700 hover:underline">Delete</a>
+                                </div>
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr><td colspan="4" class="py-10 text-center text-slate-500">No categories yet.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% include "includes/pagination.html" with page_obj=categories page_param="page" %}
+    </section>
+{% endblock %}

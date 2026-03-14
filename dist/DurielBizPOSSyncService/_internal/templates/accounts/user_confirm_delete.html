@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+
+{% block title %}Delete {{ user_obj.username }} | DurielBiz POS{% endblock %}
+
+{% block content %}
+    <section class="mx-auto max-w-xl rounded-2xl bg-white p-6 shadow-sm">
+        <h3 class="text-lg font-semibold">Delete User</h3>
+        <p class="mt-2 text-sm text-slate-500">Delete user <span class="font-medium text-slate-900">{{ user_obj.username }}</span>. If the user has protected activity records, the account will be deactivated instead.</p>
+        <form method="post" class="mt-6 flex justify-end gap-3">
+            {% csrf_token %}
+            <a href="{% url 'accounts:user-detail' user_obj.pk %}" class="rounded-xl border border-slate-300 px-4 py-2 text-sm">Cancel</a>
+            <button class="rounded-xl bg-rose-600 px-4 py-2 text-sm text-white">Delete User</button>
+        </form>
+    </section>
+{% endblock %}

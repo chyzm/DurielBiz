@@ -1,0 +1,67 @@
+{% extends "cloudsync/base.html" %}
+
+{% block title %}Cloud Overview | DurielBiz{% endblock %}
+
+{% block content %}
+    <section class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <div class="rounded-2xl bg-white p-5 shadow-sm">
+            <p class="text-sm text-slate-500">Branches</p>
+            <h3 class="mt-2 text-2xl font-semibold">{{ total_branches }}</h3>
+        </div>
+        <div class="rounded-2xl bg-white p-5 shadow-sm">
+            <p class="text-sm text-slate-500">Sales Today</p>
+            <h3 class="mt-2 text-2xl font-semibold">{{ sales_count_today }}</h3>
+        </div>
+        <div class="rounded-2xl bg-white p-5 shadow-sm">
+            <p class="text-sm text-slate-500">Revenue Today</p>
+            <h3 class="mt-2 text-2xl font-semibold">₦{{ revenue_today }}</h3>
+        </div>
+        <div class="rounded-2xl bg-white p-5 shadow-sm">
+            <p class="text-sm text-slate-500">Purchases Today</p>
+            <h3 class="mt-2 text-2xl font-semibold">{{ purchase_count_today }}</h3>
+        </div>
+    </section>
+
+    <section class="mt-6 grid gap-6 lg:grid-cols-2">
+        <div class="rounded-2xl bg-white p-5 shadow-sm">
+            <h3 class="text-lg font-semibold">Recent Synced Sales</h3>
+            <div class="mt-4 space-y-3">
+                {% for sale in recent_sales %}
+                    <div class="rounded-xl border border-slate-200 px-4 py-3">
+                        <div class="flex items-start justify-between gap-4">
+                            <div>
+                                <p class="font-medium">{{ sale.receipt_number }}</p>
+                                <p class="text-sm text-slate-500">{{ sale.branch.name|default:"—" }} · {{ sale.created_at_remote|date:"d M Y, H:i" }}</p>
+                            </div>
+                            <span class="font-semibold">₦{{ sale.total }}</span>
+                        </div>
+                        <div class="mt-2 flex flex-wrap gap-2">
+                            {% for item in sale.items.all %}
+                                <span class="rounded-full bg-slate-100 px-2 py-1 text-xs">{{ item.product_name }} × {{ item.quantity }}</span>
+                            {% endfor %}
+                        </div>
+                    </div>
+                {% empty %}
+                    <p class="text-sm text-slate-500">No synced sales yet.</p>
+                {% endfor %}
+            </div>
+        </div>
+        <div class="rounded-2xl bg-white p-5 shadow-sm">
+            <h3 class="text-lg font-semibold">Recent Sync Activity</h3>
+            <div class="mt-4 space-y-3">
+                {% for event in recent_syncs %}
+                    <div class="rounded-xl border border-slate-200 px-4 py-3">
+                        <div class="flex items-center justify-between gap-4">
+                            <span class="font-medium">{{ event.get_status_display }}</span>
+                            <span class="text-sm text-slate-500">{{ event.created_at|date:"d M Y, H:i" }}</span>
+                        </div>
+                        <p class="mt-1 text-sm text-slate-600">{{ event.message }}</p>
+                        <p class="mt-1 text-xs text-slate-500">{{ event.payload_summary }}</p>
+                    </div>
+                {% empty %}
+                    <p class="text-sm text-slate-500">No sync activity yet.</p>
+                {% endfor %}
+            </div>
+        </div>
+    </section>
+{% endblock %}

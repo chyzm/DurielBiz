@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+
+{% block title %}Activity Log | DurielBiz POS{% endblock %}
+
+{% block content %}
+    <section class="rounded-2xl bg-white p-5 shadow-sm">
+        <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+                <h3 class="text-lg font-semibold">Activity Log</h3>
+                <p class="text-sm text-slate-500">Admin-only audit trail for logins, transactions, and system actions.</p>
+            </div>
+            <form method="get" class="flex gap-3">
+                <select name="module" class="rounded-xl border border-slate-300 px-4 py-2 text-sm">
+                    <option value="">All modules</option>
+                    {% for value, label in modules %}
+                        <option value="{{ value }}" {% if selected_module == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+                <button class="rounded-xl bg-slate-900 px-4 py-2 text-sm text-white">Filter</button>
+            </form>
+        </div>
+
+        <div class="mt-5 overflow-x-auto">
+            <table class="min-w-full divide-y divide-slate-200 text-sm">
+                <thead>
+                    <tr class="text-left text-slate-500">
+                        <th class="py-3 pr-4">When</th>
+                        <th class="py-3 pr-4">User</th>
+                        <th class="py-3 pr-4">Module</th>
+                        <th class="py-3 pr-4">Action</th>
+                        <th class="py-3 pr-4">Description</th>
+                        <th class="py-3">IP</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    {% for log in logs %}
+                        <tr>
+                            <td class="py-4 pr-4">{{ log.created_at|date:"d M Y, H:i:s" }}</td>
+                            <td class="py-4 pr-4">{{ log.user|default:"System" }}</td>
+                            <td class="py-4 pr-4">{{ log.get_module_display }}</td>
+                            <td class="py-4 pr-4">{{ log.action }}</td>
+                            <td class="py-4 pr-4">{{ log.description }}</td>
+                            <td class="py-4">{{ log.ip_address|default:"—" }}</td>
+                        </tr>
+                    {% empty %}
+                        <tr><td colspan="6" class="py-10 text-center text-slate-500">No activity recorded yet.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% include "includes/pagination.html" with page_obj=logs page_param="page" %}
+    </section>
+{% endblock %}

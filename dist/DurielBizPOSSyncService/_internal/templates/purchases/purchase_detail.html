@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+
+{% block title %}{{ purchase.invoice_no }} | DurielBiz POS{% endblock %}
+
+{% block content %}
+    <section class="grid gap-6 lg:grid-cols-3">
+        <div class="rounded-2xl bg-white p-6 shadow-sm lg:col-span-2">
+            <h3 class="text-2xl font-semibold">{{ purchase.invoice_no }} — {{ purchase.branch.name|default:"All Branches" }}</h3>
+            <p class="mt-1 text-sm text-slate-500">{{ purchase.supplier.name }} · {{ purchase.received_at|date:"d M Y, H:i" }}</p>
+            {% if purchase.branch %}<p class="mt-1 text-sm text-slate-500">Branch: {{ purchase.branch.name }}</p>{% endif %}
+
+            <div class="mt-6 overflow-x-auto">
+                <table class="min-w-full divide-y divide-slate-200 text-sm">
+                    <thead>
+                        <tr class="text-left text-slate-500">
+                            <th class="py-3 pr-4">Product</th>
+                            <th class="py-3 pr-4">Qty</th>
+                            <th class="py-3 pr-4">Cost</th>
+                            <th class="py-3 pr-4">Expiry</th>
+                            <th class="py-3">Line Total</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                        {% for item in items %}
+                            <tr>
+                                <td class="py-4 pr-4">{{ item.product.name }}</td>
+                                <td class="py-4 pr-4">{{ item.quantity }}</td>
+                                <td class="py-4 pr-4">₦{{ item.cost_price }}</td>
+                                <td class="py-4 pr-4">{{ item.expiry_date|default:"—" }}</td>
+                                <td class="py-4">₦{{ item.line_total }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% include "includes/pagination.html" with page_obj=items page_param="items_page" %}
+
+            {% if purchase.notes %}
+                <div class="mt-6 rounded-xl bg-slate-50 p-4 text-sm text-slate-600">
+                    {{ purchase.notes }}
+                </div>
+            {% endif %}
+        </div>
+
+        <div class="rounded-2xl bg-white p-6 shadow-sm">
+            <h4 class="text-lg font-semibold">Actions</h4>
+            <div class="mt-4 space-y-3 text-sm">
+                <a href="{% url 'purchases:update' purchase.pk %}" class="block rounded-xl bg-slate-900 px-4 py-3 text-center text-white">Edit Purchase</a>
+                <a href="{% url 'purchases:delete' purchase.pk %}" class="block rounded-xl border border-rose-300 px-4 py-3 text-center text-rose-700">Delete Purchase</a>
+                <a href="{% url 'purchases:list' %}" class="block rounded-xl border border-slate-300 px-4 py-3 text-center">Back to Purchases</a>
+            </div>
+        </div>
+    </section>
+{% endblock %}

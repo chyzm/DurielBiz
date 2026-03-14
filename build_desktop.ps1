@@ -29,3 +29,28 @@ $commonArgs = @(
 
 & $pyInstallerCommand "--name" "DurielBizPOS" "--windowed" @commonArgs
 & $pyInstallerCommand "--name" "DurielBizPOSAdmin" "--console" @commonArgs
+
+$serviceArgs = @(
+  "--noconfirm",
+  "--clean",
+  "--onedir",
+  "--console",
+  "--add-data", "accounts;accounts",
+  "--add-data", "inventory;inventory",
+  "--add-data", "notifications;notifications",
+  "--add-data", "pos_system;pos_system",
+  "--add-data", "products;products",
+  "--add-data", "purchases;purchases",
+  "--add-data", "reports;reports",
+  "--add-data", "sales;sales",
+  "--add-data", "suppliers;suppliers",
+  "--add-data", "templates;templates",
+  "--add-data", "static;static",
+  "--add-data", "manage.py;.",
+  "--collect-data", "tzdata",
+  "--hidden-import", "django.core.management.commands.migrate",
+  "--hidden-import", "win32timezone",
+  "desktop_sync_service.py"
+)
+
+& $pyInstallerCommand "--name" "DurielBizPOSSyncService" @serviceArgs

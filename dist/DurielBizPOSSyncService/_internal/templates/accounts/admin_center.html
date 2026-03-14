@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+
+{% block title %}Admin Center | DurielBiz POS{% endblock %}
+
+{% block content %}
+    <section class="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
+        <div class="rounded-2xl bg-white p-5 shadow-sm">
+            <p class="text-sm text-slate-500">Staff Users</p>
+            <h3 class="mt-2 text-2xl font-semibold">{{ staff_count }}</h3>
+        </div>
+        <div class="rounded-2xl bg-white p-5 shadow-sm">
+            <p class="text-sm text-slate-500">Cashiers</p>
+            <h3 class="mt-2 text-2xl font-semibold">{{ cashier_count }}</h3>
+        </div>
+        <div class="rounded-2xl bg-white p-5 shadow-sm">
+            <p class="text-sm text-slate-500">Completed Sales</p>
+            <h3 class="mt-2 text-2xl font-semibold">{{ recent_sales_count }}</h3>
+        </div>
+        <div class="rounded-2xl bg-white p-5 shadow-sm">
+            <p class="text-sm text-slate-500">Purchases</p>
+            <h3 class="mt-2 text-2xl font-semibold">{{ recent_purchase_count }}</h3>
+        </div>
+        <div class="rounded-2xl bg-white p-5 shadow-sm">
+            <p class="text-sm text-slate-500">Inventory Events</p>
+            <h3 class="mt-2 text-2xl font-semibold">{{ inventory_event_count }}</h3>
+        </div>
+        <div class="rounded-2xl bg-white p-5 shadow-sm">
+            <p class="text-sm text-slate-500">Activity Logs</p>
+            <h3 class="mt-2 text-2xl font-semibold">{{ activity_count }}</h3>
+        </div>
+    </section>
+
+    <section class="mt-6 grid gap-6 lg:grid-cols-3">
+        <div class="rounded-2xl bg-white p-5 shadow-sm">
+            <h3 class="text-lg font-semibold">Operations</h3>
+            <div class="mt-4 space-y-3 text-sm">
+                <a href="{% url 'products:list' %}" class="block rounded-xl border border-slate-200 px-4 py-3 hover:bg-slate-50">Manage products</a>
+                <a href="{% url 'purchases:list' %}" class="block rounded-xl border border-slate-200 px-4 py-3 hover:bg-slate-50">Review purchases</a>
+                <a href="{% url 'inventory:overview' %}" class="block rounded-xl border border-slate-200 px-4 py-3 hover:bg-slate-50">Monitor inventory</a>
+                <a href="{% url 'sales:customer-list' %}" class="block rounded-xl border border-slate-200 px-4 py-3 hover:bg-slate-50">Customer loyalty</a>
+                <a href="{% url 'accounts:user-management' %}" class="block rounded-xl border border-slate-200 px-4 py-3 hover:bg-slate-50">Manage users</a>
+                <a href="{% url 'accounts:activity-log' %}" class="block rounded-xl border border-slate-200 px-4 py-3 hover:bg-slate-50">View activity log</a>
+                <a href="{% url 'sales:history' %}" class="block rounded-xl border border-slate-200 px-4 py-3 hover:bg-slate-50">Review sales history</a>
+                <a href="{% url 'reports:branch-list' %}" class="block rounded-xl border border-slate-200 px-4 py-3 hover:bg-slate-50">Manage branches</a>
+                <a href="{% url 'reports:business-settings' %}" class="block rounded-xl border border-slate-200 px-4 py-3 hover:bg-slate-50">Edit business settings</a>
+            </div>
+        </div>
+
+        <div class="rounded-2xl bg-white p-5 shadow-sm lg:col-span-2">
+            <div class="flex items-center justify-between">
+                <h3 class="text-lg font-semibold">Team Access</h3>
+                <a href="{% url 'accounts:user-management' %}" class="rounded-xl border border-slate-300 px-4 py-2 text-sm">Manage Users</a>
+            </div>
+            <div class="mt-4 overflow-x-auto">
+                <table class="min-w-full divide-y divide-slate-200 text-sm">
+                    <thead>
+                        <tr class="text-left text-slate-500">
+                            <th class="py-3 pr-4">Username</th>
+                            <th class="py-3 pr-4">Full Name</th>
+                            <th class="py-3 pr-4">Role</th>
+                            <th class="py-3 pr-4">Email</th>
+                            <th class="py-3">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                        {% for user in users %}
+                            <tr>
+                                <td class="py-4 pr-4 font-medium">{{ user.username }}</td>
+                                <td class="py-4 pr-4">{{ user.get_full_name|default:"—" }}</td>
+                                <td class="py-4 pr-4">{{ user.get_role_display }}</td>
+                                <td class="py-4 pr-4">{{ user.email|default:"—" }}</td>
+                                <td class="py-4">
+                                    <span class="rounded-full px-2 py-1 text-xs {% if user.is_active %}bg-emerald-100 text-emerald-700{% else %}bg-slate-200 text-slate-700{% endif %}">
+                                        {% if user.is_active %}Active{% else %}Inactive{% endif %}
+                                    </span>
+                                </td>
+                            </tr>
+                        {% empty %}
+                            <tr>
+                                <td colspan="5" class="py-10 text-center text-slate-500">No users found.</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% include "includes/pagination.html" with page_obj=users_page_obj page_param="users_page" %}
+        </div>
+    </section>
+{% endblock %}

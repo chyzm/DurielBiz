@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DurielBiz POS</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="min-h-screen bg-slate-950 text-white">
+    <header class="border-b border-white/10 bg-slate-950/90 backdrop-blur">
+        <div class="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
+            <a href="{% url 'reports:home' %}" class="flex items-center gap-3">
+                <div class="flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-500 font-bold text-slate-950">D</div>
+                <div>
+                    <p class="text-lg font-semibold">DurielBiz POS</p>
+                    <p class="text-xs text-slate-400">Desktop-first retail operations</p>
+                </div>
+            </a>
+            <nav class="hidden items-center gap-6 text-sm text-slate-300 md:flex">
+                <a href="#features" class="hover:text-white">Features</a>
+                <a href="#workflow" class="hover:text-white">Workflow</a>
+                <a href="#sync" class="hover:text-white">Cloud Sync</a>
+                <a href="{% url 'cloudsync:dashboard' %}" class="hover:text-white">Cloud Dashboard Login</a>
+            </nav>
+            <div class="flex items-center gap-3">
+                <a href="{% url 'accounts:login' %}" class="rounded-xl border border-white/15 px-4 py-2 text-sm text-slate-200 hover:border-white/30 hover:text-white">Local POS Login</a>
+                <a href="{% url 'accounts:signup' %}" class="rounded-xl bg-emerald-500 px-4 py-2 text-sm font-medium text-slate-950">Create Cloud Account</a>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <section class="mx-auto grid max-w-7xl gap-10 px-6 py-20 lg:grid-cols-[1.2fr_0.8fr] lg:py-28">
+            <div>
+                <div class="inline-flex rounded-full border border-emerald-500/20 bg-emerald-500/10 px-4 py-1 text-sm text-emerald-300">
+                    Offline POS + Online Monitoring
+                </div>
+                <h1 class="mt-6 max-w-4xl text-4xl font-semibold tracking-tight text-white md:text-6xl">
+                    Run each store locally. View the right business remotely.
+                </h1>
+                <p class="mt-6 max-w-2xl text-lg leading-8 text-slate-300">
+                    DurielBiz gives each shop a fast local POS for sales and stock, while business owners monitor only their own branches from the cloud dashboard.
+                </p>
+                <div class="mt-8 flex flex-wrap gap-4">
+                    <a href="{% url 'accounts:login' %}" class="rounded-2xl bg-white px-6 py-3 text-sm font-semibold text-slate-950">Open Local POS</a>
+                    <a href="{% url 'accounts:signup' %}" class="rounded-2xl border border-white/15 px-6 py-3 text-sm font-semibold text-white">Start Cloud Dashboard</a>
+                </div>
+                <dl class="mt-12 grid gap-6 sm:grid-cols-3">
+                    <div class="rounded-2xl border border-white/10 bg-white/5 p-5">
+                        <dt class="text-sm text-slate-400">Local speed</dt>
+                        <dd class="mt-2 text-2xl font-semibold">Offline-first</dd>
+                    </div>
+                    <div class="rounded-2xl border border-white/10 bg-white/5 p-5">
+                        <dt class="text-sm text-slate-400">Remote access</dt>
+                        <dd class="mt-2 text-2xl font-semibold">Cloud synced</dd>
+                    </div>
+                    <div class="rounded-2xl border border-white/10 bg-white/5 p-5">
+                        <dt class="text-sm text-slate-400">Business isolation</dt>
+                        <dd class="mt-2 text-2xl font-semibold">Per tenant</dd>
+                    </div>
+                </dl>
+            </div>
+            <div class="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-2xl shadow-black/30">
+                <div class="rounded-2xl border border-white/10 bg-slate-900 p-5">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm text-slate-400">Cloud overview</p>
+                            <p class="mt-2 text-2xl font-semibold">Lekki Pharmacy Group</p>
+                        </div>
+                        <span class="rounded-full bg-emerald-500/15 px-3 py-1 text-xs text-emerald-300">Synced</span>
+                    </div>
+                    <div class="mt-5 grid gap-4 sm:grid-cols-2">
+                        <div class="rounded-2xl bg-slate-800 p-4">
+                            <p class="text-xs uppercase tracking-wide text-slate-400">Revenue Today</p>
+                            <p class="mt-2 text-xl font-semibold">₦182,400</p>
+                        </div>
+                        <div class="rounded-2xl bg-slate-800 p-4">
+                            <p class="text-xs uppercase tracking-wide text-slate-400">Branches</p>
+                            <p class="mt-2 text-xl font-semibold">3 Active</p>
+                        </div>
+                        <div class="rounded-2xl bg-slate-800 p-4">
+                            <p class="text-xs uppercase tracking-wide text-slate-400">Top product</p>
+                            <p class="mt-2 text-xl font-semibold">Panadol</p>
+                        </div>
+                        <div class="rounded-2xl bg-slate-800 p-4">
+                            <p class="text-xs uppercase tracking-wide text-slate-400">Last sync</p>
+                            <p class="mt-2 text-xl font-semibold">2 min ago</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="features" class="border-t border-white/10 bg-slate-900/60">
+            <div class="mx-auto max-w-7xl px-6 py-20">
+                <div class="max-w-2xl">
+                    <h2 class="text-3xl font-semibold">Built for store operations and owner oversight</h2>
+                    <p class="mt-4 text-slate-300">Keep cashiers and inventory staff working locally while owners and managers view the correct business remotely.</p>
+                </div>
+                <div class="mt-10 grid gap-6 md:grid-cols-2 xl:grid-cols-4">
+                    <div class="rounded-3xl border border-white/10 bg-white/5 p-6">
+                        <h3 class="text-lg font-semibold">Desktop-first POS</h3>
+                        <p class="mt-3 text-sm text-slate-300">Fast checkout, barcode search, inventory control, and receipts on the shop computer.</p>
+                    </div>
+                    <div class="rounded-3xl border border-white/10 bg-white/5 p-6">
+                        <h3 class="text-lg font-semibold">Branch isolation</h3>
+                        <p class="mt-3 text-sm text-slate-300">Branch users only see their own branch. Admin controls all branches within the same business.</p>
+                    </div>
+                    <div class="rounded-3xl border border-white/10 bg-white/5 p-6">
+                        <h3 class="text-lg font-semibold">Cloud monitoring</h3>
+                        <p class="mt-3 text-sm text-slate-300">Owners sign into the cloud dashboard to see synced sales, branches, and activity for their business.</p>
+                    </div>
+                    <div class="rounded-3xl border border-white/10 bg-white/5 p-6">
+                        <h3 class="text-lg font-semibold">Automatic sync ready</h3>
+                        <p class="mt-3 text-sm text-slate-300">Configure scheduled sync intervals so local branches keep the cloud dashboard current.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="workflow" class="mx-auto max-w-7xl px-6 py-20">
+            <div class="grid gap-6 lg:grid-cols-3">
+                <div class="rounded-3xl border border-white/10 bg-white/5 p-6">
+                    <span class="text-sm text-emerald-300">01</span>
+                    <h3 class="mt-4 text-xl font-semibold">Run the POS locally</h3>
+                    <p class="mt-3 text-sm text-slate-300">Each branch records sales, purchases, and stock changes locally for speed and offline reliability.</p>
+                </div>
+                <div class="rounded-3xl border border-white/10 bg-white/5 p-6">
+                    <span class="text-sm text-emerald-300">02</span>
+                    <h3 class="mt-4 text-xl font-semibold">Sync to the cloud</h3>
+                    <p class="mt-3 text-sm text-slate-300">Use a secure token and ingest URL to push branch data to the remote business dashboard.</p>
+                </div>
+                <div class="rounded-3xl border border-white/10 bg-white/5 p-6">
+                    <span class="text-sm text-emerald-300">03</span>
+                    <h3 class="mt-4 text-xl font-semibold">Monitor remotely</h3>
+                    <p class="mt-3 text-sm text-slate-300">Business owners log into the cloud dashboard and see only their own stores and branches.</p>
+                </div>
+            </div>
+        </section>
+
+        <section id="sync" class="border-t border-white/10 bg-slate-900/60">
+            <div class="mx-auto max-w-7xl px-6 py-20">
+                <div class="grid gap-8 lg:grid-cols-[1fr_0.9fr]">
+                    <div>
+                        <h2 class="text-3xl font-semibold">Cloud dashboard access</h2>
+                        <p class="mt-4 max-w-2xl text-slate-300">
+                            Businesses create an online account, copy the sync token and ingest URL, then connect each local POS branch from Business Settings.
+                        </p>
+                    </div>
+                    <div class="rounded-3xl border border-white/10 bg-white/5 p-6">
+                        <p class="text-sm text-slate-400">Quick links</p>
+                        <div class="mt-4 flex flex-col gap-3">
+                            <a href="{% url 'cloudsync:dashboard' %}" class="rounded-2xl border border-white/10 px-4 py-3 text-sm hover:bg-white/5">Cloud Dashboard Login</a>
+                            <a href="{% url 'accounts:signup' %}" class="rounded-2xl border border-white/10 px-4 py-3 text-sm hover:bg-white/5">Create Cloud Business</a>
+                            <a href="{% url 'accounts:login' %}" class="rounded-2xl border border-white/10 px-4 py-3 text-sm hover:bg-white/5">Local POS Login</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+</body>
+</html>

@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+
+{% block title %}Delete {{ purchase.invoice_no }} | DurielBiz POS{% endblock %}
+
+{% block content %}
+    <section class="mx-auto max-w-xl rounded-2xl bg-white p-6 shadow-sm">
+        <h3 class="text-lg font-semibold">Delete Purchase</h3>
+        <p class="mt-2 text-sm text-slate-500">Delete purchase <span class="font-medium text-slate-900">{{ purchase.invoice_no }}</span>. This will reverse stock added by the purchase. Deletion is blocked if stock has already been consumed.</p>
+        <form method="post" class="mt-6 flex justify-end gap-3">
+            {% csrf_token %}
+            <a href="{% url 'purchases:detail' purchase.pk %}" class="rounded-xl border border-slate-300 px-4 py-2 text-sm">Cancel</a>
+            <button class="rounded-xl bg-rose-600 px-4 py-2 text-sm text-white">Delete Purchase</button>
+        </form>
+    </section>
+{% endblock %}

@@ -1,0 +1,36 @@
+{% extends "cloudsync/base.html" %}
+
+{% block title %}Cloud Branches | DurielBiz{% endblock %}
+
+{% block content %}
+    <section class="rounded-2xl bg-white p-5 shadow-sm">
+        <h3 class="text-lg font-semibold">Branches</h3>
+        <p class="mt-1 text-sm text-slate-500">Branches are created from synced local POS data.</p>
+        <div class="mt-5 overflow-x-auto">
+            <table class="min-w-full divide-y divide-slate-200 text-sm">
+                <thead>
+                    <tr class="text-left text-slate-500">
+                        <th class="py-3 pr-4">Branch</th>
+                        <th class="py-3 pr-4">Code</th>
+                        <th class="py-3 pr-4">Phone</th>
+                        <th class="py-3 pr-4">Address</th>
+                        <th class="py-3">Status</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    {% for branch in branches %}
+                        <tr>
+                            <td class="py-4 pr-4 font-medium">{{ branch.name }}</td>
+                            <td class="py-4 pr-4">{{ branch.code }}</td>
+                            <td class="py-4 pr-4">{{ branch.phone|default:"—" }}</td>
+                            <td class="py-4 pr-4">{{ branch.address|default:"—" }}</td>
+                            <td class="py-4">{{ branch.is_active|yesno:"Active,Inactive" }}</td>
+                        </tr>
+                    {% empty %}
+                        <tr><td colspan="5" class="py-10 text-center text-slate-500">No branches have synced yet.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+{% endblock %}

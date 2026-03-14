@@ -3,6 +3,7 @@
 #define MyAppPublisher "DurielBiz"
 #define MyAppExeName "DurielBizPOS.exe"
 #define MyAdminExeName "DurielBizPOSAdmin.exe"
+#define MySyncServiceExeName "DurielBizPOSSyncService.exe"
 
 [Setup]
 AppId={{7A09D088-39A1-4302-B502-0D157A1D5FE7}
@@ -31,6 +32,7 @@ Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription:
 [Files]
 Source: "dist\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
 Source: "dist\{#MyAdminExeName}"; DestDir: "{app}"; Flags: ignoreversion
+Source: "dist\DurielBizPOSSyncService\*"; DestDir: "{app}\sync-service"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
@@ -40,4 +42,5 @@ Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: de
 Filename: "{app}\{#MyAppExeName}"; Description: "Launch {#MyAppName}"; Flags: nowait postinstall skipifsilent
 
 [UninstallDelete]
+Type: filesandordirs; Name: "{commonappdata}\DurielBizPOS"
 Type: filesandordirs; Name: "{localappdata}\DurielBizPOS"

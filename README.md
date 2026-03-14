@@ -4,6 +4,7 @@ Desktop-first point of sale system built with Django. The project is designed to
 
 ## Current scope
 
+- Public Tailwind landing page at `/`
 - Offline-first Django deployment with SQLite by default
 - Role-restricted workflow for admin, cashier, manager, and inventory officer
 - Product, category, supplier, inventory, purchase, and sales modules
@@ -14,6 +15,8 @@ Desktop-first point of sale system built with Django. The project is designed to
 - Paginated list and table views across operational screens
 - Branch management with default-branch transaction tagging
 - Token-protected sync export endpoint for remote dashboards
+- Optional automatic scheduled sync from local POS to cloud dashboard
+- Optional Windows background sync service for scheduled sync that survives app/browser restarts
 - 80mm thermal receipt print styling
 - Toast-based expiry notifications
 - Admin-only sales history by date
@@ -278,7 +281,8 @@ powershell -ExecutionPolicy Bypass -File .\build_desktop.ps1
 
 - Windowed app is generated in `dist\DurielBizPOS.exe`
 - Console admin tool is generated in `dist\DurielBizPOSAdmin.exe`
-- `desktop_launcher.py` copies the packaged Django project into `%LOCALAPPDATA%\DurielBizPOS`
+- Windows sync service bundle is generated in `dist\DurielBizPOSSyncService\`
+- `desktop_launcher.py` copies the packaged Django project into the packaged runtime directory
 - The launcher runs migrations automatically, starts Django locally, and opens the POS only after the server is reachable
 
 This is the current desktop strategy:
@@ -334,8 +338,9 @@ The generated app is `dist\DurielBizPOS.exe`.
 
 Important runtime behavior:
 
-- On first launch, the EXE prepares a local working copy in `%LOCALAPPDATA%\DurielBizPOS`
-- The local SQLite database is stored there, not inside the EXE
+- On first launch, the EXE prepares a local working copy in `%LOCALAPPDATA%\DurielBizPOS\runtime`
+- The local SQLite database is stored in `%LOCALAPPDATA%\DurielBizPOS\db.sqlite3` by default
+- Older `%LOCALAPPDATA%\DurielBizPOS\db.sqlite3` continues to be reused automatically
 - First launch may take a few seconds because migrations run automatically
 - Rebuild the EXE after launcher changes; the current build keeps the PyInstaller runtime alive so the local Django server does not lose bundled files
 - The build now bundles `tzdata`, so `Africa/Lagos` resolves correctly on offline Windows machines
@@ -368,7 +373,8 @@ Installer behavior:
 - Installs the EXE to `C:\Program Files\DurielBizPOS`
 - Creates Start Menu shortcut
 - Optionally creates a desktop shortcut
-- Stores runtime data and the local database in `%LOCALAPPDATA%\DurielBizPOS`
+- Stores the desktop app runtime under `%LOCALAPPDATA%\DurielBizPOS\runtime`
+- The Windows background sync service is packaged, but install it manually when needed
 - Uninstall removes the app files and local app data for that Windows user
 
 ### Create an admin user for the desktop app
@@ -379,7 +385,7 @@ Open PowerShell in the folder that contains `DurielBizPOSAdmin.exe`, then run:
 .\DurielBizPOSAdmin.exe --manage createsuperuser
 ```
 
-That creates the login user inside the desktop app's local database in `%LOCALAPPDATA%\DurielBizPOS`.
+That creates the login user inside the desktop app's local database in `%LOCALAPPDATA%\DurielBizPOS\db.sqlite3` by default.
 
 You can also run other Django management commands the same way:
 
@@ -415,13 +421,51 @@ powershell -ExecutionPolicy Bypass -File .\build_installer.ps1
 3. On the shop PC, close the running app completely.
 4. Replace the old `DurielBizPOS.exe` with the new one, or run the new installer.
 5. Start the app again.
-6. On first launch after update, the app refreshes files in `%LOCALAPPDATA%\DurielBizPOS` and runs any pending migrations automatically.
+6. On first launch after update, the app refreshes files in `C:\ProgramData\DurielBizPOS` and runs any pending migrations automatically.
 
 Important:
 
-- Business data stays in `%LOCALAPPDATA%\DurielBizPOS\db.sqlite3`
+- Business data stays in `%LOCALAPPDATA%\DurielBizPOS\db.sqlite3` by default
 - Replacing the EXE does not delete existing data
 - If a release includes a new migration, let the first launch finish before closing the app
+
+### Windows background sync service
+
+The desktop build now includes a real Windows service for cloud sync:
+
+- `dist\DurielBizPOSSyncService\DurielBizPOSSyncService.exe`
+- Service name: `DurielBizPOSSyncService`
+- Service runtime: `C:\ProgramData\DurielBizPOS\sync-service-runtime`
+- Shared data depends on the account the service runs under unless `DURIELBIZ_DATA_DIR` is set explicitly
+
+This service keeps scheduled cloud sync running even when the POS window or browser is closed. For it to use the same local database as the desktop app, install it under the same Windows user account as the shop app, or set `DURIELBIZ_DATA_DIR` explicitly before installation.
+
+#### Install manually
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\build_desktop.ps1
+powershell -ExecutionPolicy Bypass -File .\install_sync_service.ps1 -Username ".\YOUR_WINDOWS_USER" -Password "YOUR_WINDOWS_PASSWORD"
+```
+
+#### Remove manually
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\uninstall_sync_service.ps1
+```
+
+#### Direct service commands
+
+```powershell
+.\dist\DurielBizPOSSyncService\DurielBizPOSSyncService.exe --startup auto install
+.\dist\DurielBizPOSSyncService\DurielBizPOSSyncService.exe start
+.\dist\DurielBizPOSSyncService\DurielBizPOSSyncService.exe stop
+.\dist\DurielBizPOSSyncService\DurielBizPOSSyncService.exe remove
+```
+
+#### Logs
+
+- Desktop launcher: `%LOCALAPPDATA%\DurielBizPOS\runtime\launcher.log`
+- Sync service: `C:\ProgramData\DurielBizPOS\sync-service-runtime\sync_service.log`
 
 ## Remote viewing
 
@@ -492,37 +536,158 @@ Current support in this project:
   - `cloud_sync_enabled`
   - `cloud_sync_token`
   - `sync_dashboard_url`
-- Export endpoint is available at `/sync/export/`
-- Payload includes branches, sales, purchases, and inventory logs
+- Export payload generation is available locally
+- Push sync is available through the `Sync Now` action
+- Cloud ingest endpoint is available at `/cloud/api/ingest/`
 
 #### Step by step
 
-1. Deploy a separate hosted dashboard or API on a public server.
+1. Deploy this project to PythonAnywhere for the cloud dashboard.
 2. In the shop POS, open Business Settings.
 3. Enable cloud sync.
-4. Set a strong `cloud_sync_token`.
-5. Set `sync_dashboard_url` to the URL of your hosted dashboard or ingestion API.
-6. Expose the shop POS safely so the hosted service can call its export endpoint, or pull the export over a VPN/private tunnel.
-7. From the hosted side, call:
-
-```text
-/sync/export/?token=YOUR_TOKEN
-```
-
-8. Save the returned JSON payload into the hosted dashboard database.
-9. Build dashboard pages on the hosted server for sales, revenue, profit, purchases, inventory, and branches.
-10. Open the hosted dashboard from your phone or browser anywhere.
+4. Create a cloud business account from `/accounts/signup/`.
+5. Open `/cloud/settings/` and copy:
+   - the sync token
+   - the ingest URL
+6. Set `cloud_sync_token` on the local POS to the token copied from the cloud dashboard.
+7. Set `sync_dashboard_url` on the local POS to the ingest URL copied from the cloud dashboard.
+8. Use `Sync Now` from local Business Settings.
+9. The local POS pushes branches, sales, purchases, and inventory logs to the cloud dashboard.
+10. Open the cloud dashboard from your phone or browser anywhere.
 
 Current limitation:
 
-- This repo exports sync data, but it does not yet push automatically to a remote server
-- For full internet remote monitoring, you still need a hosted API/dashboard consumer
+- Sync is manual through the `Sync Now` button
+- Automatic scheduled sync can still be added later if needed
 
 ### Security note for remote viewing
 
 - Do not expose the local Django server directly to the public internet in `DEBUG=True`
 - For internet access, use a proper hosted server, HTTPS, authentication, and firewall rules
 - Treat `cloud_sync_token` like a password
+
+## Cloud dashboard for multiple businesses
+
+The project now includes a cloud dashboard module for multi-business remote monitoring.
+
+### What it does
+
+- lets each business create its own online dashboard account
+- isolates cloud data per business
+- receives synced data from local POS deployments
+- shows synced branches and sales remotely
+
+### Main cloud routes
+
+- `/accounts/signup/` creates a cloud business account
+- `/cloud/` cloud dashboard overview
+- `/cloud/sales/` synced remote sales
+- `/cloud/branches/` synced branch list
+- `/cloud/settings/` sync token and ingest URL
+- `/cloud/api/ingest/` sync ingest endpoint for local POS
+
+### Cloud models
+
+- `cloudsync.Business`
+- `cloudsync.BusinessMembership`
+- `cloudsync.SyncCredential`
+- `cloudsync.RemoteBranch`
+- `cloudsync.RemoteSale`
+- `cloudsync.RemoteSaleItem`
+- `cloudsync.RemotePurchase`
+- `cloudsync.RemotePurchaseItem`
+- `cloudsync.RemoteInventoryLog`
+- `cloudsync.SyncEvent`
+
+### Local POS to cloud sync
+
+1. Deploy this project to PythonAnywhere for the cloud dashboard.
+2. Create a business account from:
+
+```text
+/accounts/signup/
+```
+
+3. Open cloud sync settings from:
+
+```text
+/cloud/settings/
+```
+
+4. Copy:
+   - the ingest URL
+   - the sync token
+5. On the local POS desktop app, open Business Settings.
+6. Set:
+   - `cloud_sync_enabled`
+   - `cloud_sync_token`
+   - `sync_dashboard_url`
+7. Optional: enable `auto_sync_enabled` and set `auto_sync_interval_minutes`.
+8. Use `Sync Now` from Business Settings to push local data to the cloud dashboard immediately.
+9. In the desktop app, automatic sync can run server-side in the background while the local POS server is running.
+10. On Windows installs, the background sync service can keep sync running even when the app is closed.
+
+### PythonAnywhere deployment overview
+
+Use PythonAnywhere only for the cloud dashboard and sync API. Keep the sales terminal local.
+
+#### Recommended deploy steps
+
+1. Create a PythonAnywhere account.
+2. Upload or clone this project into your PythonAnywhere home folder.
+3. Create a virtual environment and install requirements.
+4. Create a web app for Django.
+5. Point the PythonAnywhere WSGI file to `pos_system.wsgi`.
+6. Run:
+
+```bash
+python manage.py migrate
+python manage.py collectstatic --noinput
+```
+
+7. Reload the web app.
+8. Open the public URL and create the first business account from `/accounts/signup/`.
+
+#### Local-to-cloud configuration example
+
+If your PythonAnywhere app URL is:
+
+```text
+https://yourname.pythonanywhere.com
+```
+
+Then the local POS should use:
+
+- `sync_dashboard_url = https://yourname.pythonanywhere.com/cloud/api/ingest/`
+- `cloud_sync_token = <token copied from /cloud/settings/>`
+
+### Current sync mode
+
+- local POS pushes data manually with the `Sync Now` button
+- local desktop app also runs automatic sync server-side when enabled
+- sync is token-protected
+- each cloud dashboard user sees only their own business data
+- branch data is separated within each business
+
+### Server-side automatic sync
+
+The local desktop launcher now starts a background sync worker automatically. This means scheduled sync no longer depends on an open browser tab.
+
+For Windows packaged installs, use the dedicated Windows service when you want scheduled sync to continue even after closing the desktop app. A lock file prevents duplicate sync runs if both the launcher worker and the service are active at the same time.
+
+For non-desktop deployments, the same worker can be run manually with:
+
+```bash
+python manage.py run_autosync
+```
+
+To run a single due-check and exit:
+
+```bash
+python manage.py run_autosync --once
+```
+
+This is the command to use with platform schedulers such as PythonAnywhere tasks if you need a hosted worker process.
 
 ## Thermal printing
 
@@ -570,3 +735,4 @@ These are logical next implementation targets, not yet completed:
 - SQLite is the default development database for local offline use
 - Tailwind styling is currently template-driven
 - Django admin still exists for backend access, but the application now uses custom in-app screens for daily workflows
+

@@ -1,0 +1,676 @@
+{% extends "base.html" %}
+
+{% block title %}POS Terminal | DurielBiz POS{% endblock %}
+
+{% block extra_head %}
+    <style>
+        .receipt-paper {
+            width: 100%;
+            max-width: 80mm;
+            margin: 0 auto;
+        }
+
+        .suggestion-active {
+            background: rgb(241 245 249);
+        }
+
+        @page {
+            size: {{ business_settings.thermal_paper_width|default:"80mm" }} auto;
+            margin: 4mm;
+        }
+
+        @media print {
+            body * { visibility: hidden; }
+            #receiptModal, #receiptModal * { visibility: visible; }
+            #receiptModal { position: absolute; inset: 0; background: white; }
+            .receipt-paper {
+                max-width: {{ business_settings.thermal_paper_width|default:"80mm" }};
+                width: {{ business_settings.thermal_paper_width|default:"80mm" }};
+                border-radius: 0;
+                box-shadow: none;
+                padding: 0;
+            }
+        }
+    </style>
+{% endblock %}
+
+{% block content %}
+    <section class="grid gap-6 xl:grid-cols-[minmax(0,1.7fr)_minmax(360px,0.95fr)]">
+        <div class="space-y-6">
+            <div class="overflow-hidden rounded-3xl bg-gradient-to-r from-slate-950 via-slate-900 to-slate-800 p-6 text-white shadow-sm">
+                <div class="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+                    <div>
+                        <p class="text-xs uppercase tracking-[0.25em] text-slate-300">Point Of Sale</p>
+                        <h2 class="mt-2 text-2xl font-semibold">Fast checkout — {{ active_branch.name|default:"All Branches" }}</h2>
+                        <p class="mt-2 text-sm text-slate-300">Scan barcode or search by name. Stock reflects {{ active_branch.name|default:"aggregate stock" }}.</p>
+                    </div>
+                    <div class="grid gap-3 sm:grid-cols-3">
+                        <div class="rounded-2xl bg-white/10 px-4 py-3">
+                            <p class="text-xs text-slate-300">Branch</p>
+                            <p class="mt-1 font-semibold">{{ active_branch.name|default:"General stock" }}</p>
+                        </div>
+                        <div class="rounded-2xl bg-white/10 px-4 py-3">
+                            <p class="text-xs text-slate-300">Lanes</p>
+                            <p class="mt-1 font-semibold">2 active</p>
+                        </div>
+                        <div class="rounded-2xl bg-white/10 px-4 py-3">
+                            <p class="text-xs text-slate-300">Receipt Mode</p>
+                            <p class="mt-1 font-semibold">{{ business_settings.thermal_paper_width|default:"80mm" }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="rounded-3xl bg-white p-5 shadow-sm">
+                <div class="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                    <div>
+                        <h3 class="text-lg font-semibold text-slate-900">Product search</h3>
+                        <p class="text-sm text-slate-500">Barcode scanners can focus this field and press Enter automatically.</p>
+                    </div>
+                    <div class="flex gap-2">
+                        <button type="button" class="lane-tab rounded-xl border border-slate-300 px-4 py-2 text-sm" data-lane="checkout_a">Checkout A</button>
+                        <button type="button" class="lane-tab rounded-xl border border-slate-300 px-4 py-2 text-sm" data-lane="checkout_b">Checkout B</button>
+                    </div>
+                </div>
+
+                <div class="relative">
+                    <input
+                        id="productSearch"
+                        type="search"
+                        autocomplete="off"
+                        placeholder="Scan barcode or type product name"
+                        class="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm shadow-sm focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-200"
+                    >
+                    <div id="searchSuggestions" class="absolute z-20 mt-2 hidden w-full overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl"></div>
+                </div>
+                <p class="mt-2 text-xs text-slate-500">Press <span class="font-semibold">Enter</span> to add the highlighted suggestion.</p>
+            </div>
+
+            <div class="rounded-3xl bg-white p-5 shadow-sm">
+                <div class="mb-4 flex items-center justify-between">
+                    <div>
+                        <h3 class="text-lg font-semibold">Quick products</h3>
+                        <p class="text-sm text-slate-500">Tap a product card to add it to the active lane.</p>
+                    </div>
+                    <span id="resultsMeta" class="rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-600">{{ products|length }} visible</span>
+                </div>
+
+                <div id="productGrid" class="grid gap-4 sm:grid-cols-2 2xl:grid-cols-3">
+                    {% for product in products %}
+                        <button
+                            type="button"
+                            class="product-card rounded-2xl border border-slate-200 bg-slate-50 p-4 text-left transition hover:-translate-y-0.5 hover:border-slate-400 hover:bg-white hover:shadow-sm"
+                            data-id="{{ product.id }}"
+                            data-name="{{ product.name }}"
+                            data-price="{{ product.selling_price }}"
+                            data-stock="{{ product.display_stock|default:product.quantity }}"
+                            data-barcode="{{ product.barcode|default:'' }}"
+                            data-category="{{ product.category.name }}"
+                        >
+                            <div class="flex items-start justify-between gap-3">
+                                <div>
+                                    <p class="font-semibold text-slate-900">{{ product.name }}</p>
+                                    <p class="mt-1 text-xs text-slate-500">{{ product.category.name }}</p>
+                                </div>
+                                <span class="rounded-full bg-white px-2.5 py-1 text-xs font-medium text-slate-600 shadow-sm">{{ product.display_stock|default:product.quantity }} left</span>
+                            </div>
+                            <div class="mt-5 flex items-end justify-between gap-3">
+                                <p class="text-lg font-semibold text-slate-900">₦{{ product.selling_price }}</p>
+                                {% if product.barcode %}
+                                    <p class="text-xs text-slate-400">{{ product.barcode }}</p>
+                                {% endif %}
+                            </div>
+                        </button>
+                    {% empty %}
+                        <p class="rounded-2xl border border-dashed border-slate-300 px-4 py-8 text-sm text-slate-500">No products available yet.</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <div class="rounded-3xl bg-white p-5 shadow-sm">
+            <div class="mb-4 flex items-start justify-between gap-3">
+                <div>
+                    <h3 class="text-lg font-semibold">Cart <span id="activeLaneTitle" class="text-slate-500">Checkout A</span></h3>
+                    <p class="text-sm text-slate-500">Review items, customer details, and payment.</p>
+                </div>
+                {% if is_admin_user %}
+                    <button id="clearCartBtn" type="button" class="rounded-xl border border-rose-200 px-3 py-2 text-xs font-medium text-rose-700">Clear cart</button>
+                {% endif %}
+            </div>
+
+            <div id="cartItems" class="max-h-[320px] space-y-3 overflow-y-auto pr-1">
+                <p class="rounded-2xl bg-slate-50 px-3 py-4 text-sm text-slate-500">No items in cart.</p>
+            </div>
+
+            <div class="mt-5 grid gap-3 sm:grid-cols-3">
+                <div class="rounded-2xl bg-slate-50 p-4">
+                    <p class="text-xs uppercase tracking-wide text-slate-500">Subtotal</p>
+                    <p id="subtotalValue" class="mt-2 text-lg font-semibold text-slate-900">₦0.00</p>
+                </div>
+                <div class="rounded-2xl bg-slate-50 p-4">
+                    <p class="text-xs uppercase tracking-wide text-slate-500">Redeem</p>
+                    <p id="redeemValue" class="mt-2 text-lg font-semibold text-slate-900">₦0.00</p>
+                </div>
+                <div class="rounded-2xl bg-slate-900 p-4 text-white">
+                    <p class="text-xs uppercase tracking-wide text-slate-300">Total</p>
+                    <p id="totalValue" class="mt-2 text-lg font-semibold">₦0.00</p>
+                </div>
+            </div>
+
+            <form method="post" class="mt-5 space-y-4">
+                {% csrf_token %}
+                {% if form.non_field_errors %}
+                    <div class="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                        {{ form.non_field_errors }}
+                    </div>
+                {% endif %}
+                {{ form.items_json }}
+                {{ form.lane_name }}
+
+                <div class="grid gap-4 sm:grid-cols-2">
+                    <div>
+                        <label class="text-sm font-medium text-slate-700">Customer</label>
+                        {{ form.customer_name }}
+                    </div>
+                    <div>
+                        <label class="text-sm font-medium text-slate-700">Customer Phone</label>
+                        {{ form.customer_phone }}
+                    </div>
+                    <div>
+                        <label class="text-sm font-medium text-slate-700">Payment Method</label>
+                        {{ form.payment_method }}
+                    </div>
+                    <div>
+                        <label class="text-sm font-medium text-slate-700">Paid Amount</label>
+                        {{ form.paid_amount }}
+                    </div>
+                    <div>
+                        <label class="text-sm font-medium text-slate-700">Redeem Points</label>
+                        {{ form.redeemed_points }}
+                    </div>
+                    <div class="rounded-2xl bg-slate-50 px-4 py-3">
+                        <p class="text-xs uppercase tracking-wide text-slate-500">Change Preview</p>
+                        <p id="changeValue" class="mt-2 text-lg font-semibold text-slate-900">₦0.00</p>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="text-sm font-medium text-slate-700">Note</label>
+                    {{ form.note }}
+                </div>
+
+                <button class="w-full rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white hover:bg-emerald-700">
+                    Complete Checkout
+                </button>
+            </form>
+
+            <div id="loyaltyPanel" class="mt-5 rounded-2xl border border-dashed border-slate-300 p-4 text-sm text-slate-600">
+                {% if loyalty_customer %}
+                    Loyalty customer: <span class="font-semibold">{{ loyalty_customer.name }}</span> · {{ loyalty_customer.loyalty_points }} pts
+                {% else %}
+                    Add a phone number to award loyalty points automatically.
+                {% endif %}
+            </div>
+        </div>
+    </section>
+
+    {% if receipt_sale %}
+        <div id="receiptModal" class="fixed inset-0 z-40 flex items-center justify-center bg-slate-950/60 px-4">
+            <div class="w-full max-w-lg">
+                {% include "sales/_receipt_content.html" with sale=receipt_sale %}
+                <div class="mt-4 flex gap-3">
+                    <button id="closeReceiptModal" class="flex-1 rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm">Close</button>
+                    <button onclick="window.print()" class="flex-1 rounded-xl bg-slate-900 px-4 py-2 text-sm text-white">Print</button>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+{% endblock %}
+
+{% block extra_js %}
+    <script>
+        const products = JSON.parse('{{ product_payload|escapejs }}');
+        const productSearch = document.getElementById('productSearch');
+        const searchSuggestions = document.getElementById('searchSuggestions');
+        const productCards = Array.from(document.querySelectorAll('.product-card'));
+        const resultsMeta = document.getElementById('resultsMeta');
+        const cartContainer = document.getElementById('cartItems');
+        const itemsInput = document.getElementById('id_items_json');
+        const subtotalValue = document.getElementById('subtotalValue');
+        const redeemValue = document.getElementById('redeemValue');
+        const totalValue = document.getElementById('totalValue');
+        const changeValue = document.getElementById('changeValue');
+        const clearCartBtn = document.getElementById('clearCartBtn');
+        const laneInput = document.getElementById('id_lane_name');
+        const customerNameInput = document.getElementById('id_customer_name');
+        const customerPhoneInput = document.getElementById('id_customer_phone');
+        const paymentMethodInput = document.getElementById('id_payment_method');
+        const paidAmountInput = document.getElementById('id_paid_amount');
+        const redeemedPointsInput = document.getElementById('id_redeemed_points');
+        const noteInput = document.getElementById('id_note');
+        const activeLaneTitle = document.getElementById('activeLaneTitle');
+        const loyaltyPanel = document.getElementById('loyaltyPanel');
+        const isAdmin = {{ is_admin_user|yesno:"true,false" }};
+        const loyaltyValuePerPoint = Number('{{ loyalty_value_per_point|escapejs }}');
+        const storageKey = 'durielbiz-pos-lanes';
+        const laneTabs = document.querySelectorAll('.lane-tab');
+        const defaultLanes = {
+            checkout_a: { label: 'Checkout A', cart: [], customer_name: '', customer_phone: '', payment_method: 'cash', paid_amount: '0.00', redeemed_points: 0, note: '', customer_points: 0, customer_found: false, preferred_redeem_points: 0 },
+            checkout_b: { label: 'Checkout B', cart: [], customer_name: '', customer_phone: '', payment_method: 'cash', paid_amount: '0.00', redeemed_points: 0, note: '', customer_points: 0, customer_found: false, preferred_redeem_points: 0 }
+        };
+        const storedLanes = JSON.parse(sessionStorage.getItem(storageKey) || 'null') || {};
+        let lanes = {
+            checkout_a: { ...defaultLanes.checkout_a, ...(storedLanes.checkout_a || {}) },
+            checkout_b: { ...defaultLanes.checkout_b, ...(storedLanes.checkout_b || {}) }
+        };
+        let activeLane = '{{ active_lane|escapejs }}' || 'checkout_a';
+        let visibleSuggestions = [];
+        let highlightedSuggestionIndex = 0;
+
+        if ('{{ completed_lane|escapejs }}') {
+            lanes['{{ completed_lane|escapejs }}'] = { ...defaultLanes['{{ completed_lane|escapejs }}'] };
+            sessionStorage.setItem(storageKey, JSON.stringify(lanes));
+        }
+
+        function currency(value) {
+            return `₦${Number(value || 0).toFixed(2)}`;
+        }
+
+        function persistLanes() {
+            sessionStorage.setItem(storageKey, JSON.stringify(lanes));
+        }
+
+        function laneCartMap() {
+            return new Map(lanes[activeLane].cart.map(item => [item.id, item]));
+        }
+
+        function currentLaneTotal() {
+            const subtotal = lanes[activeLane].cart.reduce((sum, item) => sum + (item.quantity * item.price), 0);
+            return Math.max(subtotal - redemptionValue(lanes[activeLane].redeemed_points), 0);
+        }
+
+        function updateLaneForm() {
+            const lane = lanes[activeLane];
+            laneInput.value = activeLane;
+            activeLaneTitle.textContent = lane.label;
+            customerNameInput.value = lane.customer_name;
+            customerPhoneInput.value = lane.customer_phone;
+            paymentMethodInput.value = lane.payment_method;
+            paidAmountInput.value = lane.paid_amount;
+            redeemedPointsInput.value = lane.redeemed_points;
+            noteInput.value = lane.note;
+            laneTabs.forEach(tab => {
+                const selected = tab.dataset.lane === activeLane;
+                tab.classList.toggle('bg-slate-900', selected);
+                tab.classList.toggle('text-white', selected);
+                tab.classList.toggle('border-slate-900', selected);
+            });
+            updateLoyaltyPanel();
+        }
+
+        function redemptionValue(points) {
+            return Number(points || 0) * loyaltyValuePerPoint;
+        }
+
+        function updateChangePreview(total = currentLaneTotal()) {
+            const paid = Number(paidAmountInput.value || 0);
+            changeValue.textContent = currency(Math.max(paid - total, 0));
+        }
+
+        function updateLoyaltyPanel() {
+            const lane = lanes[activeLane];
+            if (!lane.customer_phone) {
+                loyaltyPanel.innerHTML = 'Add a phone number to award loyalty points automatically.';
+                return;
+            }
+            if (!lane.customer_found) {
+                loyaltyPanel.innerHTML = `New customer phone: <span class="font-semibold">${lane.customer_phone}</span>. Points start after this sale.`;
+                return;
+            }
+            loyaltyPanel.innerHTML = `Loyalty customer: <span class="font-semibold">${lane.customer_name || lane.customer_phone}</span> · ${lane.customer_points} pts · Saved redeem ${lane.preferred_redeem_points || 0} pts · Redeem value ${currency(redemptionValue(lane.redeemed_points))}`;
+        }
+
+        function syncCart() {
+            const entries = lanes[activeLane].cart;
+            itemsInput.value = JSON.stringify(entries.map(item => ({
+                product_id: item.id,
+                quantity: item.quantity,
+                unit_price: item.price
+            })));
+
+            if (entries.length === 0) {
+                cartContainer.innerHTML = '<p class="rounded-2xl bg-slate-50 px-3 py-4 text-sm text-slate-500">No items in cart.</p>';
+                subtotalValue.textContent = currency(0);
+                redeemValue.textContent = currency(0);
+                totalValue.textContent = currency(0);
+                lanes[activeLane].paid_amount = '0.00';
+                paidAmountInput.value = '0.00';
+                updateChangePreview(0);
+                persistLanes();
+                return;
+            }
+
+            let subtotal = 0;
+            cartContainer.innerHTML = entries.map(item => {
+                const lineTotal = item.quantity * item.price;
+                subtotal += lineTotal;
+                return `
+                    <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                        <div class="flex items-start justify-between gap-3">
+                            <div>
+                                <p class="font-medium text-slate-900">${item.name}</p>
+                                <p class="text-sm text-slate-500">${currency(item.price)} each</p>
+                            </div>
+                            ${isAdmin ? `<button type="button" data-remove="${item.id}" class="rounded-lg px-2 py-1 text-xs font-medium text-rose-600 hover:bg-rose-50">Remove</button>` : ''}
+                        </div>
+                        <div class="mt-3 flex items-center justify-between">
+                            <div class="flex items-center gap-2">
+                                <button type="button" data-decrease="${item.id}" class="rounded-lg border border-slate-300 px-2 py-1">-</button>
+                                <span class="min-w-8 text-center">${item.quantity}</span>
+                                <button type="button" data-increase="${item.id}" class="rounded-lg border border-slate-300 px-2 py-1">+</button>
+                            </div>
+                            <span class="font-semibold text-slate-900">${currency(lineTotal)}</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            const redeemAmount = redemptionValue(lanes[activeLane].redeemed_points);
+            const total = Math.max(subtotal - redeemAmount, 0);
+            subtotalValue.textContent = currency(subtotal);
+            redeemValue.textContent = currency(redeemAmount);
+            totalValue.textContent = currency(total);
+            lanes[activeLane].paid_amount = total.toFixed(2);
+            paidAmountInput.value = lanes[activeLane].paid_amount;
+            updateChangePreview(total);
+            updateLoyaltyPanel();
+            persistLanes();
+        }
+
+        function addToCart(productId) {
+            const product = products.find(item => item.id === productId);
+            if (!product || product.stock < 1) return;
+            const cart = laneCartMap();
+            const current = cart.get(productId);
+            if (current) {
+                if (current.quantity >= product.stock) return;
+                current.quantity += 1;
+                cart.set(productId, current);
+            } else {
+                cart.set(productId, { id: product.id, name: product.name, quantity: 1, price: product.price });
+            }
+            lanes[activeLane].cart = Array.from(cart.values());
+            syncCart();
+            productSearch.value = '';
+            renderSuggestions('');
+            filterCards('');
+            productSearch.focus();
+        }
+
+        function saveCurrentLaneFields() {
+            lanes[activeLane].customer_name = customerNameInput.value;
+            lanes[activeLane].customer_phone = customerPhoneInput.value;
+            lanes[activeLane].payment_method = paymentMethodInput.value;
+            lanes[activeLane].paid_amount = paidAmountInput.value;
+            lanes[activeLane].redeemed_points = Number(redeemedPointsInput.value || 0);
+            lanes[activeLane].note = noteInput.value;
+            persistLanes();
+        }
+
+        async function lookupCustomer() {
+            const phone = customerPhoneInput.value.trim();
+            lanes[activeLane].customer_phone = phone;
+            if (!phone) {
+                lanes[activeLane].customer_found = false;
+                lanes[activeLane].customer_points = 0;
+                lanes[activeLane].preferred_redeem_points = 0;
+                lanes[activeLane].redeemed_points = 0;
+                redeemedPointsInput.value = 0;
+                redeemedPointsInput.max = 0;
+                updateLoyaltyPanel();
+                persistLanes();
+                syncCart();
+                return;
+            }
+            const response = await fetch(`{% url 'sales:customer-lookup' %}?phone=${encodeURIComponent(phone)}`);
+            if (!response.ok) return;
+            const data = await response.json();
+            lanes[activeLane].customer_found = data.found;
+            if (data.found) {
+                lanes[activeLane].customer_name = customerNameInput.value || data.name;
+                customerNameInput.value = lanes[activeLane].customer_name;
+                lanes[activeLane].customer_points = data.points;
+                lanes[activeLane].preferred_redeem_points = Number(data.preferred_redeem_points || 0);
+                const safeRedeemValue = Math.min(lanes[activeLane].preferred_redeem_points, data.points);
+                redeemedPointsInput.value = safeRedeemValue;
+                redeemedPointsInput.max = data.points;
+            } else {
+                lanes[activeLane].customer_points = 0;
+                lanes[activeLane].preferred_redeem_points = 0;
+                lanes[activeLane].redeemed_points = 0;
+                redeemedPointsInput.value = 0;
+                redeemedPointsInput.max = 0;
+            }
+            lanes[activeLane].redeemed_points = Number(redeemedPointsInput.value || 0);
+            updateLoyaltyPanel();
+            persistLanes();
+            syncCart();
+        }
+
+        function scoreProduct(product, term) {
+            const lowerTerm = term.toLowerCase();
+            const name = product.name.toLowerCase();
+            const barcode = (product.barcode || '').toLowerCase();
+            if (!lowerTerm) return 0;
+            if (barcode === lowerTerm) return 100;
+            if (name === lowerTerm) return 95;
+            if (barcode.startsWith(lowerTerm)) return 90;
+            if (name.startsWith(lowerTerm)) return 80;
+            if (`${name} ${barcode}`.includes(lowerTerm)) return 60;
+            return -1;
+        }
+
+        function findSuggestions(term) {
+            if (!term) return [];
+            return [...products]
+                .map(product => ({ ...product, score: scoreProduct(product, term) }))
+                .filter(product => product.score >= 0 && product.stock > 0)
+                .sort((left, right) => right.score - left.score || left.name.localeCompare(right.name))
+                .slice(0, 8);
+        }
+
+        function filterCards(term) {
+            let visibleCount = 0;
+            productCards.forEach(card => {
+                const haystack = [card.dataset.name, card.dataset.barcode, card.dataset.category].join(' ').toLowerCase();
+                const matches = !term || haystack.includes(term.toLowerCase());
+                card.classList.toggle('hidden', !matches);
+                if (matches) visibleCount += 1;
+            });
+            resultsMeta.textContent = `${visibleCount} visible`;
+        }
+
+        function hideSuggestions() {
+            visibleSuggestions = [];
+            highlightedSuggestionIndex = 0;
+            searchSuggestions.innerHTML = '';
+            searchSuggestions.classList.add('hidden');
+        }
+
+        function renderSuggestions(term) {
+            visibleSuggestions = findSuggestions(term);
+            highlightedSuggestionIndex = 0;
+            if (!visibleSuggestions.length) {
+                hideSuggestions();
+                return;
+            }
+            searchSuggestions.classList.remove('hidden');
+            searchSuggestions.innerHTML = visibleSuggestions.map((product, index) => `
+                <button type="button" data-suggestion-id="${product.id}" class="flex w-full items-center justify-between gap-3 px-4 py-3 text-left text-sm hover:bg-slate-50 ${index === 0 ? 'suggestion-active' : ''}">
+                    <div>
+                        <div class="font-medium text-slate-900">${product.name}</div>
+                        <div class="mt-1 text-xs text-slate-500">${product.category}${product.barcode ? ` · ${product.barcode}` : ''}</div>
+                    </div>
+                    <div class="text-right">
+                        <div class="font-semibold text-slate-900">${currency(product.price)}</div>
+                        <div class="mt-1 text-xs text-slate-500">${product.stock} left</div>
+                    </div>
+                </button>
+            `).join('');
+        }
+
+        function refreshSuggestionHighlight() {
+            Array.from(searchSuggestions.querySelectorAll('[data-suggestion-id]')).forEach((button, index) => {
+                button.classList.toggle('suggestion-active', index === highlightedSuggestionIndex);
+            });
+        }
+
+        function addHighlightedSuggestion() {
+            if (!visibleSuggestions.length) return;
+            addToCart(visibleSuggestions[highlightedSuggestionIndex].id);
+            hideSuggestions();
+        }
+
+        document.getElementById('productGrid').addEventListener('click', event => {
+            const button = event.target.closest('.product-card');
+            if (button) {
+                addToCart(Number(button.dataset.id));
+            }
+        });
+
+        searchSuggestions.addEventListener('click', event => {
+            const button = event.target.closest('[data-suggestion-id]');
+            if (!button) return;
+            addToCart(Number(button.dataset.suggestionId));
+            hideSuggestions();
+        });
+
+        cartContainer.addEventListener('click', event => {
+            const cart = laneCartMap();
+            const removeId = Number(event.target.dataset.remove);
+            const increaseId = Number(event.target.dataset.increase);
+            const decreaseId = Number(event.target.dataset.decrease);
+
+            if (removeId && isAdmin) {
+                cart.delete(removeId);
+            } else if (increaseId) {
+                addToCart(increaseId);
+                return;
+            } else if (decreaseId) {
+                const item = cart.get(decreaseId);
+                if (!item) return;
+                if (!isAdmin && item.quantity === 1) return;
+                item.quantity -= 1;
+                if (item.quantity <= 0) {
+                    cart.delete(decreaseId);
+                } else {
+                    cart.set(decreaseId, item);
+                }
+            }
+            lanes[activeLane].cart = Array.from(cart.values());
+            syncCart();
+        });
+
+        if (clearCartBtn) {
+            clearCartBtn.addEventListener('click', () => {
+                lanes[activeLane].cart = [];
+                syncCart();
+            });
+        }
+
+        laneTabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                saveCurrentLaneFields();
+                activeLane = tab.dataset.lane;
+                updateLaneForm();
+                syncCart();
+            });
+        });
+
+        [customerNameInput, customerPhoneInput, paymentMethodInput, noteInput].forEach(input => {
+            input.addEventListener('input', saveCurrentLaneFields);
+            input.addEventListener('change', saveCurrentLaneFields);
+        });
+
+        paidAmountInput.addEventListener('input', () => {
+            saveCurrentLaneFields();
+            updateChangePreview();
+        });
+
+        customerPhoneInput.addEventListener('change', lookupCustomer);
+        customerPhoneInput.addEventListener('blur', lookupCustomer);
+        redeemedPointsInput.addEventListener('input', () => {
+            const maxPoints = lanes[activeLane].customer_points || 0;
+            let value = Number(redeemedPointsInput.value || 0);
+            if (value > maxPoints) value = maxPoints;
+            if (value < 0) value = 0;
+            redeemedPointsInput.value = value;
+            lanes[activeLane].redeemed_points = value;
+            syncCart();
+        });
+
+        document.querySelector('form[method="post"]').addEventListener('submit', () => {
+            saveCurrentLaneFields();
+            laneInput.value = activeLane;
+            itemsInput.value = JSON.stringify(lanes[activeLane].cart.map(item => ({
+                product_id: item.id,
+                quantity: item.quantity,
+                unit_price: item.price
+            })));
+        });
+
+        productSearch.addEventListener('input', event => {
+            const term = event.target.value.trim();
+            renderSuggestions(term);
+            filterCards(term);
+        });
+
+        productSearch.addEventListener('keydown', event => {
+            if (event.key === 'ArrowDown' && visibleSuggestions.length) {
+                event.preventDefault();
+                highlightedSuggestionIndex = Math.min(highlightedSuggestionIndex + 1, visibleSuggestions.length - 1);
+                refreshSuggestionHighlight();
+                return;
+            }
+            if (event.key === 'ArrowUp' && visibleSuggestions.length) {
+                event.preventDefault();
+                highlightedSuggestionIndex = Math.max(highlightedSuggestionIndex - 1, 0);
+                refreshSuggestionHighlight();
+                return;
+            }
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                if (visibleSuggestions.length) {
+                    addHighlightedSuggestion();
+                } else {
+                    const exactBarcode = products.find(product => (product.barcode || '').toLowerCase() === productSearch.value.trim().toLowerCase());
+                    if (exactBarcode) {
+                        addToCart(exactBarcode.id);
+                    }
+                }
+                return;
+            }
+            if (event.key === 'Escape') {
+                hideSuggestions();
+            }
+        });
+
+        document.addEventListener('click', event => {
+            if (!event.target.closest('#productSearch') && !event.target.closest('#searchSuggestions')) {
+                hideSuggestions();
+            }
+        });
+
+        updateLaneForm();
+        syncCart();
+        lookupCustomer();
+        filterCards('');
+
+        const receiptModal = document.getElementById('receiptModal');
+        const closeReceiptModal = document.getElementById('closeReceiptModal');
+        if (closeReceiptModal) {
+            closeReceiptModal.addEventListener('click', () => receiptModal.remove());
+        }
+    </script>
+{% endblock %}
