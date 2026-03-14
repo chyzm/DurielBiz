@@ -9,7 +9,7 @@ if debug_env is None:
     DEBUG = os.getenv("DURIELBIZ_DESKTOP") != "1"
 else:
     DEBUG = debug_env.lower() in {"1", "true", "yes", "on"}
-ALLOWED_HOSTS = ["127.0.0.1", "localhost"]
+ALLOWED_HOSTS = ["127.0.0.1", "localhost", "DurielTech.pythonanywhere.com"]
 extra_allowed_hosts = [
     host.strip()
     for host in os.getenv("DURIELBIZ_ALLOWED_HOSTS", "").split(",")

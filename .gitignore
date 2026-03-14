@@ -8,3 +8,10 @@ __pycache__/
 *.mo
 /env/
 .env
+env/
+venv/
+build/
+dist/
+*.log
+media/
+staticfiles/
