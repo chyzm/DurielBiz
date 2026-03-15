@@ -39,10 +39,48 @@
             </nav>
         </aside>
 
+        <div id="mobileSidebarBackdrop" class="fixed inset-0 z-40 hidden bg-slate-950/50 lg:hidden"></div>
+        <aside id="mobileSidebar" class="fixed inset-y-0 left-0 z-50 w-72 -translate-x-full overflow-y-auto bg-slate-900 text-slate-100 shadow-2xl transition-transform duration-200 lg:hidden">
+            <div class="border-b border-slate-800 px-5 py-5">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h1 class="text-xl font-semibold">DurielBiz POS</h1>
+                        <p class="mt-1 text-sm text-slate-400">Desktop-first retail starter</p>
+                    </div>
+                    <button id="closeMobileSidebar" type="button" class="rounded-lg border border-slate-700 px-3 py-2 text-xs text-slate-300">Close</button>
+                </div>
+            </div>
+            <nav class="space-y-1 px-4 py-4 text-sm">
+                {% if request.user.role == 'admin' or request.user.role == 'cashier' or request.user.role == 'manager' %}
+                    <a href="{% url 'reports:dashboard' %}" class="block rounded-lg px-3 py-2 hover:bg-slate-800">Dashboard</a>
+                {% endif %}
+                {% if request.user.role == 'admin' or request.user.role == 'cashier' %}
+                    <a href="{% url 'sales:pos' %}" class="block rounded-lg px-3 py-2 hover:bg-slate-800">POS Terminal</a>
+                {% endif %}
+                {% if request.user.role == 'admin' or request.user.role == 'inventory' %}
+                    <a href="{% url 'products:list' %}" class="block rounded-lg px-3 py-2 hover:bg-slate-800">Products</a>
+                    <a href="{% url 'products:category-list' %}" class="block rounded-lg px-3 py-2 hover:bg-slate-800">Categories</a>
+                    <a href="{% url 'suppliers:list' %}" class="block rounded-lg px-3 py-2 hover:bg-slate-800">Suppliers</a>
+                    <a href="{% url 'purchases:list' %}" class="block rounded-lg px-3 py-2 hover:bg-slate-800">Purchases</a>
+                    <a href="{% url 'inventory:overview' %}" class="block rounded-lg px-3 py-2 hover:bg-slate-800">Inventory</a>
+                {% endif %}
+                {% if request.user.role == 'admin' %}
+                    <a href="{% url 'sales:customer-list' %}" class="block rounded-lg px-3 py-2 hover:bg-slate-800">Customers</a>
+                    <a href="{% url 'sales:history' %}" class="block rounded-lg px-3 py-2 hover:bg-slate-800">Sales History</a>
+                    <a href="{% url 'accounts:activity-log' %}" class="block rounded-lg px-3 py-2 hover:bg-slate-800">Activity Log</a>
+                    <a href="{% url 'reports:branch-list' %}" class="block rounded-lg px-3 py-2 hover:bg-slate-800">Branches</a>
+                    <a href="{% url 'reports:business-settings' %}" class="block rounded-lg px-3 py-2 hover:bg-slate-800">Business Settings</a>
+                    <a href="{% url 'accounts:admin-center' %}" class="block rounded-lg px-3 py-2 hover:bg-slate-800">Admin</a>
+                {% endif %}
+            </nav>
+        </aside>
+
         <main class="flex-1">
             <header class="border-b border-slate-200 bg-white">
-                <div class="flex items-center justify-between px-6 py-4">
-                    <div>
+                <div class="flex flex-wrap items-start justify-between gap-4 px-4 py-4 sm:px-6">
+                    <div class="flex items-start gap-3">
+                        <button id="openMobileSidebar" type="button" class="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 lg:hidden">Menu</button>
+                        <div>
                         <p class="text-sm text-slate-500">Welcome back</p>
                         <h2 class="text-lg font-semibold">{{ request.user.get_full_name|default:request.user.username }}</h2>
                         <p class="mt-1 text-sm text-slate-500">
@@ -55,7 +93,8 @@
                             {% endif %}
                         </p>
                     </div>
-                    <div class="flex items-center gap-3 text-sm">
+                    </div>
+                    <div class="flex flex-wrap items-center justify-end gap-3 text-sm">
                         {% if request.user.role == 'admin' %}
                             <span class="rounded-full bg-indigo-50 px-3 py-1 text-indigo-700">All Branches</span>
                         {% elif request.user.branch %}
@@ -80,6 +119,28 @@
 
     {% if request.user.is_authenticated %}
         <script>
+            const mobileSidebar = document.getElementById('mobileSidebar');
+            const mobileSidebarBackdrop = document.getElementById('mobileSidebarBackdrop');
+            const openMobileSidebarButton = document.getElementById('openMobileSidebar');
+            const closeMobileSidebarButton = document.getElementById('closeMobileSidebar');
+
+            function setMobileSidebar(open) {
+                if (!mobileSidebar || !mobileSidebarBackdrop) return;
+                mobileSidebar.classList.toggle('-translate-x-full', !open);
+                mobileSidebarBackdrop.classList.toggle('hidden', !open);
+                document.body.classList.toggle('overflow-hidden', open);
+            }
+
+            if (openMobileSidebarButton) {
+                openMobileSidebarButton.addEventListener('click', () => setMobileSidebar(true));
+            }
+            if (closeMobileSidebarButton) {
+                closeMobileSidebarButton.addEventListener('click', () => setMobileSidebar(false));
+            }
+            if (mobileSidebarBackdrop) {
+                mobileSidebarBackdrop.addEventListener('click', () => setMobileSidebar(false));
+            }
+
             function showToast(message, type = 'info') {
                 const container = document.getElementById('toastContainer');
                 const toast = document.createElement('div');

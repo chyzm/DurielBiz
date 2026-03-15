@@ -3,158 +3,177 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DurielBiz POS</title>
+    <title>DurielTech | IT Company</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="min-h-screen bg-slate-950 text-white">
     <header class="border-b border-white/10 bg-slate-950/90 backdrop-blur">
-        <div class="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
+        <div class="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6">
             <a href="{% url 'reports:home' %}" class="flex items-center gap-3">
-                <div class="flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-500 font-bold text-slate-950">D</div>
+                <div class="flex h-11 w-11 items-center justify-center rounded-2xl bg-cyan-400 font-bold text-slate-950">DT</div>
                 <div>
-                    <p class="text-lg font-semibold">DurielBiz POS</p>
-                    <p class="text-xs text-slate-400">Desktop-first retail operations</p>
+                    <p class="text-lg font-semibold">DurielTech</p>
+                    <p class="text-xs text-slate-400">IT company building practical business systems</p>
                 </div>
             </a>
-            <nav class="hidden items-center gap-6 text-sm text-slate-300 md:flex">
-                <a href="#features" class="hover:text-white">Features</a>
-                <a href="#workflow" class="hover:text-white">Workflow</a>
-                <a href="#sync" class="hover:text-white">Cloud Sync</a>
+            <nav class="hidden items-center gap-6 text-sm text-slate-300 lg:flex">
+                <a href="#products" class="hover:text-white">Products</a>
+                <a href="#services" class="hover:text-white">Services</a>
+                <a href="#industries" class="hover:text-white">Industries</a>
+                <a href="#clients" class="hover:text-white">Clients</a>
                 <a href="{% url 'cloudsync:dashboard' %}" class="hover:text-white">Cloud Dashboard Login</a>
             </nav>
-            <div class="flex items-center gap-3">
-                <a href="{% url 'accounts:login' %}" class="rounded-xl border border-white/15 px-4 py-2 text-sm text-slate-200 hover:border-white/30 hover:text-white">Local POS Login</a>
-                <a href="{% url 'accounts:signup' %}" class="rounded-xl bg-emerald-500 px-4 py-2 text-sm font-medium text-slate-950">Create Cloud Account</a>
+            <div class="hidden items-center gap-3 sm:flex">
+                <a href="{% url 'accounts:login' %}" class="rounded-xl border border-white/15 px-4 py-2 text-sm text-slate-200 hover:border-white/30 hover:text-white">Local Product Login</a>
+                <a href="{% url 'accounts:signup' %}" class="rounded-xl bg-cyan-400 px-4 py-2 text-sm font-medium text-slate-950">Create Cloud Account</a>
             </div>
         </div>
     </header>
 
     <main>
-        <section class="mx-auto grid max-w-7xl gap-10 px-6 py-20 lg:grid-cols-[1.2fr_0.8fr] lg:py-28">
+        <section class="mx-auto grid max-w-7xl gap-12 px-4 py-16 sm:px-6 lg:grid-cols-[1.15fr_0.85fr] lg:py-24">
             <div>
-                <div class="inline-flex rounded-full border border-emerald-500/20 bg-emerald-500/10 px-4 py-1 text-sm text-emerald-300">
-                    Offline POS + Online Monitoring
+                <div class="inline-flex rounded-full border border-cyan-400/20 bg-cyan-400/10 px-4 py-1 text-sm text-cyan-300">
+                    Software, healthtech, retail systems, and mobility solutions
                 </div>
                 <h1 class="mt-6 max-w-4xl text-4xl font-semibold tracking-tight text-white md:text-6xl">
-                    Run each store locally. View the right business remotely.
+                    DurielTech builds practical digital systems for healthcare, business operations, and field services.
                 </h1>
-                <p class="mt-6 max-w-2xl text-lg leading-8 text-slate-300">
-                    DurielBiz gives each shop a fast local POS for sales and stock, while business owners monitor only their own branches from the cloud dashboard.
+                <p class="mt-6 max-w-3xl text-lg leading-8 text-slate-300">
+                    We design and deploy usable software products for real operations. Our products cover clinical workflows, desktop-first retail POS, and mobile physiotherapy service delivery.
                 </p>
                 <div class="mt-8 flex flex-wrap gap-4">
-                    <a href="{% url 'accounts:login' %}" class="rounded-2xl bg-white px-6 py-3 text-sm font-semibold text-slate-950">Open Local POS</a>
-                    <a href="{% url 'accounts:signup' %}" class="rounded-2xl border border-white/15 px-6 py-3 text-sm font-semibold text-white">Start Cloud Dashboard</a>
+                    <a href="#products" class="rounded-2xl bg-white px-6 py-3 text-sm font-semibold text-slate-950">View Products</a>
+                    <a href="#services" class="rounded-2xl border border-white/15 px-6 py-3 text-sm font-semibold text-white">Our Services</a>
                 </div>
-                <dl class="mt-12 grid gap-6 sm:grid-cols-3">
+                <div class="mt-8 flex flex-col gap-3 text-sm text-slate-300 sm:flex-row sm:flex-wrap sm:items-center sm:gap-6">
+                    <a href="tel:07031016787" class="inline-flex items-center gap-2 hover:text-white">
+                        <span class="text-cyan-300">Phone</span>
+                        <span>07031016787</span>
+                    </a>
+                    <a href="mailto:info@durieltech.com.ng" class="inline-flex items-center gap-2 hover:text-white">
+                        <span class="text-cyan-300">Email</span>
+                        <span>info@durieltech.com.ng</span>
+                    </a>
+                </div>
+                <dl class="mt-12 grid gap-4 sm:grid-cols-3">
                     <div class="rounded-2xl border border-white/10 bg-white/5 p-5">
-                        <dt class="text-sm text-slate-400">Local speed</dt>
-                        <dd class="mt-2 text-2xl font-semibold">Offline-first</dd>
+                        <dt class="text-sm text-slate-400">Products</dt>
+                        <dd class="mt-2 text-2xl font-semibold">3 Core Platforms</dd>
                     </div>
                     <div class="rounded-2xl border border-white/10 bg-white/5 p-5">
-                        <dt class="text-sm text-slate-400">Remote access</dt>
-                        <dd class="mt-2 text-2xl font-semibold">Cloud synced</dd>
+                        <dt class="text-sm text-slate-400">Client sectors</dt>
+                        <dd class="mt-2 text-2xl font-semibold">Health, retail, travel</dd>
                     </div>
                     <div class="rounded-2xl border border-white/10 bg-white/5 p-5">
-                        <dt class="text-sm text-slate-400">Business isolation</dt>
-                        <dd class="mt-2 text-2xl font-semibold">Per tenant</dd>
+                        <dt class="text-sm text-slate-400">Delivery model</dt>
+                        <dd class="mt-2 text-2xl font-semibold">Local + cloud</dd>
                     </div>
                 </dl>
             </div>
             <div class="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-2xl shadow-black/30">
                 <div class="rounded-2xl border border-white/10 bg-slate-900 p-5">
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <p class="text-sm text-slate-400">Cloud overview</p>
-                            <p class="mt-2 text-2xl font-semibold">Lekki Pharmacy Group</p>
-                        </div>
-                        <span class="rounded-full bg-emerald-500/15 px-3 py-1 text-xs text-emerald-300">Synced</span>
-                    </div>
-                    <div class="mt-5 grid gap-4 sm:grid-cols-2">
+                    <p class="text-sm text-slate-400">Selected product stack</p>
+                    <div class="mt-5 space-y-4">
                         <div class="rounded-2xl bg-slate-800 p-4">
-                            <p class="text-xs uppercase tracking-wide text-slate-400">Revenue Today</p>
-                            <p class="mt-2 text-xl font-semibold">₦182,400</p>
+                            <p class="text-xs uppercase tracking-wide text-cyan-300">DurielMedic</p>
+                            <p class="mt-2 text-lg font-semibold">Clinical and health operations platform</p>
+                            <p class="mt-2 text-sm text-slate-400">EMR-style workflows, patient records, and facility operations.</p>
                         </div>
                         <div class="rounded-2xl bg-slate-800 p-4">
-                            <p class="text-xs uppercase tracking-wide text-slate-400">Branches</p>
-                            <p class="mt-2 text-xl font-semibold">3 Active</p>
+                            <p class="text-xs uppercase tracking-wide text-emerald-300">DurielBiz POS</p>
+                            <p class="mt-2 text-lg font-semibold">Desktop-first POS with cloud monitoring</p>
+                            <p class="mt-2 text-sm text-slate-400">Offline sales, inventory, branch control, and remote owner dashboard.</p>
                         </div>
                         <div class="rounded-2xl bg-slate-800 p-4">
-                            <p class="text-xs uppercase tracking-wide text-slate-400">Top product</p>
-                            <p class="mt-2 text-xl font-semibold">Panadol</p>
-                        </div>
-                        <div class="rounded-2xl bg-slate-800 p-4">
-                            <p class="text-xs uppercase tracking-wide text-slate-400">Last sync</p>
-                            <p class="mt-2 text-xl font-semibold">2 min ago</p>
+                            <p class="text-xs uppercase tracking-wide text-amber-300">SUavedef Mobile Physio</p>
+                            <p class="mt-2 text-lg font-semibold">Mobile physiotherapy service platform</p>
+                            <p class="mt-2 text-sm text-slate-400">Supports field physiotherapy access, coordination, and service delivery.</p>
                         </div>
                     </div>
                 </div>
             </div>
         </section>
 
-        <section id="features" class="border-t border-white/10 bg-slate-900/60">
-            <div class="mx-auto max-w-7xl px-6 py-20">
-                <div class="max-w-2xl">
-                    <h2 class="text-3xl font-semibold">Built for store operations and owner oversight</h2>
-                    <p class="mt-4 text-slate-300">Keep cashiers and inventory staff working locally while owners and managers view the correct business remotely.</p>
+        <section id="products" class="border-t border-white/10 bg-slate-900/60">
+            <div class="mx-auto max-w-7xl px-4 py-20 sm:px-6">
+                <div class="max-w-3xl">
+                    <h2 class="text-3xl font-semibold">Products</h2>
+                    <p class="mt-4 text-slate-300">DurielTech products are built around real operational workflows, not generic software abstractions.</p>
                 </div>
-                <div class="mt-10 grid gap-6 md:grid-cols-2 xl:grid-cols-4">
+                <div class="mt-10 grid gap-6 lg:grid-cols-3">
                     <div class="rounded-3xl border border-white/10 bg-white/5 p-6">
-                        <h3 class="text-lg font-semibold">Desktop-first POS</h3>
-                        <p class="mt-3 text-sm text-slate-300">Fast checkout, barcode search, inventory control, and receipts on the shop computer.</p>
+                        <h3 class="text-xl font-semibold">DurielMedic</h3>
+                        <p class="mt-3 text-sm leading-6 text-slate-300">A healthcare operations product for clinics, physiotherapy practices, and patient management workflows.</p>
                     </div>
                     <div class="rounded-3xl border border-white/10 bg-white/5 p-6">
-                        <h3 class="text-lg font-semibold">Branch isolation</h3>
-                        <p class="mt-3 text-sm text-slate-300">Branch users only see their own branch. Admin controls all branches within the same business.</p>
+                        <h3 class="text-xl font-semibold">DurielBiz POS</h3>
+                        <p class="mt-3 text-sm leading-6 text-slate-300">A desktop-first POS for branches, inventory, receipts, loyalty, and online monitoring from the cloud.</p>
                     </div>
                     <div class="rounded-3xl border border-white/10 bg-white/5 p-6">
-                        <h3 class="text-lg font-semibold">Cloud monitoring</h3>
-                        <p class="mt-3 text-sm text-slate-300">Owners sign into the cloud dashboard to see synced sales, branches, and activity for their business.</p>
-                    </div>
-                    <div class="rounded-3xl border border-white/10 bg-white/5 p-6">
-                        <h3 class="text-lg font-semibold">Automatic sync ready</h3>
-                        <p class="mt-3 text-sm text-slate-300">Configure scheduled sync intervals so local branches keep the cloud dashboard current.</p>
+                        <h3 class="text-xl font-semibold">SUavedef Mobile Physio</h3>
+                        <p class="mt-3 text-sm leading-6 text-slate-300">A mobile-first physiotherapy service solution supporting remote delivery and field operations.</p>
                     </div>
                 </div>
             </div>
         </section>
 
-        <section id="workflow" class="mx-auto max-w-7xl px-6 py-20">
-            <div class="grid gap-6 lg:grid-cols-3">
-                <div class="rounded-3xl border border-white/10 bg-white/5 p-6">
-                    <span class="text-sm text-emerald-300">01</span>
-                    <h3 class="mt-4 text-xl font-semibold">Run the POS locally</h3>
-                    <p class="mt-3 text-sm text-slate-300">Each branch records sales, purchases, and stock changes locally for speed and offline reliability.</p>
+        <section id="services" class="mx-auto max-w-7xl px-4 py-20 sm:px-6">
+            <div class="grid gap-10 lg:grid-cols-[0.9fr_1.1fr]">
+                <div>
+                    <h2 class="text-3xl font-semibold">Services</h2>
+                    <p class="mt-4 text-slate-300">We build, customize, deploy, and support operational technology for organizations that need systems to work in the real world.</p>
                 </div>
-                <div class="rounded-3xl border border-white/10 bg-white/5 p-6">
-                    <span class="text-sm text-emerald-300">02</span>
-                    <h3 class="mt-4 text-xl font-semibold">Sync to the cloud</h3>
-                    <p class="mt-3 text-sm text-slate-300">Use a secure token and ingest URL to push branch data to the remote business dashboard.</p>
-                </div>
-                <div class="rounded-3xl border border-white/10 bg-white/5 p-6">
-                    <span class="text-sm text-emerald-300">03</span>
-                    <h3 class="mt-4 text-xl font-semibold">Monitor remotely</h3>
-                    <p class="mt-3 text-sm text-slate-300">Business owners log into the cloud dashboard and see only their own stores and branches.</p>
+                <div class="grid gap-4 sm:grid-cols-2">
+                    <div class="rounded-2xl border border-white/10 bg-white/5 p-5">Custom software development</div>
+                    <div class="rounded-2xl border border-white/10 bg-white/5 p-5">Business process automation</div>
+                    <div class="rounded-2xl border border-white/10 bg-white/5 p-5">POS and inventory systems</div>
+                    <div class="rounded-2xl border border-white/10 bg-white/5 p-5">Healthcare technology solutions</div>
+                    <div class="rounded-2xl border border-white/10 bg-white/5 p-5">Cloud dashboards and reporting</div>
+                    <div class="rounded-2xl border border-white/10 bg-white/5 p-5">Deployment, support, and training</div>
                 </div>
             </div>
         </section>
 
-        <section id="sync" class="border-t border-white/10 bg-slate-900/60">
-            <div class="mx-auto max-w-7xl px-6 py-20">
-                <div class="grid gap-8 lg:grid-cols-[1fr_0.9fr]">
-                    <div>
-                        <h2 class="text-3xl font-semibold">Cloud dashboard access</h2>
-                        <p class="mt-4 max-w-2xl text-slate-300">
-                            Businesses create an online account, copy the sync token and ingest URL, then connect each local POS branch from Business Settings.
-                        </p>
-                    </div>
-                    <div class="rounded-3xl border border-white/10 bg-white/5 p-6">
-                        <p class="text-sm text-slate-400">Quick links</p>
-                        <div class="mt-4 flex flex-col gap-3">
-                            <a href="{% url 'cloudsync:dashboard' %}" class="rounded-2xl border border-white/10 px-4 py-3 text-sm hover:bg-white/5">Cloud Dashboard Login</a>
-                            <a href="{% url 'accounts:signup' %}" class="rounded-2xl border border-white/10 px-4 py-3 text-sm hover:bg-white/5">Create Cloud Business</a>
-                            <a href="{% url 'accounts:login' %}" class="rounded-2xl border border-white/10 px-4 py-3 text-sm hover:bg-white/5">Local POS Login</a>
-                        </div>
-                    </div>
+        <section id="industries" class="border-t border-white/10 bg-slate-900/60">
+            <div class="mx-auto max-w-7xl px-4 py-20 sm:px-6">
+                <h2 class="text-3xl font-semibold">Industries We Cover</h2>
+                <div class="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                    <div class="rounded-2xl border border-white/10 bg-white/5 p-5">Healthcare and physiotherapy</div>
+                    <div class="rounded-2xl border border-white/10 bg-white/5 p-5">Retail and supermarkets</div>
+                    <div class="rounded-2xl border border-white/10 bg-white/5 p-5">Travel and booking operations</div>
+                    <div class="rounded-2xl border border-white/10 bg-white/5 p-5">Education and institutions</div>
+                    <div class="rounded-2xl border border-white/10 bg-white/5 p-5">Corporate operations and internal tools</div>
+                    <div class="rounded-2xl border border-white/10 bg-white/5 p-5">Field service and mobility solutions</div>
+                </div>
+            </div>
+        </section>
+
+        <section id="clients" class="mx-auto max-w-7xl px-4 py-20 sm:px-6">
+            <div class="max-w-3xl">
+                <h2 class="text-3xl font-semibold">Some Clients</h2>
+                <p class="mt-4 text-slate-300">Organizations and businesses we have built for or supported.</p>
+            </div>
+            <div class="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                <div class="rounded-2xl border border-white/10 bg-white/5 p-5">Rofim Travels</div>
+                <div class="rounded-2xl border border-white/10 bg-white/5 p-5">Lukwing Travels</div>
+                <div class="rounded-2xl border border-white/10 bg-white/5 p-5">Vertexslab Ltd</div>
+                <div class="rounded-2xl border border-white/10 bg-white/5 p-5">Jumbo Sports</div>
+                <div class="rounded-2xl border border-white/10 bg-white/5 p-5">University of Nigeria Nsukka</div>
+                <div class="rounded-2xl border border-white/10 bg-white/5 p-5">Enugu State University of Science and Technology</div>
+            </div>
+        </section>
+
+        <section class="border-t border-white/10 bg-slate-900/60">
+            <div class="mx-auto flex max-w-7xl flex-col gap-6 px-4 py-16 sm:px-6 lg:flex-row lg:items-center lg:justify-between">
+                <div>
+                    <h2 class="text-3xl font-semibold">Access DurielBiz POS and the cloud dashboard</h2>
+                    <p class="mt-3 max-w-2xl text-slate-300">DurielBiz POS remains one of DurielTech’s core products for businesses that need fast local operations with remote owner visibility.</p>
+                </div>
+                <div class="flex flex-wrap gap-3">
+                    <a href="{% url 'accounts:login' %}" class="rounded-2xl bg-white px-5 py-3 text-sm font-semibold text-slate-950">Local POS Login</a>
+                    <a href="{% url 'cloudsync:dashboard' %}" class="rounded-2xl border border-white/15 px-5 py-3 text-sm font-semibold text-white">Cloud Dashboard Login</a>
+                    <a href="{% url 'accounts:signup' %}" class="rounded-2xl border border-cyan-400/30 bg-cyan-400/10 px-5 py-3 text-sm font-semibold text-cyan-300">Create Cloud Account</a>
                 </div>
             </div>
         </section>
