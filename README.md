@@ -24,6 +24,18 @@ Desktop-first point of sale system built with Django. The project is designed to
 - Admin-only sales history by date
 - Desktop packaging entrypoint with PyInstaller support
 
+## Email and passwords
+
+- Cloud password reset is available at `/accounts/password-reset/`
+- Authenticated users can change their password at `/accounts/password-change/`
+- SMTP/admin email settings are loaded from `.env`
+- `.env.example` documents the supported email variables
+- Encrypted `.env` values are supported with `ENC(...)` plus `DURIELBIZ_ENV_KEY`
+- Generate an encryption key with:
+  - `python manage.py encrypt_env_value --generate-key`
+- Encrypt a secret for `.env` with:
+  - `python manage.py encrypt_env_value --value "your-secret" --key "your-fernet-key"`
+
 ## Implemented modules
 
 ### Accounts

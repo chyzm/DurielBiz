@@ -1,5 +1,5 @@
 from django import forms
-from django.contrib.auth.forms import UserCreationForm
+from django.contrib.auth.forms import PasswordChangeForm, PasswordResetForm, SetPasswordForm, UserCreationForm
 
 from .models import User
 from reports.models import Branch
@@ -43,3 +43,24 @@ class StaffUserUpdateForm(forms.ModelForm):
         if role != User.Role.ADMIN and branch is None:
             self.add_error("branch", "Assign a branch to this user.")
         return cleaned_data
+
+
+class StyledPasswordResetForm(PasswordResetForm):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for field in self.fields.values():
+            field.widget.attrs["class"] = "mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
+
+
+class StyledSetPasswordForm(SetPasswordForm):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for field in self.fields.values():
+            field.widget.attrs["class"] = "mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
+
+
+class StyledPasswordChangeForm(PasswordChangeForm):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for field in self.fields.values():
+            field.widget.attrs["class"] = "mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"

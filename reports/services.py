@@ -22,6 +22,12 @@ SYNC_LOCK_FILENAME = "cloud_sync.lock"
 SYNC_LOCK_STALE_SECONDS = 15 * 60
 
 
+def user_identity(user):
+    if user is None:
+        return ""
+    return user.email or user.get_full_name() or user.username
+
+
 def dashboard_metrics(*, branch=None):
     today = timezone.localdate()
     sales_filter = {"status": Sale.Status.COMPLETED}
@@ -136,7 +142,7 @@ def sync_export_payload(*, since=None, branch=None):
                 "id": sale.pk,
                 "receipt_number": sale.receipt_number,
                 "branch": sale.branch.code if sale.branch else "",
-                "cashier": sale.cashier.username,
+                "cashier": user_identity(sale.cashier),
                 "customer_name": sale.customer_name,
                 "customer_phone": sale.customer_phone,
                 "lane_name": sale.lane_name,
@@ -170,7 +176,7 @@ def sync_export_payload(*, since=None, branch=None):
                 "branch": purchase.branch.code if purchase.branch else "",
                 "supplier": purchase.supplier.name,
                 "received_at": purchase.received_at.isoformat(),
-                "created_by": purchase.created_by.username if purchase.created_by else "",
+                "created_by": user_identity(purchase.created_by),
                 "notes": purchase.notes,
                 "items": [
                     {
@@ -196,7 +202,7 @@ def sync_export_payload(*, since=None, branch=None):
                 "reference": log.reference,
                 "before_quantity": log.before_quantity,
                 "after_quantity": log.after_quantity,
-                "created_by": log.created_by.username if log.created_by else "",
+                "created_by": user_identity(log.created_by),
                 "created_at": log.created_at.isoformat(),
             }
             for log in inventory_logs[:300]

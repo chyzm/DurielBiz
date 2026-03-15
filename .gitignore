@@ -8,6 +8,8 @@ __pycache__/
 *.mo
 /env/
 .env
+.env.*
+!.env.example
 env/
 venv/
 build/
