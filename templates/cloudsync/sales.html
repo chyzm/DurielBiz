@@ -34,6 +34,9 @@
                             <p class="text-sm text-slate-500">{{ sale.cashier_name }} · {{ sale.customer_name|default:"Walk-in" }}</p>
                         </div>
                         <div class="text-sm text-slate-600">
+                            {% if sale.discount %}
+                                <p>Discount: <span class="font-semibold text-rose-700">-₦{{ sale.discount }}</span></p>
+                            {% endif %}
                             <p>Total: <span class="font-semibold text-slate-900">₦{{ sale.total }}</span></p>
                             <p>Paid: ₦{{ sale.paid_amount }}</p>
                         </div>

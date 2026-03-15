@@ -64,6 +64,16 @@ class CheckoutForm(forms.Form):
             attrs={"class": "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm", "placeholder": "0"}
         ),
     )
+    discount = forms.DecimalField(
+        min_value=0,
+        required=False,
+        initial=0,
+        decimal_places=2,
+        max_digits=12,
+        widget=forms.NumberInput(
+            attrs={"class": "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm", "placeholder": "0.00"}
+        ),
+    )
     note = forms.CharField(
         required=False,
         widget=forms.Textarea(

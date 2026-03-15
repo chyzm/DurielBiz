@@ -3,7 +3,7 @@
 {% block title %}Cloud Overview | DurielBiz{% endblock %}
 
 {% block content %}
-    <section class="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+    <section class="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
         <div class="rounded-2xl bg-white p-5 shadow-sm">
             <p class="text-sm text-slate-500">Branches</p>
             <h3 class="mt-2 text-2xl font-semibold">{{ total_branches }}</h3>
@@ -15,6 +15,10 @@
         <div class="rounded-2xl bg-white p-5 shadow-sm">
             <p class="text-sm text-slate-500">Revenue Today</p>
             <h3 class="mt-2 text-2xl font-semibold">₦{{ revenue_today }}</h3>
+        </div>
+        <div class="rounded-2xl bg-white p-5 shadow-sm">
+            <p class="text-sm text-slate-500">Discounts Today</p>
+            <h3 class="mt-2 text-2xl font-semibold">₦{{ discount_today }}</h3>
         </div>
         <div class="rounded-2xl bg-white p-5 shadow-sm">
             <p class="text-sm text-slate-500">Purchases Today</p>

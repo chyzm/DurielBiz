@@ -97,6 +97,7 @@ class RemoteSale(models.Model):
     subtotal = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     redeemed_points = models.PositiveIntegerField(default=0)
     redeemed_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    discount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     total = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     paid_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     created_at_remote = models.DateTimeField()

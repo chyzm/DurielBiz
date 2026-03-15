@@ -143,16 +143,20 @@
                 <p class="rounded-2xl bg-slate-50 px-3 py-4 text-sm text-slate-500">No items in cart.</p>
             </div>
 
-            <div class="mt-5 grid gap-3 sm:grid-cols-3">
-                <div class="rounded-2xl bg-slate-50 p-4">
-                    <p class="text-xs uppercase tracking-wide text-slate-500">Subtotal</p>
-                    <p id="subtotalValue" class="mt-2 text-lg font-semibold text-slate-900">₦0.00</p>
-                </div>
-                <div class="rounded-2xl bg-slate-50 p-4">
-                    <p class="text-xs uppercase tracking-wide text-slate-500">Redeem</p>
-                    <p id="redeemValue" class="mt-2 text-lg font-semibold text-slate-900">₦0.00</p>
-                </div>
-                <div class="rounded-2xl bg-slate-900 p-4 text-white">
+                <div class="mt-5 grid gap-3 sm:grid-cols-3">
+                    <div class="rounded-2xl bg-slate-50 p-4">
+                        <p class="text-xs uppercase tracking-wide text-slate-500">Subtotal</p>
+                        <p id="subtotalValue" class="mt-2 text-lg font-semibold text-slate-900">₦0.00</p>
+                    </div>
+                    <div class="rounded-2xl bg-slate-50 p-4">
+                        <p class="text-xs uppercase tracking-wide text-slate-500">Discount</p>
+                        <p id="discountValue" class="mt-2 text-lg font-semibold text-slate-900">₦0.00</p>
+                    </div>
+                    <div class="rounded-2xl bg-slate-50 p-4">
+                        <p class="text-xs uppercase tracking-wide text-slate-500">Redeem</p>
+                        <p id="redeemValue" class="mt-2 text-lg font-semibold text-slate-900">₦0.00</p>
+                    </div>
+                    <div class="rounded-2xl bg-slate-900 p-4 text-white">
                     <p class="text-xs uppercase tracking-wide text-slate-300">Total</p>
                     <p id="totalValue" class="mt-2 text-lg font-semibold">₦0.00</p>
                 </div>
@@ -188,6 +192,10 @@
                     <div>
                         <label class="text-sm font-medium text-slate-700">Redeem Points</label>
                         {{ form.redeemed_points }}
+                    </div>
+                    <div>
+                        <label class="text-sm font-medium text-slate-700">Discount</label>
+                        {{ form.discount }}
                     </div>
                     <div class="rounded-2xl bg-slate-50 px-4 py-3">
                         <p class="text-xs uppercase tracking-wide text-slate-500">Change Preview</p>
@@ -238,6 +246,7 @@
         const cartContainer = document.getElementById('cartItems');
         const itemsInput = document.getElementById('id_items_json');
         const subtotalValue = document.getElementById('subtotalValue');
+        const discountValue = document.getElementById('discountValue');
         const redeemValue = document.getElementById('redeemValue');
         const totalValue = document.getElementById('totalValue');
         const changeValue = document.getElementById('changeValue');
@@ -248,6 +257,7 @@
         const paymentMethodInput = document.getElementById('id_payment_method');
         const paidAmountInput = document.getElementById('id_paid_amount');
         const redeemedPointsInput = document.getElementById('id_redeemed_points');
+        const discountInput = document.getElementById('id_discount');
         const noteInput = document.getElementById('id_note');
         const activeLaneTitle = document.getElementById('activeLaneTitle');
         const loyaltyPanel = document.getElementById('loyaltyPanel');
@@ -256,8 +266,8 @@
         const storageKey = 'durielbiz-pos-lanes';
         const laneTabs = document.querySelectorAll('.lane-tab');
         const defaultLanes = {
-            checkout_a: { label: 'Checkout A', cart: [], customer_name: '', customer_phone: '', payment_method: 'cash', paid_amount: '0.00', redeemed_points: 0, note: '', customer_points: 0, customer_found: false, preferred_redeem_points: 0 },
-            checkout_b: { label: 'Checkout B', cart: [], customer_name: '', customer_phone: '', payment_method: 'cash', paid_amount: '0.00', redeemed_points: 0, note: '', customer_points: 0, customer_found: false, preferred_redeem_points: 0 }
+            checkout_a: { label: 'Checkout A', cart: [], customer_name: '', customer_phone: '', payment_method: 'cash', paid_amount: '0.00', redeemed_points: 0, discount: '0.00', note: '', customer_points: 0, customer_found: false, preferred_redeem_points: 0 },
+            checkout_b: { label: 'Checkout B', cart: [], customer_name: '', customer_phone: '', payment_method: 'cash', paid_amount: '0.00', redeemed_points: 0, discount: '0.00', note: '', customer_points: 0, customer_found: false, preferred_redeem_points: 0 }
         };
         const storedLanes = JSON.parse(sessionStorage.getItem(storageKey) || 'null') || {};
         let lanes = {
@@ -287,7 +297,8 @@
 
         function currentLaneTotal() {
             const subtotal = lanes[activeLane].cart.reduce((sum, item) => sum + (item.quantity * item.price), 0);
-            return Math.max(subtotal - redemptionValue(lanes[activeLane].redeemed_points), 0);
+            const discount = Number(lanes[activeLane].discount || 0);
+            return Math.max(subtotal - discount - redemptionValue(lanes[activeLane].redeemed_points), 0);
         }
 
         function updateLaneForm() {
@@ -299,6 +310,7 @@
             paymentMethodInput.value = lane.payment_method;
             paidAmountInput.value = lane.paid_amount;
             redeemedPointsInput.value = lane.redeemed_points;
+            discountInput.value = lane.discount;
             noteInput.value = lane.note;
             laneTabs.forEach(tab => {
                 const selected = tab.dataset.lane === activeLane;
@@ -342,6 +354,7 @@
             if (entries.length === 0) {
                 cartContainer.innerHTML = '<p class="rounded-2xl bg-slate-50 px-3 py-4 text-sm text-slate-500">No items in cart.</p>';
                 subtotalValue.textContent = currency(0);
+                discountValue.textContent = currency(0);
                 redeemValue.textContent = currency(0);
                 totalValue.textContent = currency(0);
                 lanes[activeLane].paid_amount = '0.00';
@@ -377,8 +390,10 @@
             }).join('');
 
             const redeemAmount = redemptionValue(lanes[activeLane].redeemed_points);
-            const total = Math.max(subtotal - redeemAmount, 0);
+            const discountAmount = Number(lanes[activeLane].discount || 0);
+            const total = Math.max(subtotal - discountAmount - redeemAmount, 0);
             subtotalValue.textContent = currency(subtotal);
+            discountValue.textContent = currency(discountAmount);
             redeemValue.textContent = currency(redeemAmount);
             totalValue.textContent = currency(total);
             lanes[activeLane].paid_amount = total.toFixed(2);
@@ -414,6 +429,7 @@
             lanes[activeLane].payment_method = paymentMethodInput.value;
             lanes[activeLane].paid_amount = paidAmountInput.value;
             lanes[activeLane].redeemed_points = Number(redeemedPointsInput.value || 0);
+            lanes[activeLane].discount = Number(discountInput.value || 0).toFixed(2);
             lanes[activeLane].note = noteInput.value;
             persistLanes();
         }
@@ -607,6 +623,15 @@
             if (value < 0) value = 0;
             redeemedPointsInput.value = value;
             lanes[activeLane].redeemed_points = value;
+            syncCart();
+        });
+        discountInput.addEventListener('input', () => {
+            let value = Number(discountInput.value || 0);
+            if (value < 0) value = 0;
+            const subtotal = lanes[activeLane].cart.reduce((sum, item) => sum + (item.quantity * item.price), 0);
+            if (value > subtotal) value = subtotal;
+            discountInput.value = value.toFixed(2);
+            lanes[activeLane].discount = discountInput.value;
             syncCart();
         });
 

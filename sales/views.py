@@ -103,6 +103,7 @@ def pos_terminal(request):
                 note=form.cleaned_data["note"],
                 lane_name=form.cleaned_data["lane_name"] or "checkout_a",
                 redeemed_points=form.cleaned_data["redeemed_points"] or 0,
+                discount=form.cleaned_data["discount"] or 0,
             )
         except Product.DoesNotExist:
             form.add_error(None, "One of the selected products no longer exists.")
@@ -203,6 +204,7 @@ def sales_history_export_csv(request):
             "Redeemed Amount",
             "Total",
             "Paid Amount",
+            "Discount",
             "Change Due",
         ]
     )
@@ -229,6 +231,7 @@ def sales_history_export_csv(request):
                     sale.redeemed_amount,
                     sale.total,
                     sale.paid_amount,
+                    sale.discount,
                     sale.change_due,
                 ]
             )
@@ -254,6 +257,7 @@ def sales_history_export_csv(request):
                     sale.redeemed_amount,
                     sale.total,
                     sale.paid_amount,
+                    sale.discount,
                     sale.change_due,
                 ]
             )

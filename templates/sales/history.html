@@ -34,6 +34,7 @@
                         <th class="py-3 pr-4">Products Sold</th>
                         <th class="py-3 pr-4">Branch</th>
                         <th class="py-3 pr-4">Lane</th>
+                        <th class="py-3 pr-4">Discount</th>
                         <th class="py-3 pr-4">Total</th>
                         <th class="py-3">Reprint</th>
                     </tr>
@@ -58,11 +59,12 @@
                             </td>
                             <td class="py-4 pr-4">{{ sale.branch.name|default:"—" }}</td>
                             <td class="py-4 pr-4">{{ sale.lane_name|title }}</td>
+                            <td class="py-4 pr-4">{% if sale.discount %}-₦{{ sale.discount }}{% else %}—{% endif %}</td>
                             <td class="py-4 pr-4">₦{{ sale.total }}</td>
                             <td class="py-4"><a href="{% url 'sales:receipt' sale.pk %}" class="text-slate-700 hover:underline">Reprint</a></td>
                         </tr>
                     {% empty %}
-                        <tr><td colspan="9" class="py-10 text-center text-slate-500">No sales found for this date range.</td></tr>
+                        <tr><td colspan="10" class="py-10 text-center text-slate-500">No sales found for this date range.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>

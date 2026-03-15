@@ -150,6 +150,7 @@ def sync_export_payload(*, since=None, branch=None):
                 "subtotal": str(sale.subtotal),
                 "redeemed_points": sale.redeemed_points,
                 "redeemed_amount": str(sale.redeemed_amount),
+                "discount": str(sale.discount),
                 "total": str(sale.total),
                 "paid_amount": str(sale.paid_amount),
                 "created_at": sale.created_at.isoformat(),
