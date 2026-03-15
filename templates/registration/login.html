@@ -3,14 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login | DurielBiz POS</title>
+    <title>DurielBiz POS Login | DurielTech</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="flex min-h-screen items-center justify-center bg-slate-950 px-4">
     <div class="w-full max-w-md rounded-2xl bg-white p-8 shadow-2xl">
         <div class="mb-6">
+            <p class="text-sm font-medium text-cyan-700">DurielTech</p>
             <h1 class="text-2xl font-semibold text-slate-900">DurielBiz POS</h1>
-            <p class="mt-2 text-sm text-slate-500">Sign in to continue to the dashboard.</p>
+            <p class="mt-2 text-sm text-slate-500">Sign in to continue to the local business dashboard.</p>
         </div>
 
         <form method="post" class="space-y-4">
@@ -29,6 +30,9 @@
         <p class="mt-4 text-center text-sm text-slate-500">
             Need an online dashboard? <a href="{% url 'accounts:signup' %}" class="font-medium text-slate-900 hover:underline">Create business account</a>
         </p>
+        <div class="mt-6 border-t border-slate-100 pt-4 text-center text-xs text-slate-500">
+            <p>Support: <a href="tel:07031016787" class="font-medium text-slate-700 hover:underline">07031016787</a> · <a href="mailto:info@durieltech.com.ng" class="font-medium text-slate-700 hover:underline">info@durieltech.com.ng</a></p>
+        </div>
     </div>
 </body>
 </html>

@@ -49,8 +49,8 @@ def signup(request):
         SyncCredential.objects.create(business=business)
 
         auth_login(request, user)
-        messages.success(request, "Your cloud dashboard is ready.")
-        return redirect("cloudsync:dashboard")
+        messages.success(request, "Your cloud dashboard is ready. Next, connect your existing local POS from the sync settings page.")
+        return redirect("cloudsync:settings")
 
     return render(request, "cloudsync/signup.html", {"form": form})
 

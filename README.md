@@ -1,10 +1,12 @@
 # DurielBiz POS
 
+Built by `DurielTech`, an IT company delivering operational software for healthcare, retail, mobility, and business automation.
+
 Desktop-first point of sale system built with Django. The project is designed to run locally for a shop on `127.0.0.1:9000`, while keeping the codebase modular enough for later sync, remote reporting, and multi-branch expansion.
 
 ## Current scope
 
-- Public Tailwind landing page at `/`
+- Public DurielTech landing page at `/`
 - Offline-first Django deployment with SQLite by default
 - Role-restricted workflow for admin, cashier, manager, and inventory officer
 - Product, category, supplier, inventory, purchase, and sales modules
@@ -177,7 +179,8 @@ Admin can review logs from the activity log page.
 
 ## Main routes
 
-- `/` dashboard
+- `/` DurielTech landing page
+- `/dashboard/` local POS dashboard
 - `/accounts/login/`
 - `/accounts/activity-log/`
 - `/products/`
@@ -265,6 +268,64 @@ After first login:
 4. Add categories
 5. Add products
 6. Receive opening stock through Purchases
+
+## Sales readiness checklist
+
+Use this checklist before selling or deploying to a client:
+
+1. Build fresh desktop binaries with `build_desktop.ps1`
+2. Rebuild the installer with `build_installer.ps1`
+3. Test the installer on a clean Windows machine
+4. Create a sample admin user and verify login
+5. Set Business Settings:
+   - business name
+   - phone
+   - address
+   - receipt footer
+   - default branch
+6. Test a full flow:
+   - create product
+   - add stock
+   - make sale
+   - print receipt
+   - view dashboard
+7. If remote monitoring is included:
+   - create cloud account
+   - copy sync token and ingest URL
+   - enable cloud sync locally
+   - run `Sync Now`
+   - verify cloud dashboard receives data
+8. Deliver the client handoff items:
+   - installer
+   - admin login
+   - backup path
+   - support contact
+
+## Client handoff
+
+Provide these to the buyer at delivery:
+
+- Installer: `dist\installer\DurielBizPOS-Setup.exe`
+- Admin tool: `dist\DurielBizPOSAdmin.exe`
+- Local data path: `%LOCALAPPDATA%\DurielBizPOS\db.sqlite3`
+- Local runtime log: `%LOCALAPPDATA%\DurielBizPOS\runtime\launcher.log`
+- Support contact:
+  - `07031016787`
+  - `info@durieltech.com.ng`
+
+## About & support page
+
+The app includes an authenticated support page at:
+
+- `/accounts/about-support/`
+
+It shows:
+
+- DurielTech branding
+- current product version
+- support phone and email
+- deployment modes
+- release and handoff notes
 
 ## Desktop packaging
 
@@ -368,6 +429,15 @@ powershell -ExecutionPolicy Bypass -File .\build_installer.ps1
 dist\installer\DurielBizPOS-Setup.exe
 ```
 
+To prevent Windows from showing `Unknown publisher`, the installer must be signed with a real code-signing certificate. The release build supports signing when these environment variables are set:
+
+- `DURIELTECH_SIGNTOOL_PATH`
+- `DURIELTECH_SIGN_PFX`
+- `DURIELTECH_SIGN_PFX_PASSWORD`
+- optional `DURIELTECH_TIMESTAMP_URL`
+
+Without a certificate, Windows will still show `Unknown publisher` even if the installer metadata says `DurielTech`.
+
 Installer behavior:
 
 - Installs the EXE to `C:\Program Files\DurielBizPOS`
@@ -421,7 +491,7 @@ powershell -ExecutionPolicy Bypass -File .\build_installer.ps1
 3. On the shop PC, close the running app completely.
 4. Replace the old `DurielBizPOS.exe` with the new one, or run the new installer.
 5. Start the app again.
-6. On first launch after update, the app refreshes files in `C:\ProgramData\DurielBizPOS` and runs any pending migrations automatically.
+6. On first launch after update, the app refreshes files in `%LOCALAPPDATA%\DurielBizPOS\runtime` and runs any pending migrations automatically.
 
 Important:
 

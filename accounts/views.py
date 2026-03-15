@@ -5,6 +5,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 
 from pos_system.pagination import paginate_queryset
 
+from cloudsync.services import user_business
 from .activity import log_activity
 from .forms import StaffUserCreationForm, StaffUserUpdateForm
 from .permissions import get_role_home_url, role_required
@@ -132,4 +133,31 @@ def activity_log_list(request):
         request,
         "accounts/activity_log.html",
         {"logs": logs_page, "modules": ActivityLog.Module.choices, "selected_module": module},
+    )
+
+
+@login_required
+def about_support(request):
+    business = user_business(request.user)
+    return render(
+        request,
+        "accounts/about_support.html",
+        {
+            "base_template": "cloudsync/base.html" if business else "base.html",
+            "support_phone": "07031016787",
+            "support_email": "info@durieltech.com.ng",
+            "company_name": "DurielTech",
+            "product_name": "DurielBiz POS",
+            "app_version": "1.0.0",
+            "deployment_modes": [
+                "Local desktop POS with offline-first operation",
+                "LAN access on the same network",
+                "Cloud dashboard sync for remote monitoring",
+            ],
+            "license_notes": [
+                "Release builds should be distributed with the approved installer or the packaged desktop binaries.",
+                "Cloud dashboard access depends on valid business account setup and sync configuration.",
+                "Windows publisher verification requires a real code-signing certificate during release builds.",
+            ],
+        },
     )

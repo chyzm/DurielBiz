@@ -27,3 +27,21 @@ if (-not $compiler) {
 }
 
 & $compiler (Join-Path $PSScriptRoot "DurielBizPOS.iss")
+
+$signToolPath = $env:DURIELTECH_SIGNTOOL_PATH
+$pfxPath = $env:DURIELTECH_SIGN_PFX
+$pfxPassword = $env:DURIELTECH_SIGN_PFX_PASSWORD
+$timestampUrl = if ($env:DURIELTECH_TIMESTAMP_URL) { $env:DURIELTECH_TIMESTAMP_URL } else { "http://timestamp.digicert.com" }
+$installerOutputPath = Join-Path $PSScriptRoot "dist\installer\DurielBizPOS-Setup.exe"
+
+if ($signToolPath -and $pfxPath -and $pfxPassword) {
+  if (-not (Test-Path $signToolPath)) {
+    throw "Configured sign tool not found at $signToolPath."
+  }
+  if (-not (Test-Path $pfxPath)) {
+    throw "Configured PFX certificate not found at $pfxPath."
+  }
+  & $signToolPath sign /f $pfxPath /p $pfxPassword /tr $timestampUrl /td sha256 /fd sha256 $installerOutputPath
+} else {
+  Write-Host "Installer built unsigned. Windows will show 'Unknown publisher' until the installer is signed with a code-signing certificate."
+}

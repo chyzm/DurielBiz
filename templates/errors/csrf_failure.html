@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Session Expired | DurielBiz POS</title>
+    <title>Session Expired | DurielBiz POS | DurielTech</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="flex min-h-screen items-center justify-center bg-slate-100 px-4">
@@ -15,6 +15,9 @@
         {% if reason %}
             <p class="mt-3 rounded-xl bg-slate-50 px-4 py-3 text-xs text-slate-500">{{ reason }}</p>
         {% endif %}
+        <p class="mt-3 text-sm text-slate-600">
+            If this keeps happening on a deployed client system, contact DurielTech at <a href="mailto:info@durieltech.com.ng" class="font-medium text-slate-800 hover:underline">info@durieltech.com.ng</a>.
+        </p>
         <div class="mt-6 flex gap-3">
             <a href="/accounts/login/" class="rounded-xl bg-slate-900 px-4 py-2 text-sm text-white">Back to Login</a>
             <button onclick="window.location.reload()" class="rounded-xl border border-slate-300 px-4 py-2 text-sm">Reload Page</button>

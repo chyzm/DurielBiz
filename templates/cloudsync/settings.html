@@ -16,11 +16,17 @@
             <div class="mt-4 space-y-4 text-sm">
                 <div class="rounded-xl bg-slate-50 p-4">
                     <p class="text-slate-500">Ingest URL</p>
-                    <p class="mt-1 break-all font-medium">{{ ingest_url }}</p>
+                    <div class="mt-1 flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                        <p class="break-all font-medium">{{ ingest_url }}</p>
+                        <button type="button" data-copy-value="{{ ingest_url }}" class="rounded-lg border border-slate-300 px-3 py-2 text-xs">Copy</button>
+                    </div>
                 </div>
                 <div class="rounded-xl bg-slate-50 p-4">
                     <p class="text-slate-500">Sync Token</p>
-                    <p class="mt-1 break-all font-medium">{{ credential.token }}</p>
+                    <div class="mt-1 flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                        <p class="break-all font-medium">{{ credential.token }}</p>
+                        <button type="button" data-copy-value="{{ credential.token }}" class="rounded-lg border border-slate-300 px-3 py-2 text-xs">Copy</button>
+                    </div>
                 </div>
                 <div class="rounded-xl bg-slate-50 p-4">
                     <p class="text-slate-500">Last Synced</p>
@@ -33,4 +39,67 @@
             </div>
         </div>
     </section>
+
+    <section class="mt-6 rounded-2xl bg-white p-6 shadow-sm">
+        <div class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+            <div>
+                <h3 class="text-lg font-semibold">Connect Existing Local DurielBiz POS</h3>
+                <p class="mt-1 text-sm text-slate-500">Use this if the business already exists locally on a shop computer and you want to start remote monitoring now.</p>
+            </div>
+            <span class="rounded-full bg-cyan-50 px-3 py-1 text-xs font-medium text-cyan-700">Existing local business supported</span>
+        </div>
+
+        <div class="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+            <div class="rounded-xl border border-slate-200 p-4">
+                <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Step 1</p>
+                <p class="mt-2 text-sm text-slate-700">On the local shop PC, log in as <span class="font-semibold">Admin</span>.</p>
+            </div>
+            <div class="rounded-xl border border-slate-200 p-4">
+                <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Step 2</p>
+                <p class="mt-2 text-sm text-slate-700">Open <span class="font-semibold">Business Settings</span> in the local POS.</p>
+            </div>
+            <div class="rounded-xl border border-slate-200 p-4">
+                <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Step 3</p>
+                <p class="mt-2 text-sm text-slate-700">Enable <span class="font-semibold">Cloud Sync</span>.</p>
+            </div>
+            <div class="rounded-xl border border-slate-200 p-4">
+                <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Step 4</p>
+                <p class="mt-2 text-sm text-slate-700">Paste this page’s <span class="font-semibold">Ingest URL</span> and <span class="font-semibold">Sync Token</span>.</p>
+            </div>
+            <div class="rounded-xl border border-slate-200 p-4">
+                <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Step 5</p>
+                <p class="mt-2 text-sm text-slate-700">Click <span class="font-semibold">Sync Now</span> on the local POS. Existing sales, purchases, inventory logs, and branches will appear here.</p>
+            </div>
+        </div>
+
+        <div class="mt-6 rounded-2xl border border-emerald-100 bg-emerald-50 p-4 text-sm text-emerald-900">
+            <p class="font-semibold">Important</p>
+            <ul class="mt-2 list-disc space-y-1 pl-5 text-emerald-800">
+                <li>You do not need to recreate the business on the local POS.</li>
+                <li>The local business stays as it is; you only connect it by adding the ingest URL and sync token.</li>
+                <li>Use the same cloud account for all branches that belong to this business.</li>
+            </ul>
+        </div>
+    </section>
+{% endblock %}
+
+{% block extra_js %}
+    <script>
+        document.querySelectorAll('[data-copy-value]').forEach(button => {
+            button.addEventListener('click', async () => {
+                try {
+                    await navigator.clipboard.writeText(button.dataset.copyValue);
+                    button.textContent = 'Copied';
+                    setTimeout(() => {
+                        button.textContent = 'Copy';
+                    }, 1500);
+                } catch (error) {
+                    button.textContent = 'Copy failed';
+                    setTimeout(() => {
+                        button.textContent = 'Copy';
+                    }, 1500);
+                }
+            });
+        });
+    </script>
 {% endblock %}

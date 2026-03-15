@@ -1,6 +1,6 @@
 #define MyAppName "DurielBiz POS"
 #define MyAppVersion "1.0.0"
-#define MyAppPublisher "DurielBiz"
+#define MyAppPublisher "DurielTech"
 #define MyAppExeName "DurielBizPOS.exe"
 #define MyAdminExeName "DurielBizPOSAdmin.exe"
 #define MySyncServiceExeName "DurielBizPOSSyncService.exe"
@@ -10,6 +10,9 @@ AppId={{7A09D088-39A1-4302-B502-0D157A1D5FE7}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 AppPublisher={#MyAppPublisher}
+AppPublisherURL=https://durieltech.com.ng
+AppSupportURL=https://durieltech.com.ng
+AppUpdatesURL=https://durieltech.com.ng
 DefaultDirName={autopf}\DurielBizPOS
 DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
@@ -22,6 +25,10 @@ ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 PrivilegesRequired=admin
 UninstallDisplayIcon={app}\{#MyAppExeName}
+VersionInfoCompany={#MyAppPublisher}
+VersionInfoDescription={#MyAppName} Installer
+VersionInfoProductName={#MyAppName}
+VersionInfoProductVersion={#MyAppVersion}
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"

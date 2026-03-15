@@ -18,18 +18,54 @@
                 <a href="{% url 'cloudsync:sales' %}" class="block rounded-lg px-3 py-2 hover:bg-slate-800">Sales</a>
                 <a href="{% url 'cloudsync:branches' %}" class="block rounded-lg px-3 py-2 hover:bg-slate-800">Branches</a>
                 <a href="{% url 'cloudsync:settings' %}" class="block rounded-lg px-3 py-2 hover:bg-slate-800">Sync Settings</a>
+                <a href="{% url 'accounts:about-support' %}" class="block rounded-lg px-3 py-2 hover:bg-slate-800">About & Support</a>
                 <form method="post" action="{% url 'accounts:logout' %}">
                     {% csrf_token %}
                     <button class="block w-full rounded-lg px-3 py-2 text-left hover:bg-slate-800">Logout</button>
                 </form>
             </nav>
         </aside>
+
+        <div id="cloudMobileSidebarBackdrop" class="fixed inset-0 z-40 hidden bg-slate-950/50 lg:hidden"></div>
+        <aside id="cloudMobileSidebar" class="fixed inset-y-0 left-0 z-50 w-72 -translate-x-full overflow-y-auto bg-slate-950 text-slate-100 shadow-2xl transition-transform duration-200 lg:hidden">
+            <div class="border-b border-slate-800 px-5 py-5">
+                <div class="flex items-center justify-between gap-4">
+                    <div>
+                        <h1 class="text-xl font-semibold">DurielBiz Cloud</h1>
+                        <p class="mt-1 text-sm text-slate-400">{{ business.name|default:"Remote dashboard" }}</p>
+                    </div>
+                    <button id="closeCloudMobileSidebar" type="button" class="rounded-lg border border-slate-700 px-3 py-2 text-xs text-slate-300">Close</button>
+                </div>
+            </div>
+            <nav class="space-y-1 px-4 py-4 text-sm">
+                <a href="{% url 'cloudsync:dashboard' %}" class="block rounded-lg px-3 py-2 hover:bg-slate-800">Overview</a>
+                <a href="{% url 'cloudsync:sales' %}" class="block rounded-lg px-3 py-2 hover:bg-slate-800">Sales</a>
+                <a href="{% url 'cloudsync:branches' %}" class="block rounded-lg px-3 py-2 hover:bg-slate-800">Branches</a>
+                <a href="{% url 'cloudsync:settings' %}" class="block rounded-lg px-3 py-2 hover:bg-slate-800">Sync Settings</a>
+                <a href="{% url 'accounts:about-support' %}" class="block rounded-lg px-3 py-2 hover:bg-slate-800">About & Support</a>
+                <form method="post" action="{% url 'accounts:logout' %}">
+                    {% csrf_token %}
+                    <button class="block w-full rounded-lg px-3 py-2 text-left hover:bg-slate-800">Logout</button>
+                </form>
+            </nav>
+        </aside>
+
         <main class="flex-1">
-            <header class="border-b border-slate-200 bg-white px-6 py-4">
-                <p class="text-sm text-slate-500">Business</p>
-                <h2 class="text-xl font-semibold">{{ business.name|default:"DurielBiz Cloud" }}</h2>
+            <header class="border-b border-slate-200 bg-white px-4 py-4 sm:px-6">
+                <div class="flex flex-wrap items-start justify-between gap-3">
+                    <div class="flex items-start gap-3">
+                        <button id="openCloudMobileSidebar" type="button" class="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 lg:hidden">Menu</button>
+                        <div>
+                            <p class="text-sm text-slate-500">Business</p>
+                            <h2 class="text-xl font-semibold">{{ business.name|default:"DurielBiz Cloud" }}</h2>
+                        </div>
+                    </div>
+                    <div class="rounded-full bg-slate-100 px-3 py-1 text-sm text-slate-600">
+                        Cloud Dashboard
+                    </div>
+                </div>
             </header>
-            <div class="px-6 py-6">
+            <div class="px-4 py-6 sm:px-6">
                 {% if messages %}
                     <div class="mb-4 space-y-2">
                         {% for message in messages %}
@@ -41,5 +77,29 @@
             </div>
         </main>
     </div>
+    <script>
+        const cloudMobileSidebar = document.getElementById('cloudMobileSidebar');
+        const cloudMobileSidebarBackdrop = document.getElementById('cloudMobileSidebarBackdrop');
+        const openCloudMobileSidebarButton = document.getElementById('openCloudMobileSidebar');
+        const closeCloudMobileSidebarButton = document.getElementById('closeCloudMobileSidebar');
+
+        function setCloudMobileSidebar(open) {
+            if (!cloudMobileSidebar || !cloudMobileSidebarBackdrop) return;
+            cloudMobileSidebar.classList.toggle('-translate-x-full', !open);
+            cloudMobileSidebarBackdrop.classList.toggle('hidden', !open);
+            document.body.classList.toggle('overflow-hidden', open);
+        }
+
+        if (openCloudMobileSidebarButton) {
+            openCloudMobileSidebarButton.addEventListener('click', () => setCloudMobileSidebar(true));
+        }
+        if (closeCloudMobileSidebarButton) {
+            closeCloudMobileSidebarButton.addEventListener('click', () => setCloudMobileSidebar(false));
+        }
+        if (cloudMobileSidebarBackdrop) {
+            cloudMobileSidebarBackdrop.addEventListener('click', () => setCloudMobileSidebar(false));
+        }
+    </script>
+    {% block extra_js %}{% endblock %}
 </body>
 </html>
