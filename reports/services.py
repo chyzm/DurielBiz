@@ -1,5 +1,6 @@
 import json
 import os
+import re
 from urllib import error, request as urllib_request
 from datetime import timedelta
 from decimal import Decimal
@@ -220,7 +221,7 @@ def push_sync_payload(*, endpoint_url, token, since=None):
             return json.loads(response_body) if response_body else {"ok": True}
     except error.HTTPError as exc:
         details = exc.read().decode("utf-8", errors="ignore")
-        raise ValueError(details or f"Sync failed with HTTP {exc.code}.") from exc
+        raise ValueError(format_sync_http_error(exc.code, details)) from exc
     except error.URLError as exc:
         raise ValueError(f"Sync failed: {exc.reason}") from exc
 
@@ -306,7 +307,30 @@ def run_scheduled_cloud_sync(*, settings_obj=None):
     try:
         if not cloud_sync_due(settings_obj):
             return {"ok": False, "message": "Cloud sync is not due yet."}
-        response = perform_cloud_sync(settings_obj=settings_obj)
+        try:
+            response = perform_cloud_sync(settings_obj=settings_obj)
+        except ValueError as exc:
+            return {"ok": False, "message": str(exc)}
+        except Exception as exc:
+            return {"ok": False, "message": f"Cloud sync failed unexpectedly: {exc}"}
         return {"ok": True, "message": "Cloud sync completed.", "response": response if isinstance(response, dict) else {}}
     finally:
         release_sync_lock(lock_handle)
+
+
+def format_sync_http_error(status_code, response_text):
+    body = (response_text or "").strip()
+    if not body:
+        return f"Sync failed with HTTP {status_code}."
+
+    if body.lstrip().startswith("<"):
+        title_match = re.search(r"<title>(.*?)</title>", body, re.IGNORECASE | re.DOTALL)
+        title = re.sub(r"\s+", " ", title_match.group(1)).strip() if title_match else ""
+        if title:
+            return f"Sync failed with HTTP {status_code}: {title}"
+        return f"Sync failed with HTTP {status_code}. The cloud server returned an HTML error page."
+
+    compact_body = re.sub(r"\s+", " ", body)
+    if len(compact_body) > 240:
+        compact_body = f"{compact_body[:237]}..."
+    return compact_body

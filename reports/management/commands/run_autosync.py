@@ -24,11 +24,15 @@ class Command(BaseCommand):
 
         while True:
             settings_obj = BusinessSettings.get_solo()
-            result = run_scheduled_cloud_sync(settings_obj=settings_obj)
+            try:
+                result = run_scheduled_cloud_sync(settings_obj=settings_obj)
+            except Exception as exc:
+                result = {"ok": False, "message": f"Cloud sync worker error: {exc}"}
+
             if result["ok"]:
                 self.stdout.write(self.style.SUCCESS(result["message"]))
-            elif run_once:
-                self.stdout.write(result["message"])
+            else:
+                self.stdout.write(self.style.WARNING(result["message"]))
             if run_once:
                 return
             time.sleep(sleep_seconds)
