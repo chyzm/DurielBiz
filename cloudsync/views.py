@@ -133,7 +133,7 @@ def sales_export_csv(request):
             "Profit",
         ]
     )
-    for sale in sales.iterator():
+    for sale in sales:
         items = list(sale.items.all())
         if not items:
             writer.writerow(
@@ -351,7 +351,7 @@ def purchase_export_csv(request):
             "Expiry Date",
         ]
     )
-    for purchase in purchases.iterator():
+    for purchase in purchases:
         items = list(purchase.items.all())
         if not items:
             writer.writerow(
