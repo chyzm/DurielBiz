@@ -4,6 +4,24 @@ from django.db import models
 from django.utils.text import slugify
 
 
+def unique_slug_for_instance(instance, source_value, *, slug_field_name="slug", max_length=None):
+    base_slug = slugify(source_value) or "item"
+    if max_length:
+        base_slug = base_slug[:max_length]
+    slug = base_slug
+    model_class = instance.__class__
+    counter = 2
+
+    while model_class.objects.filter(**{slug_field_name: slug}).exclude(pk=instance.pk).exists():
+        suffix = f"-{counter}"
+        if max_length:
+            slug = f"{base_slug[: max_length - len(suffix)]}{suffix}"
+        else:
+            slug = f"{base_slug}{suffix}"
+        counter += 1
+    return slug
+
+
 class Category(models.Model):
     name = models.CharField(max_length=120, unique=True)
     slug = models.SlugField(max_length=140, unique=True, blank=True)
@@ -14,8 +32,7 @@ class Category(models.Model):
         verbose_name_plural = "categories"
 
     def save(self, *args, **kwargs):
-        if not self.slug:
-            self.slug = slugify(self.name)
+        self.slug = unique_slug_for_instance(self, self.name, max_length=self._meta.get_field("slug").max_length)
         super().save(*args, **kwargs)
 
     def __str__(self) -> str:
@@ -47,8 +64,7 @@ class Product(models.Model):
         ordering = ["name"]
 
     def save(self, *args, **kwargs):
-        if not self.slug:
-            self.slug = slugify(self.name)
+        self.slug = unique_slug_for_instance(self, self.name, max_length=self._meta.get_field("slug").max_length)
         super().save(*args, **kwargs)
 
     @property

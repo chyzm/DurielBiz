@@ -138,9 +138,18 @@ def product_update(request, pk):
     if user_branch is not None:
         product_queryset = product_queryset.filter(branch_stocks__branch=user_branch).distinct()
     product = get_object_or_404(product_queryset, pk=pk)
-    form = ProductForm(request.POST or None, instance=product, include_opening_fields=False, user=request.user)
+    form = ProductForm(
+        request.POST or None,
+        instance=product,
+        include_opening_fields=False,
+        include_branch_field=True,
+        user=request.user,
+    )
     if request.method == "POST" and form.is_valid():
         form.save()
+        selected_branch = get_user_branch(request.user) or form.cleaned_data.get("opening_branch")
+        if selected_branch:
+            get_branch_stock(product, selected_branch)
         log_activity(
             user=request.user,
             module=ActivityLog.Module.PRODUCTS,
@@ -149,7 +158,10 @@ def product_update(request, pk):
             entity_type="product",
             entity_id=product.pk,
         )
-        messages.success(request, f"{product.name} updated successfully.")
+        if selected_branch:
+            messages.success(request, f"{product.name} updated successfully for {selected_branch.name}.")
+        else:
+            messages.success(request, f"{product.name} updated successfully.")
         return redirect("products:detail", pk=product.pk)
     return render(request, "products/product_form.html", {"form": form, "product": product})
 

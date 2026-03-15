@@ -9,18 +9,21 @@
                 <h3 class="text-lg font-semibold">Synced Sales</h3>
                 <p class="text-sm text-slate-500">Remote monitoring of all sales pushed from local POS systems.</p>
             </div>
-            <form method="get" class="flex flex-col gap-3 sm:flex-row">
-                <input type="date" name="start_date" value="{{ start_date }}" class="rounded-xl border border-slate-300 px-4 py-2 text-sm">
-                <input type="date" name="end_date" value="{{ end_date }}" class="rounded-xl border border-slate-300 px-4 py-2 text-sm">
-                <select name="branch" class="rounded-xl border border-slate-300 px-4 py-2 text-sm">
-                    <option value="">All branches</option>
-                    {% for branch in branches %}
-                        <option value="{{ branch.code }}" {% if selected_branch == branch.code %}selected{% endif %}>{{ branch.name }}</option>
-                    {% endfor %}
-                </select>
-                <button class="rounded-xl bg-slate-900 px-4 py-2 text-sm text-white">Filter</button>
-            </form>
-        </div>
+                <form method="get" class="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+                    <input type="date" name="start_date" value="{{ start_date }}" class="rounded-xl border border-slate-300 px-4 py-2 text-sm">
+                    <input type="date" name="end_date" value="{{ end_date }}" class="rounded-xl border border-slate-300 px-4 py-2 text-sm">
+                    <select name="branch" class="rounded-xl border border-slate-300 px-4 py-2 text-sm">
+                        <option value="">All branches</option>
+                        {% for branch in branches %}
+                            <option value="{{ branch.code }}" {% if selected_branch == branch.code %}selected{% endif %}>{{ branch.name }}</option>
+                        {% endfor %}
+                    </select>
+                    <div class="flex gap-3">
+                        <button class="rounded-xl bg-slate-900 px-4 py-2 text-sm text-white">Filter</button>
+                        <a href="{% url 'cloudsync:sales-export-csv' %}?start_date={{ start_date }}&end_date={{ end_date }}&branch={{ selected_branch }}" class="rounded-xl border border-slate-300 px-4 py-2 text-sm text-slate-700">Export CSV</a>
+                    </div>
+                </form>
+            </div>
         <div class="mt-5 space-y-4">
             {% for sale in sales %}
                 <article class="rounded-2xl border border-slate-200 p-4">

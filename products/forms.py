@@ -32,20 +32,40 @@ class ProductForm(forms.ModelForm):
         help_text="Branch to receive the opening stock. Defaults to the business default branch.",
     )
 
-    def __init__(self, *args, include_opening_fields=True, user=None, **kwargs):
+    def __init__(
+        self,
+        *args,
+        include_opening_fields=True,
+        include_branch_field=None,
+        user=None,
+        **kwargs,
+    ):
         super().__init__(*args, **kwargs)
         self.include_opening_fields = include_opening_fields
+        if include_branch_field is None:
+            include_branch_field = include_opening_fields
         branch_queryset = active_branches_for_user(user) if user else Branch.objects.filter(is_active=True).order_by("name")
         user_branch = get_user_branch(user) if user else None
-        if include_opening_fields and not self.is_bound:
+        existing_branch = None
+        if self.instance.pk:
+            existing_branch = self.instance.branch_stocks.select_related("branch").order_by("branch__name").first()
+        if include_branch_field and not self.is_bound:
             self.fields["opening_branch"].queryset = branch_queryset
-            self.fields["opening_branch"].initial = user_branch or BusinessSettings.get_solo().default_branch
-        elif include_opening_fields:
+            self.fields["opening_branch"].initial = (
+                user_branch
+                or (existing_branch.branch if existing_branch else None)
+                or BusinessSettings.get_solo().default_branch
+            )
+        elif include_branch_field:
             self.fields["opening_branch"].queryset = branch_queryset
-        if include_opening_fields and user_branch and not is_admin_user(user):
+        if include_branch_field and user_branch and not is_admin_user(user):
             self.fields["opening_branch"].disabled = True
+        if include_branch_field and not include_opening_fields:
+            self.fields["opening_branch"].label = "Branch"
+            self.fields["opening_branch"].help_text = "Choose the branch this product should be available under."
         if not include_opening_fields:
             self.fields.pop("opening_stock", None)
+        if not include_branch_field:
             self.fields.pop("opening_branch", None)
 
     class Meta:

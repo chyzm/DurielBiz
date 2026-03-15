@@ -23,11 +23,16 @@
             {% csrf_token %}
             {% if product %}
                 <div class="md:col-span-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
-                    Stock is managed per branch through Purchases and Inventory adjustments.
+                    Product details can be updated here. Branch stock remains managed through Purchases and Inventory adjustments.
                 </div>
             {% else %}
                 <div class="md:col-span-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
                     You can create the product and add opening stock in one step.
+                </div>
+            {% endif %}
+            {% if product and request.user.role == 'admin' %}
+                <div class="md:col-span-2 rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-700">
+                    Use the branch field below to make this product available under a specific branch.
                 </div>
             {% endif %}
             {% if not product and request.user.role != 'admin' and request.user.branch %}

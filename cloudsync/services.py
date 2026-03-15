@@ -33,11 +33,13 @@ def dashboard_metrics(business):
     today = timezone.localdate()
     sales_today = business.sales.filter(created_at_remote__date=today)
     purchases_today = business.purchases.filter(received_at_remote__date=today)
+    inventory_today = business.inventory_logs.filter(created_at_remote__date=today)
     return {
         "total_branches": business.branches.count(),
         "sales_count_today": sales_today.count(),
         "revenue_today": sales_today.aggregate(total=Sum("total"))["total"] or 0,
         "purchase_count_today": purchases_today.count(),
+        "inventory_count_today": inventory_today.count(),
         "recent_sales": business.sales.select_related("branch").prefetch_related("items")[:8],
         "recent_syncs": business.sync_events.all()[:8],
     }
