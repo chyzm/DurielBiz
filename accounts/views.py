@@ -1,18 +1,105 @@
+import os
+
 from django.contrib import messages
+from django.contrib.auth import views as auth_views
 from django.contrib.auth.decorators import login_required
 from django.db.models.deletion import ProtectedError
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse_lazy
+from django.utils.decorators import method_decorator
 
 from pos_system.pagination import paginate_queryset
 
 from cloudsync.services import user_business
 from .activity import log_activity
-from .forms import StaffUserCreationForm, StaffUserUpdateForm
+from .forms import (
+    EmailOrUsernameAuthenticationForm,
+    StaffUserCreationForm,
+    StaffUserUpdateForm,
+    StyledPasswordChangeForm,
+    StyledPasswordResetForm,
+    StyledSetPasswordForm,
+)
 from .permissions import get_role_home_url, role_required
 from accounts.models import ActivityLog, User
 from inventory.models import InventoryLog
 from purchases.models import Purchase
 from sales.models import Sale
+
+
+def is_cloud_request(request):
+    if os.getenv("DURIELBIZ_DESKTOP") == "1":
+        return False
+    host = request.get_host().split(":")[0].lower()
+    if host in {"127.0.0.1", "localhost"}:
+        return False
+    return True
+
+
+class CloudModeRequiredMixin:
+    fallback_url = reverse_lazy("accounts:login")
+    fallback_message = "This account action is available only on the cloud dashboard."
+
+    def dispatch(self, request, *args, **kwargs):
+        if not is_cloud_request(request):
+            messages.info(request, self.fallback_message)
+            return redirect(self.fallback_url)
+        return super().dispatch(request, *args, **kwargs)
+
+
+class AccountLoginView(auth_views.LoginView):
+    template_name = "registration/login.html"
+
+    def get_form_class(self):
+        view = self
+
+        class BoundAuthenticationForm(EmailOrUsernameAuthenticationForm):
+            def __init__(self, *args, **kwargs):
+                kwargs["is_cloud_login"] = is_cloud_request(view.request)
+                super().__init__(*args, **kwargs)
+
+        return BoundAuthenticationForm
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["is_cloud_login"] = is_cloud_request(self.request)
+        return context
+
+
+class CloudPasswordResetView(CloudModeRequiredMixin, auth_views.PasswordResetView):
+    form_class = StyledPasswordResetForm
+    template_name = "registration/password_reset_form.html"
+    email_template_name = "registration/password_reset_email.html"
+    subject_template_name = "registration/password_reset_subject.txt"
+    success_url = reverse_lazy("accounts:password-reset-done")
+
+
+class CloudPasswordResetDoneView(CloudModeRequiredMixin, auth_views.PasswordResetDoneView):
+    template_name = "registration/password_reset_done.html"
+
+
+class CloudPasswordResetConfirmView(CloudModeRequiredMixin, auth_views.PasswordResetConfirmView):
+    form_class = StyledSetPasswordForm
+    template_name = "registration/password_reset_confirm.html"
+    success_url = reverse_lazy("accounts:password-reset-complete")
+
+
+class CloudPasswordResetCompleteView(CloudModeRequiredMixin, auth_views.PasswordResetCompleteView):
+    template_name = "registration/password_reset_complete.html"
+
+
+class CloudPasswordChangeView(CloudModeRequiredMixin, auth_views.PasswordChangeView):
+    form_class = StyledPasswordChangeForm
+    template_name = "registration/password_change_form.html"
+    success_url = reverse_lazy("accounts:password-change-done")
+    fallback_url = reverse_lazy("accounts:home")
+    fallback_message = "Password change is not available from the local desktop app."
+
+
+class CloudPasswordChangeDoneView(CloudModeRequiredMixin, auth_views.PasswordChangeDoneView):
+    template_name = "registration/password_change_done.html"
+    fallback_url = reverse_lazy("accounts:home")
+    fallback_message = "Password change is not available from the local desktop app."
 
 
 @login_required

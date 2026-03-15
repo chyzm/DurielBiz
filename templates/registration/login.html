@@ -10,26 +10,34 @@
     <div class="w-full max-w-md rounded-2xl bg-white p-8 shadow-2xl">
         <div class="mb-6">
             <p class="text-sm font-medium text-cyan-700">DurielTech</p>
-            <h1 class="text-2xl font-semibold text-slate-900">DurielBiz POS</h1>
-            <p class="mt-2 text-sm text-slate-500">Sign in to continue to the local business dashboard.</p>
+            <h1 class="text-2xl font-semibold text-slate-900">{% if is_cloud_login %}DurielBiz Cloud{% else %}DurielBiz POS{% endif %}</h1>
+            <p class="mt-2 text-sm text-slate-500">
+                {% if is_cloud_login %}
+                    Sign in with your cloud account email to access the remote dashboard.
+                {% else %}
+                    Sign in to continue to the local business dashboard.
+                {% endif %}
+            </p>
         </div>
 
         <form method="post" class="space-y-4">
             {% csrf_token %}
             {{ form.non_field_errors }}
             <div>
-                <label class="block text-sm font-medium text-slate-700" for="id_username">Username</label>
-                <input type="text" name="username" id="id_username" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" required>
+                <label class="block text-sm font-medium text-slate-700" for="{{ form.username.id_for_label }}">{{ form.username.label }}</label>
+                {{ form.username }}
             </div>
             <div>
-                <label class="block text-sm font-medium text-slate-700" for="id_password">Password</label>
-                <input type="password" name="password" id="id_password" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" required>
+                <label class="block text-sm font-medium text-slate-700" for="{{ form.password.id_for_label }}">{{ form.password.label }}</label>
+                {{ form.password }}
             </div>
             <button class="w-full rounded-lg bg-slate-900 px-4 py-2 text-white hover:bg-slate-800">Login</button>
         </form>
-        <div class="mt-4 text-center text-sm">
-            <a href="{% url 'accounts:password-reset' %}" class="font-medium text-slate-700 hover:underline">Forgot your password?</a>
-        </div>
+        {% if is_cloud_login %}
+            <div class="mt-4 text-center text-sm">
+                <a href="{% url 'accounts:password-reset' %}" class="font-medium text-slate-700 hover:underline">Forgot your password?</a>
+            </div>
+        {% endif %}
         <p class="mt-4 text-center text-sm text-slate-500">
             Need an online dashboard? <a href="{% url 'accounts:signup' %}" class="font-medium text-slate-900 hover:underline">Create business account</a>
         </p>

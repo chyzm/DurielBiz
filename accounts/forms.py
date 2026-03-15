@@ -1,6 +1,6 @@
 from django import forms
-from django.contrib.auth.forms import PasswordChangeForm, PasswordResetForm, SetPasswordForm, UserCreationForm
-
+from django.contrib.auth import authenticate
+from django.contrib.auth.forms import AuthenticationForm, PasswordChangeForm, PasswordResetForm, SetPasswordForm, UserCreationForm
 from .models import User
 from reports.models import Branch
 
@@ -43,6 +43,35 @@ class StaffUserUpdateForm(forms.ModelForm):
         if role != User.Role.ADMIN and branch is None:
             self.add_error("branch", "Assign a branch to this user.")
         return cleaned_data
+
+
+class EmailOrUsernameAuthenticationForm(AuthenticationForm):
+    def __init__(self, *args, is_cloud_login=False, **kwargs):
+        self.is_cloud_login = is_cloud_login
+        super().__init__(*args, **kwargs)
+        self.fields["username"].label = "Email" if is_cloud_login else "Username"
+        self.fields["username"].widget.attrs["class"] = "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"
+        self.fields["password"].widget.attrs["class"] = "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"
+        if is_cloud_login:
+            self.fields["username"].widget.attrs["placeholder"] = "you@company.com"
+        else:
+            self.fields["username"].widget.attrs["placeholder"] = "Username"
+
+    def clean(self):
+        username = self.cleaned_data.get("username")
+        password = self.cleaned_data.get("password")
+
+        if self.is_cloud_login and username and password:
+            linked_user = User.objects.filter(email__iexact=username).first()
+            normalized_username = linked_user.username if linked_user else username
+            self.user_cache = authenticate(self.request, username=normalized_username, password=password)
+            if self.user_cache is None:
+                raise self.get_invalid_login_error()
+            self.confirm_login_allowed(self.user_cache)
+            self.cleaned_data["username"] = normalized_username
+            return self.cleaned_data
+
+        return super().clean()
 
 
 class StyledPasswordResetForm(PasswordResetForm):
