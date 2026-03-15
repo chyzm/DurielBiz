@@ -54,6 +54,7 @@ class EmailOrUsernameAuthenticationForm(AuthenticationForm):
         self.fields["password"].widget.attrs["class"] = "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"
         if is_cloud_login:
             self.fields["username"].widget.attrs["placeholder"] = "you@company.com"
+            self.error_messages["invalid_login"] = "Please enter a correct email and password. Note that both fields may be case-sensitive."
         else:
             self.fields["username"].widget.attrs["placeholder"] = "Username"
 
