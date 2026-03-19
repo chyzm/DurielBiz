@@ -127,13 +127,25 @@ class ServiceItemForm(forms.ModelForm):
 class DocumentForm(forms.ModelForm):
     class Meta:
         model = Document
-        fields = ("customer_name", "customer_email", "customer_phone", "issue_date", "due_date", "discount_amount", "notes")
+        fields = (
+            "customer_name",
+            "customer_email",
+            "customer_phone",
+            "issue_date",
+            "due_date",
+            "signature_mode",
+            "signature_initials",
+            "discount_amount",
+            "notes",
+        )
         widgets = {
             "customer_name": forms.TextInput(attrs=styled_widget()),
             "customer_email": forms.EmailInput(attrs=styled_widget()),
             "customer_phone": forms.TextInput(attrs=styled_widget()),
             "issue_date": forms.DateInput(attrs=styled_widget(), format="%Y-%m-%d"),
             "due_date": forms.DateInput(attrs=styled_widget(), format="%Y-%m-%d"),
+            "signature_mode": forms.Select(attrs=styled_widget()),
+            "signature_initials": forms.TextInput(attrs={**styled_widget(), "maxlength": "10", "placeholder": "e.g. DTA"}),
             "discount_amount": forms.NumberInput(attrs={**styled_widget(), "step": "0.01", "min": "0"}),
             "notes": forms.Textarea(attrs={**styled_widget(), "rows": 4}),
         }
@@ -148,6 +160,12 @@ class DocumentForm(forms.ModelForm):
         if discount_amount < 0:
             raise forms.ValidationError("Discount cannot be negative.")
         return discount_amount
+
+    def clean_signature_initials(self):
+        initials = (self.cleaned_data.get("signature_initials") or "").strip().upper()
+        if len(initials) > 10:
+            raise forms.ValidationError("Initials must be 10 characters or fewer.")
+        return initials
 
 
 class DocumentItemForm(forms.ModelForm):

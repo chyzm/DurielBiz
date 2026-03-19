@@ -174,6 +174,10 @@ class Document(models.Model):
         INVOICE = "invoice", "Invoice"
         RECEIPT = "receipt", "Receipt"
 
+    class SignatureMode(models.TextChoices):
+        BLANK = "blank", "Leave Blank"
+        INITIALS = "initials", "Use Initials"
+
     business = models.ForeignKey(InvoiceBusiness, on_delete=models.CASCADE, related_name="documents")
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -189,6 +193,8 @@ class Document(models.Model):
     customer_phone = models.CharField(max_length=30, blank=True)
     issue_date = models.DateField(default=timezone.localdate)
     due_date = models.DateField(null=True, blank=True)
+    signature_mode = models.CharField(max_length=20, choices=SignatureMode.choices, default=SignatureMode.BLANK)
+    signature_initials = models.CharField(max_length=10, blank=True)
     notes = models.TextField(blank=True)
     discount_amount = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0.00"))
     subtotal = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0.00"))
@@ -207,6 +213,23 @@ class Document(models.Model):
         if not self.number:
             self.number = self.business.issue_document_number(self.document_type)
         super().save(*args, **kwargs)
+
+    @property
+    def effective_signature_initials(self):
+        if self.signature_mode != self.SignatureMode.INITIALS:
+            return ""
+        if self.signature_initials.strip():
+            return self.signature_initials.strip().upper()
+        owner = getattr(self.business, "owner", None)
+        source = ""
+        if owner:
+            full_name = owner.get_full_name().strip()
+            if full_name:
+                source = full_name
+            elif owner.username:
+                source = owner.username.replace("-", " ").replace("_", " ")
+        parts = [part[0] for part in source.split() if part]
+        return "".join(parts[:3]).upper()
 
     def recalculate_totals(self, commit=True):
         subtotal = Decimal("0.00")

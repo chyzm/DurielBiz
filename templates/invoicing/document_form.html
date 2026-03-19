@@ -145,6 +145,8 @@
     const serviceCatalog = serviceCatalogElement ? JSON.parse(serviceCatalogElement.textContent) : [];
     const serviceMap = Object.fromEntries(serviceCatalog.map(item => [String(item.id), item]));
     const documentDiscountInput = document.getElementById('id_discount_amount');
+    const signatureModeInput = document.getElementById('id_signature_mode');
+    const signatureInitialsInput = document.getElementById('id_signature_initials');
     const subtotalElement = document.getElementById('documentSubtotal');
     const discountElement = document.getElementById('documentDiscountValue');
     const totalElement = document.getElementById('documentTotal');
@@ -212,6 +214,20 @@
         if (totalElement) totalElement.textContent = formatAmount(total);
     }
 
+    function syncSignatureInputs() {
+        if (!signatureModeInput || !signatureInitialsInput) {
+            return;
+        }
+        const useInitials = signatureModeInput.value === 'initials';
+        signatureInitialsInput.readOnly = !useInitials;
+        if (!useInitials) {
+            signatureInitialsInput.value = '';
+            signatureInitialsInput.classList.add('bg-slate-200', 'text-slate-600', 'cursor-not-allowed');
+        } else {
+            signatureInitialsInput.classList.remove('bg-slate-200', 'text-slate-600', 'cursor-not-allowed');
+        }
+    }
+
     if (addItemRowButton && itemFormsContainer && totalFormsInput && template) {
         addItemRowButton.addEventListener('click', () => {
             const formIndex = Number(totalFormsInput.value);
@@ -228,6 +244,9 @@
         if (!event.target.matches('select[name$="-service"]')) {
             if (event.target.matches('input[name$="-quantity"], input[name$="-unit_price"], input[name$="-discount_amount"], input[name$="-DELETE"], #id_discount_amount')) {
                 recalculateDocumentTotals();
+            }
+            if (event.target.matches('#id_signature_mode')) {
+                syncSignatureInputs();
             }
             return;
         }
@@ -251,6 +270,7 @@
         }
     });
 
+    syncSignatureInputs();
     recalculateDocumentTotals();
 </script>
 {% endblock %}

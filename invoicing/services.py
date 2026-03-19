@@ -170,5 +170,38 @@ def render_document_pdf(document: Document) -> bytes:
         story.append(Paragraph("<b>Notes</b>", styles["Heading4"]))
         story.append(Paragraph(document.notes.replace("\n", "<br/>"), styles["BodyText"]))
 
-    pdf.build(story)
+    story.append(Spacer(1, 28))
+
+    def decorate_page(canvas, _doc):
+        page_width, _page_height = A4
+
+        if document.document_type == Document.DocumentType.RECEIPT:
+            canvas.saveState()
+            canvas.translate(page_width - 55 * mm, 250 * mm)
+            canvas.rotate(18)
+            canvas.setStrokeColor(colors.Color(0.25, 0.78, 0.45, alpha=0.45))
+            canvas.setFillColor(colors.Color(0.25, 0.78, 0.45, alpha=0.18))
+            canvas.setLineWidth(3)
+            canvas.roundRect(-22 * mm, -8 * mm, 44 * mm, 16 * mm, 4 * mm, stroke=1, fill=1)
+            canvas.setFillColor(colors.Color(0.10, 0.52, 0.24, alpha=0.65))
+            canvas.setFont("Helvetica-Bold", 24)
+            canvas.drawCentredString(0, -2 * mm, "PAID")
+            canvas.restoreState()
+
+        canvas.saveState()
+        signature_right = page_width - 18 * mm
+        signature_left = page_width - 70 * mm
+        signature_y = 18 * mm
+        canvas.setStrokeColor(colors.lightgrey)
+        canvas.line(signature_left, signature_y + 10 * mm, signature_right, signature_y + 10 * mm)
+        initials = document.effective_signature_initials
+        if initials:
+            canvas.setFont("Helvetica-Bold", 14)
+            canvas.drawRightString(signature_right - 2 * mm, signature_y + 13 * mm, initials)
+        canvas.setFont("Helvetica", 9)
+        canvas.setFillColor(colors.grey)
+        canvas.drawRightString(signature_right, signature_y + 5 * mm, "Signature")
+        canvas.restoreState()
+
+    pdf.build(story, onFirstPage=decorate_page, onLaterPages=decorate_page)
     return buffer.getvalue()

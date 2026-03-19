@@ -17,7 +17,12 @@
         </div>
     </div>
 
-    <div class="rounded-[2rem] border border-white/10 bg-white/5 p-8">
+    <div class="relative rounded-[2rem] border border-white/10 bg-white/5 p-8">
+        {% if document.document_type == 'receipt' %}
+            <div class="pointer-events-none absolute right-10 top-10 rotate-[-18deg] rounded-2xl border-4 border-emerald-400/40 px-6 py-3 text-3xl font-black tracking-[0.3em] text-emerald-300/60">
+                PAID
+            </div>
+        {% endif %}
         <div class="flex flex-wrap items-start justify-between gap-6 border-b border-white/10 pb-6">
             <div class="flex items-start gap-4">
                 {% if business.logo %}
@@ -98,6 +103,19 @@
                 <p class="mt-3 text-sm leading-6 text-slate-300">{{ document.notes|linebreaksbr }}</p>
             </div>
         {% endif %}
+
+        <div class="mt-10 flex justify-end">
+            <div class="w-full max-w-xs text-right">
+                <p class="text-xs uppercase tracking-[0.25em] text-slate-400">Signature</p>
+                <div class="mt-6 border-t border-white/20 pt-2 text-lg font-semibold text-white">
+                    {% if document.effective_signature_initials %}
+                        {{ document.effective_signature_initials }}
+                    {% else %}
+                        &nbsp;
+                    {% endif %}
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 {% endblock %}
