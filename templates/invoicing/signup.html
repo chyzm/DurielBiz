@@ -1,0 +1,49 @@
+{% extends "invoicing/base.html" %}
+
+{% block title %}Tools Sign Up{% endblock %}
+{% block heading %}Create Your Tools Account{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-2xl rounded-[2rem] border border-white/10 bg-white/5 p-8">
+    <form method="post" class="space-y-6">
+        {% csrf_token %}
+        <div class="grid gap-5 sm:grid-cols-2">
+            <div class="sm:col-span-2">
+                <label class="text-sm text-slate-300" for="{{ form.business_name.id_for_label }}">Business Name</label>
+                {{ form.business_name }}
+                {% for error in form.business_name.errors %}<p class="mt-1 text-sm text-rose-300">{{ error }}</p>{% endfor %}
+            </div>
+            <div>
+                <label class="text-sm text-slate-300" for="{{ form.first_name.id_for_label }}">First Name</label>
+                {{ form.first_name }}
+            </div>
+            <div>
+                <label class="text-sm text-slate-300" for="{{ form.last_name.id_for_label }}">Last Name</label>
+                {{ form.last_name }}
+            </div>
+            <div class="sm:col-span-2">
+                <label class="text-sm text-slate-300" for="{{ form.email.id_for_label }}">Email</label>
+                {{ form.email }}
+                {% for error in form.email.errors %}<p class="mt-1 text-sm text-rose-300">{{ error }}</p>{% endfor %}
+            </div>
+            <div>
+                <label class="text-sm text-slate-300" for="{{ form.password1.id_for_label }}">Password</label>
+                {{ form.password1 }}
+                {% for error in form.password1.errors %}<p class="mt-1 text-sm text-rose-300">{{ error }}</p>{% endfor %}
+            </div>
+            <div>
+                <label class="text-sm text-slate-300" for="{{ form.password2.id_for_label }}">Confirm Password</label>
+                {{ form.password2 }}
+                {% for error in form.password2.errors %}<p class="mt-1 text-sm text-rose-300">{{ error }}</p>{% endfor %}
+            </div>
+        </div>
+        {% for error in form.non_field_errors %}<p class="text-sm text-rose-300">{{ error }}</p>{% endfor %}
+        <button class="w-full rounded-2xl bg-cyan-400 px-5 py-3 text-sm font-semibold text-slate-950">Create Workspace</button>
+    </form>
+    <p class="mt-6 text-sm text-slate-300">
+        Already have an account?
+        <a href="{% url 'invoicing:login' %}" class="text-cyan-300 hover:text-cyan-200">Login</a>
+    </p>
+</div>
+{% endblock %}
+

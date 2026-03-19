@@ -1,8 +1,10 @@
 import os
+from functools import wraps
 
 from django.contrib import messages
 from django.contrib.auth import views as auth_views
 from django.contrib.auth.decorators import login_required
+from django.db.models import Count
 from django.db.models.deletion import ProtectedError
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse_lazy
@@ -25,6 +27,8 @@ from accounts.models import ActivityLog, User
 from inventory.models import InventoryLog
 from purchases.models import Purchase
 from sales.models import Sale
+from cloudsync.models import Business as CloudBusiness, SyncEvent
+from invoicing.models import Document, InvoiceBusiness, ToolSubscription
 
 
 def is_cloud_request(request):
@@ -45,6 +49,18 @@ class CloudModeRequiredMixin:
             messages.info(request, self.fallback_message)
             return redirect(self.fallback_url)
         return super().dispatch(request, *args, **kwargs)
+
+
+def superadmin_required(view_func):
+    @wraps(view_func)
+    @login_required
+    def _wrapped(request, *args, **kwargs):
+        if not request.user.is_superuser:
+            messages.error(request, "Only the superadmin can access that page.")
+            return redirect(get_role_home_url(request.user))
+        return view_func(request, *args, **kwargs)
+
+    return _wrapped
 
 
 class AccountLoginView(auth_views.LoginView):
@@ -122,6 +138,77 @@ def admin_center(request):
         "users_page_obj": users_page,
     }
     return render(request, "accounts/admin_center.html", context)
+
+
+@superadmin_required
+def service_admin_dashboard(request):
+    tab = request.GET.get("tab", "tools").strip().lower()
+    if tab not in {"tools", "cloud"}:
+        tab = "tools"
+
+    subscriptions = (
+        ToolSubscription.objects.select_related("business", "business__owner")
+        .annotate(document_count=Count("business__documents"), service_count=Count("business__services"))
+        .order_by("expires_at", "business__name")
+    )
+    for subscription in subscriptions:
+        subscription.refresh_status()
+
+    cloud_businesses = (
+        CloudBusiness.objects.select_related("owner", "sync_credential")
+        .annotate(
+            branch_count=Count("branches", distinct=True),
+            sale_count=Count("sales", distinct=True),
+            purchase_count=Count("purchases", distinct=True),
+        )
+        .order_by("name")
+    )
+    cloud_business_rows = [
+        {
+            "business": business,
+            "last_synced_at": getattr(getattr(business, "sync_credential", None), "last_synced_at", None),
+        }
+        for business in cloud_businesses
+    ]
+
+    context = {
+        "active_tab": tab,
+        "tool_metrics": {
+            "total_businesses": InvoiceBusiness.objects.count(),
+            "trial_count": subscriptions.filter(status=ToolSubscription.Status.TRIAL).count(),
+            "active_count": subscriptions.filter(status=ToolSubscription.Status.ACTIVE).count(),
+            "expired_count": subscriptions.filter(status=ToolSubscription.Status.EXPIRED).count(),
+        },
+        "tools_subscriptions": subscriptions,
+        "recent_documents": Document.objects.select_related("business").order_by("-created_at")[:10],
+        "cloud_metrics": {
+            "business_count": cloud_businesses.count(),
+            "sync_event_count": SyncEvent.objects.count(),
+            "active_token_count": CloudBusiness.objects.filter(sync_credential__is_active=True).count(),
+        },
+        "cloud_businesses": cloud_business_rows,
+        "recent_sync_events": SyncEvent.objects.select_related("business").order_by("-created_at")[:12],
+    }
+    return render(request, "accounts/service_admin.html", context)
+
+
+@superadmin_required
+def activate_tools_subscription(request, pk):
+    if request.method != "POST":
+        return redirect("accounts:service-admin")
+    subscription = get_object_or_404(ToolSubscription.objects.select_related("business"), pk=pk)
+    subscription.activate_paid_cycle()
+    log_activity(
+        user=request.user,
+        module=ActivityLog.Module.SETTINGS,
+        action="tools_subscription_activated",
+        description=f"{request.user.username} activated a 30-day Tools subscription for {subscription.business.name}",
+        entity_type="tool_subscription",
+        entity_id=subscription.pk,
+        metadata={"business": subscription.business.name, "expires_at": subscription.expires_at.isoformat()},
+    )
+    messages.success(request, f"30-day paid cycle activated for {subscription.business.name}.")
+    return redirect(f"{reverse_lazy('accounts:service-admin')}?tab=tools")
 
 
 @login_required

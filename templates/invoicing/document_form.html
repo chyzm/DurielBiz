@@ -1,0 +1,256 @@
+{% extends "invoicing/base.html" %}
+
+{% block title %}{{ document_type|title }} Form{% endblock %}
+{% block heading %}{{ document_type|title }} Form{% endblock %}
+
+{% block content %}
+<form method="post" class="space-y-6">
+    {% csrf_token %}
+    <div class="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
+        <section class="rounded-[2rem] border border-white/10 bg-white/5 p-6">
+            <div class="flex items-start gap-4 rounded-2xl border border-white/10 bg-slate-950/40 p-4">
+                {% if business.logo %}
+                    <img src="{{ business.logo.url }}" alt="{{ business.name }} logo" class="h-16 w-16 rounded-2xl object-contain">
+                {% endif %}
+                <div>
+                    <p class="text-xs uppercase tracking-[0.25em] text-cyan-300">{{ document_type|title }}</p>
+                    <h3 class="mt-2 text-2xl font-semibold">{{ business.name }}</h3>
+                    <p class="mt-2 text-sm text-slate-300">{{ business.contact_email }}{% if business.contact_phone %} | {{ business.contact_phone }}{% endif %}</p>
+                </div>
+            </div>
+            <h3 class="mt-6 text-xl font-semibold">Customer Details</h3>
+            <div class="mt-5 grid gap-5 sm:grid-cols-2">
+                {% for field in form %}
+                    <div class="{% if field.name == 'notes' %}sm:col-span-2{% endif %}">
+                        <label class="text-sm text-slate-300" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                        {{ field }}
+                        {% for error in field.errors %}<p class="mt-1 text-sm text-rose-300">{{ error }}</p>{% endfor %}
+                    </div>
+                {% endfor %}
+            </div>
+        </section>
+
+        <section class="rounded-[2rem] border border-white/10 bg-white/5 p-6">
+            <div class="flex flex-wrap items-center justify-between gap-3">
+                <h3 class="text-xl font-semibold">Line Items</h3>
+                <button id="addItemRow" type="button" class="rounded-xl border border-white/15 px-4 py-2 text-sm text-white">Add Row</button>
+            </div>
+            {{ formset.management_form }}
+            {% for error in formset.non_form_errors %}<p class="mt-3 text-sm text-rose-300">{{ error }}</p>{% endfor %}
+            <div id="itemForms" class="mt-5 space-y-4">
+                {% for item_form in formset %}
+                    <div class="item-form rounded-2xl border border-white/10 bg-slate-950/40 p-4">
+                        {% for hidden_field in item_form.hidden_fields %}{{ hidden_field }}{% endfor %}
+                        <div class="grid gap-4 sm:grid-cols-2">
+                            <div>
+                                <label class="text-sm text-slate-300" for="{{ item_form.service.id_for_label }}">Saved Service</label>
+                                {{ item_form.service }}
+                            </div>
+                            <div>
+                                <label class="text-sm text-slate-300" for="{{ item_form.description.id_for_label }}">Description</label>
+                                {{ item_form.description }}
+                            </div>
+                            <div>
+                                <label class="text-sm text-slate-300" for="{{ item_form.quantity.id_for_label }}">Quantity</label>
+                                {{ item_form.quantity }}
+                            </div>
+                            <div>
+                                <label class="text-sm text-slate-300" for="{{ item_form.unit_price.id_for_label }}">Unit Price</label>
+                                {{ item_form.unit_price }}
+                            </div>
+                            <div>
+                                <label class="text-sm text-slate-300" for="{{ item_form.discount_amount.id_for_label }}">Item Discount</label>
+                                {{ item_form.discount_amount }}
+                            </div>
+                            <div>
+                                <p class="text-sm text-slate-300">Line Total</p>
+                                <div class="mt-1 rounded-xl border border-white/10 bg-slate-900 px-3 py-2 text-sm text-white" data-line-total>0.00</div>
+                            </div>
+                        </div>
+                        {% if item_form.DELETE %}
+                            <div class="mt-4 flex items-center gap-2 text-sm text-slate-300">
+                                {{ item_form.DELETE }}
+                                <label for="{{ item_form.DELETE.id_for_label }}">Delete this row</label>
+                            </div>
+                        {% endif %}
+                        {% for error in item_form.non_field_errors %}<p class="mt-3 text-sm text-rose-300">{{ error }}</p>{% endfor %}
+                    </div>
+                {% endfor %}
+            </div>
+        </section>
+    </div>
+    <button class="rounded-2xl bg-cyan-400 px-5 py-3 text-sm font-semibold text-slate-950">Save {{ document_type|title }}</button>
+</form>
+
+<template id="emptyItemForm">
+    <div class="item-form rounded-2xl border border-white/10 bg-slate-950/40 p-4">
+        {{ formset.empty_form.id }}
+        <div class="grid gap-4 sm:grid-cols-2">
+            <div>
+                <label class="text-sm text-slate-300" for="{{ formset.empty_form.service.id_for_label }}">Saved Service</label>
+                {{ formset.empty_form.service }}
+            </div>
+            <div>
+                <label class="text-sm text-slate-300" for="{{ formset.empty_form.description.id_for_label }}">Description</label>
+                {{ formset.empty_form.description }}
+            </div>
+            <div>
+                <label class="text-sm text-slate-300" for="{{ formset.empty_form.quantity.id_for_label }}">Quantity</label>
+                {{ formset.empty_form.quantity }}
+            </div>
+            <div>
+                <label class="text-sm text-slate-300" for="{{ formset.empty_form.unit_price.id_for_label }}">Unit Price</label>
+                {{ formset.empty_form.unit_price }}
+            </div>
+            <div>
+                <label class="text-sm text-slate-300" for="{{ formset.empty_form.discount_amount.id_for_label }}">Item Discount</label>
+                {{ formset.empty_form.discount_amount }}
+            </div>
+            <div>
+                <p class="text-sm text-slate-300">Line Total</p>
+                <div class="mt-1 rounded-xl border border-white/10 bg-slate-900 px-3 py-2 text-sm text-white" data-line-total>0.00</div>
+            </div>
+        </div>
+        {% if formset.empty_form.DELETE %}{{ formset.empty_form.DELETE }}{% endif %}
+    </div>
+</template>
+
+{{ service_catalog|json_script:"service-catalog-data" }}
+<div class="rounded-[2rem] border border-white/10 bg-white/5 p-6">
+    <h3 class="text-xl font-semibold">Totals</h3>
+    <div class="mt-4 space-y-3 text-sm">
+        <div class="flex items-center justify-between text-slate-300">
+            <span>Subtotal</span>
+            <span id="documentSubtotal">0.00</span>
+        </div>
+        <div class="flex items-center justify-between text-slate-300">
+            <span>Overall Discount</span>
+            <span id="documentDiscountValue">0.00</span>
+        </div>
+        <div class="flex items-center justify-between text-lg font-semibold text-white">
+            <span>Total</span>
+            <span id="documentTotal">0.00</span>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const addItemRowButton = document.getElementById('addItemRow');
+    const itemFormsContainer = document.getElementById('itemForms');
+    const totalFormsInput = document.getElementById('id_items-TOTAL_FORMS');
+    const template = document.getElementById('emptyItemForm');
+    const serviceCatalogElement = document.getElementById('service-catalog-data');
+    const serviceCatalog = serviceCatalogElement ? JSON.parse(serviceCatalogElement.textContent) : [];
+    const serviceMap = Object.fromEntries(serviceCatalog.map(item => [String(item.id), item]));
+    const documentDiscountInput = document.getElementById('id_discount_amount');
+    const subtotalElement = document.getElementById('documentSubtotal');
+    const discountElement = document.getElementById('documentDiscountValue');
+    const totalElement = document.getElementById('documentTotal');
+
+    function toAmount(value) {
+        const numeric = Number.parseFloat(value || '0');
+        return Number.isFinite(numeric) ? numeric : 0;
+    }
+
+    function formatAmount(value) {
+        return toAmount(value).toFixed(2);
+    }
+
+    function recalculateRow(row) {
+        const quantityField = row.querySelector('input[name$="-quantity"]');
+        const unitPriceField = row.querySelector('input[name$="-unit_price"]');
+        const discountField = row.querySelector('input[name$="-discount_amount"]');
+        const lineTotalElement = row.querySelector('[data-line-total]');
+        const quantity = toAmount(quantityField ? quantityField.value : 0);
+        const unitPrice = toAmount(unitPriceField ? unitPriceField.value : 0);
+        const gross = quantity * unitPrice;
+        const discount = Math.min(toAmount(discountField ? discountField.value : 0), gross);
+        const lineTotal = Math.max(gross - discount, 0);
+        if (lineTotalElement) {
+            lineTotalElement.textContent = formatAmount(lineTotal);
+        }
+        return lineTotal;
+    }
+
+    function syncServiceRow(row) {
+        const serviceField = row.querySelector('select[name$="-service"]');
+        const priceField = row.querySelector('input[name$="-unit_price"]');
+        const descriptionField = row.querySelector('input[name$="-description"]');
+        if (!serviceField || !priceField) {
+            return;
+        }
+        const selectedService = serviceMap[serviceField.value];
+        if (selectedService) {
+            priceField.value = selectedService.unit_price;
+            priceField.readOnly = true;
+            priceField.classList.add('bg-slate-200', 'text-slate-600', 'cursor-not-allowed');
+            if (descriptionField && !descriptionField.value) {
+                descriptionField.value = selectedService.name;
+            }
+        } else {
+            priceField.readOnly = false;
+            priceField.classList.remove('bg-slate-200', 'text-slate-600', 'cursor-not-allowed');
+        }
+    }
+
+    function recalculateDocumentTotals() {
+        let subtotal = 0;
+        document.querySelectorAll('.item-form').forEach(row => {
+            const deleteField = row.querySelector('input[name$="-DELETE"]');
+            if (deleteField && deleteField.checked) {
+                return;
+            }
+            syncServiceRow(row);
+            subtotal += recalculateRow(row);
+        });
+        const overallDiscount = Math.min(toAmount(documentDiscountInput ? documentDiscountInput.value : 0), subtotal);
+        const total = Math.max(subtotal - overallDiscount, 0);
+        if (subtotalElement) subtotalElement.textContent = formatAmount(subtotal);
+        if (discountElement) discountElement.textContent = formatAmount(overallDiscount);
+        if (totalElement) totalElement.textContent = formatAmount(total);
+    }
+
+    if (addItemRowButton && itemFormsContainer && totalFormsInput && template) {
+        addItemRowButton.addEventListener('click', () => {
+            const formIndex = Number(totalFormsInput.value);
+            const html = template.innerHTML.replace(/__prefix__/g, formIndex);
+            const wrapper = document.createElement('div');
+            wrapper.innerHTML = html.trim();
+            itemFormsContainer.appendChild(wrapper.firstElementChild);
+            totalFormsInput.value = formIndex + 1;
+            recalculateDocumentTotals();
+        });
+    }
+
+    document.addEventListener('change', event => {
+        if (!event.target.matches('select[name$="-service"]')) {
+            if (event.target.matches('input[name$="-quantity"], input[name$="-unit_price"], input[name$="-discount_amount"], input[name$="-DELETE"], #id_discount_amount')) {
+                recalculateDocumentTotals();
+            }
+            return;
+        }
+        const row = event.target.closest('.item-form');
+        if (!row) {
+            return;
+        }
+        const selectedService = serviceMap[event.target.value];
+        const priceField = row.querySelector('input[name$="-unit_price"]');
+        const descriptionField = row.querySelector('input[name$="-description"]');
+        if (selectedService && descriptionField && !descriptionField.value) {
+            descriptionField.value = selectedService.name;
+        }
+        syncServiceRow(row);
+        recalculateDocumentTotals();
+    });
+
+    document.addEventListener('input', event => {
+        if (event.target.matches('input[name$="-quantity"], input[name$="-unit_price"], input[name$="-discount_amount"], #id_discount_amount')) {
+            recalculateDocumentTotals();
+        }
+    });
+
+    recalculateDocumentTotals();
+</script>
+{% endblock %}

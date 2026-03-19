@@ -21,6 +21,7 @@
                 <a href="#services" class="hover:text-white">Services</a>
                 <a href="#industries" class="hover:text-white">Industries</a>
                 <a href="#clients" class="hover:text-white">Clients</a>
+                <a href="{{ tools_url }}" class="hover:text-white">Tools</a>
                 <a href="{% url 'cloudsync:dashboard' %}" class="hover:text-white">Cloud Dashboard Login</a>
             </nav>
             <div class="hidden items-center gap-3 sm:flex">
@@ -37,6 +38,7 @@
                 <a href="#services" class="hover:text-white">Services</a>
                 <a href="#industries" class="hover:text-white">Industries</a>
                 <a href="#clients" class="hover:text-white">Clients</a>
+                <a href="{{ tools_url }}" class="hover:text-white">Tools</a>
                 <a href="{% url 'cloudsync:dashboard' %}" class="hover:text-white">Cloud Dashboard Login</a>
                 <div class="mt-2 grid gap-3">
                     <a href="{% url 'accounts:login' %}" class="rounded-xl border border-white/15 px-4 py-3 text-center text-sm text-slate-200 hover:border-white/30 hover:text-white">Local POS Login</a>
@@ -183,12 +185,13 @@
         <section class="border-t border-white/10 bg-slate-900/60">
             <div class="mx-auto flex max-w-7xl flex-col gap-6 px-4 py-16 sm:px-6 lg:flex-row lg:items-center lg:justify-between">
                 <div>
-                    <h2 class="text-3xl font-semibold">Access DurielBiz POS and the cloud dashboard</h2>
-                    <p class="mt-3 max-w-2xl text-slate-300">DurielBiz POS remains one of DurielTech’s core products for businesses that need fast local operations with remote owner visibility.</p>
+                    <h2 class="text-3xl font-semibold">Access DurielBiz POS, cloud dashboards, and tools</h2>
+                    <p class="mt-3 max-w-2xl text-slate-300">DurielBiz POS remains one of DurielTech’s core products for businesses that need fast local operations with remote owner visibility, while Tools adds a separate cloud invoicing workspace.</p>
                 </div>
                 <div class="flex flex-wrap gap-3">
                     <a href="{% url 'accounts:login' %}" class="rounded-2xl bg-white px-5 py-3 text-sm font-semibold text-slate-950">Local POS Login</a>
                     <a href="{% url 'cloudsync:dashboard' %}" class="rounded-2xl border border-white/15 px-5 py-3 text-sm font-semibold text-white">Cloud Dashboard Login</a>
+                    <a href="{{ tools_url }}" class="rounded-2xl border border-emerald-400/30 bg-emerald-400/10 px-5 py-3 text-sm font-semibold text-emerald-200">Tools</a>
                     <a href="{% url 'accounts:signup' %}" class="rounded-2xl border border-cyan-400/30 bg-cyan-400/10 px-5 py-3 text-sm font-semibold text-cyan-300">Create Cloud Account</a>
                 </div>
             </div>

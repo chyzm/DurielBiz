@@ -111,6 +111,7 @@ INSTALLED_APPS = [
     "reports",
     "notifications",
     "cloudsync",
+    "invoicing",
 ]
 
 MIDDLEWARE = [
@@ -121,6 +122,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "invoicing.middleware.InvoicingIdleTimeoutMiddleware",
 ]
 
 ROOT_URLCONF = "pos_system.urls"
@@ -167,6 +169,8 @@ USE_TZ = True
 STATIC_URL = "static/"
 STATICFILES_DIRS = [BASE_DIR / "static"]
 STATIC_ROOT = BASE_DIR / "staticfiles"
+MEDIA_URL = "/media/"
+MEDIA_ROOT = BASE_DIR / "media"
 
 EMAIL_BACKEND = env("EMAIL_BACKEND", "django.core.mail.backends.smtp.EmailBackend")
 EMAIL_HOST = env("EMAIL_HOST", "smtp.gmail.com")
@@ -177,6 +181,9 @@ EMAIL_USE_TLS = str(env("EMAIL_USE_TLS", "True")).lower() in ("true", "1", "yes"
 
 DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", EMAIL_HOST_USER or "no-reply@durieltech.com.ng")
 ADMIN_NOTIFICATION_EMAIL = env("ADMIN_NOTIFICATION_EMAIL", DEFAULT_FROM_EMAIL)
+DURIELBIZ_SITE_URL = env("DURIELBIZ_SITE_URL", "https://DurielTech.pythonanywhere.com")
+INVOICING_TRIAL_HOURS = env_int("INVOICING_TRIAL_HOURS", 48)
+INVOICING_ALLOW_LOCAL = env_bool("INVOICING_ALLOW_LOCAL", DEBUG and os.getenv("DURIELBIZ_DESKTOP") != "1")
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 AUTH_USER_MODEL = "accounts.User"

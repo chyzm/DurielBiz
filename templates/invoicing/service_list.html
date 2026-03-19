@@ -1,0 +1,49 @@
+{% extends "invoicing/base.html" %}
+
+{% block title %}Services{% endblock %}
+{% block heading %}Services{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <div class="flex flex-wrap items-center justify-between gap-4">
+        <div>
+            <h3 class="text-2xl font-semibold">Service Catalogue</h3>
+            <p class="mt-2 text-sm text-slate-300">Save your service names and prices once, then reuse them inside invoices and receipts.</p>
+        </div>
+        <a href="{% url 'invoicing:service-create' %}" class="rounded-2xl bg-cyan-400 px-5 py-3 text-sm font-semibold text-slate-950">Add Service</a>
+    </div>
+
+    <div class="overflow-hidden rounded-[2rem] border border-white/10 bg-white/5">
+        <table class="min-w-full divide-y divide-white/10 text-sm">
+            <thead class="bg-white/5 text-slate-300">
+                <tr>
+                    <th class="px-4 py-3 text-left font-medium">Service</th>
+                    <th class="px-4 py-3 text-left font-medium">Description</th>
+                    <th class="px-4 py-3 text-left font-medium">Price</th>
+                    <th class="px-4 py-3 text-left font-medium">Status</th>
+                    <th class="px-4 py-3 text-left font-medium"></th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-white/10">
+                {% for service in services %}
+                    <tr class="bg-slate-950/40">
+                        <td class="px-4 py-3">{{ service.name }}</td>
+                        <td class="px-4 py-3 text-slate-300">{{ service.description|default:"-" }}</td>
+                        <td class="px-4 py-3">{{ service.unit_price }}</td>
+                        <td class="px-4 py-3">{{ service.is_active|yesno:"Active,Inactive" }}</td>
+                        <td class="px-4 py-3">
+                            <div class="flex flex-wrap gap-3">
+                                <a href="{% url 'invoicing:service-update' service.pk %}" class="text-cyan-300 hover:text-cyan-200">Edit</a>
+                                <a href="{% url 'invoicing:service-delete' service.pk %}" class="text-rose-300 hover:text-rose-200">Delete</a>
+                            </div>
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="5" class="px-4 py-8 text-center text-slate-400">No services saved yet.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+

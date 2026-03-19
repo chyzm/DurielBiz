@@ -1,0 +1,34 @@
+{% extends "invoicing/base.html" %}
+
+{% block title %}Tools | DurielBiz{% endblock %}
+{% block heading %}Cloud Tools{% endblock %}
+
+{% block content %}
+<section class="grid gap-8 lg:grid-cols-[1.1fr_0.9fr]">
+    <div class="rounded-[2rem] border border-white/10 bg-gradient-to-br from-cyan-400/15 via-slate-900 to-slate-900 p-8">
+        <p class="inline-flex rounded-full border border-cyan-400/30 bg-cyan-400/10 px-4 py-1 text-xs uppercase tracking-[0.25em] text-cyan-200">
+            Stand-alone cloud service
+        </p>
+        <h3 class="mt-6 max-w-2xl text-4xl font-semibold tracking-tight">Invoice and receipt tools for independent businesses.</h3>
+        <p class="mt-4 max-w-2xl text-base leading-7 text-slate-300">
+            Create a separate invoicing account, set up your business, manage service pricing, upload your logo, and download polished invoice or receipt PDFs from the cloud.
+        </p>
+        <div class="mt-8 flex flex-wrap gap-4">
+            <a href="{% url 'invoicing:signup' %}" class="rounded-2xl bg-cyan-400 px-5 py-3 text-sm font-semibold text-slate-950">Sign Up</a>
+            <a href="{% url 'invoicing:login' %}" class="rounded-2xl border border-white/15 px-5 py-3 text-sm font-semibold text-white">Login</a>
+        </div>
+    </div>
+    <div class="grid gap-4">
+        <div class="rounded-[2rem] border border-white/10 bg-white/5 p-6">
+            <h4 class="text-lg font-semibold">Included flow</h4>
+            <ul class="mt-4 space-y-3 text-sm text-slate-300">
+                <li>Business-specific sign up, login, and password reset.</li>
+                <li>Business setup with logo upload limited to 1 MB.</li>
+                <li>Saved service catalogue with editable prices.</li>
+                <li>Auto-generated invoice and receipt numbers unique per business.</li>
+                <li>Monthly subscription enforcement with expiry reminders.</li>
+            </ul>
+        </div>
+    </div>
+</section>
+{% endblock %}

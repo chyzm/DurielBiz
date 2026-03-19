@@ -1,0 +1,103 @@
+{% extends "invoicing/base.html" %}
+
+{% block title %}{{ document.number }}{% endblock %}
+{% block heading %}{{ document.get_document_type_display }} Preview{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <div class="flex flex-wrap items-center justify-between gap-4">
+        <div>
+            <p class="text-sm text-slate-400">{{ document.get_document_type_display }}</p>
+            <h3 class="mt-2 text-3xl font-semibold">{{ document.number }}</h3>
+            <p class="mt-3 text-sm text-slate-300">Created for {{ document.customer_name }} on {{ document.issue_date }}</p>
+        </div>
+        <div class="flex flex-wrap gap-3">
+            <a href="{% url 'invoicing:document-update' document.pk %}" class="rounded-2xl border border-white/15 px-5 py-3 text-sm font-semibold text-white">Edit</a>
+            <a href="{% url 'invoicing:document-pdf' document.pk %}" class="rounded-2xl bg-cyan-400 px-5 py-3 text-sm font-semibold text-slate-950">Download PDF</a>
+        </div>
+    </div>
+
+    <div class="rounded-[2rem] border border-white/10 bg-white/5 p-8">
+        <div class="flex flex-wrap items-start justify-between gap-6 border-b border-white/10 pb-6">
+            <div class="flex items-start gap-4">
+                {% if business.logo %}
+                    <img src="{{ business.logo.url }}" alt="{{ business.name }} logo" class="h-20 w-20 rounded-2xl object-contain">
+                {% endif %}
+                <div>
+                    <h4 class="text-2xl font-semibold">{{ business.name }}</h4>
+                    <p class="mt-2 text-sm text-slate-300">{{ business.address|default:"No address added yet."|linebreaksbr }}</p>
+                    <p class="mt-2 text-sm text-slate-300">{{ business.contact_email }}{% if business.contact_phone %} | {{ business.contact_phone }}{% endif %}</p>
+                </div>
+            </div>
+            <div class="text-sm text-slate-300">
+                <p><span class="text-slate-400">Issue Date:</span> {{ document.issue_date }}</p>
+                <p class="mt-2"><span class="text-slate-400">Due Date:</span> {{ document.due_date|default:"-" }}</p>
+            </div>
+        </div>
+
+        <div class="mt-6 grid gap-4 rounded-2xl border border-white/10 bg-slate-950/40 p-5 md:grid-cols-3">
+            <div>
+                <p class="text-xs uppercase tracking-[0.25em] text-slate-400">Customer</p>
+                <p class="mt-2 text-lg font-semibold">{{ document.customer_name }}</p>
+            </div>
+            <div>
+                <p class="text-xs uppercase tracking-[0.25em] text-slate-400">Email</p>
+                <p class="mt-2 text-lg font-semibold">{{ document.customer_email|default:"-" }}</p>
+            </div>
+            <div>
+                <p class="text-xs uppercase tracking-[0.25em] text-slate-400">Phone</p>
+                <p class="mt-2 text-lg font-semibold">{{ document.customer_phone|default:"-" }}</p>
+            </div>
+        </div>
+
+        <div class="mt-6 overflow-hidden rounded-2xl border border-white/10">
+            <table class="min-w-full divide-y divide-white/10 text-sm">
+                <thead class="bg-white/5 text-slate-300">
+                    <tr>
+                        <th class="px-4 py-3 text-left font-medium">Description</th>
+                        <th class="px-4 py-3 text-left font-medium">Quantity</th>
+                        <th class="px-4 py-3 text-left font-medium">Unit Price</th>
+                        <th class="px-4 py-3 text-left font-medium">Discount</th>
+                        <th class="px-4 py-3 text-left font-medium">Line Total</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-white/10">
+                    {% for item in document.items.all %}
+                        <tr class="bg-slate-950/40">
+                            <td class="px-4 py-3">{{ item.description }}</td>
+                            <td class="px-4 py-3">{{ item.quantity }}</td>
+                            <td class="px-4 py-3">{{ item.unit_price }}</td>
+                            <td class="px-4 py-3">{{ item.discount_amount }}</td>
+                            <td class="px-4 py-3">{{ item.line_total }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <div class="mt-6 flex justify-end">
+            <div class="w-full max-w-xs rounded-2xl border border-white/10 bg-slate-950/40 p-5 text-sm">
+                <div class="flex items-center justify-between text-slate-300">
+                    <span>Subtotal</span>
+                    <span>{{ document.subtotal }}</span>
+                </div>
+                <div class="mt-3 flex items-center justify-between text-slate-300">
+                    <span>Overall Discount</span>
+                    <span>{{ document.discount_amount }}</span>
+                </div>
+                <div class="mt-3 flex items-center justify-between text-lg font-semibold text-white">
+                    <span>Total</span>
+                    <span>{{ document.total }}</span>
+                </div>
+            </div>
+        </div>
+
+        {% if document.notes %}
+            <div class="mt-6 rounded-2xl border border-white/10 bg-slate-950/40 p-5">
+                <h4 class="text-lg font-semibold">Notes</h4>
+                <p class="mt-3 text-sm leading-6 text-slate-300">{{ document.notes|linebreaksbr }}</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

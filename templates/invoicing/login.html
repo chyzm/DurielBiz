@@ -1,0 +1,27 @@
+{% extends "invoicing/base.html" %}
+
+{% block title %}Tools Login{% endblock %}
+{% block heading %}Login To Tools{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-xl rounded-[2rem] border border-white/10 bg-white/5 p-8">
+    <form method="post" class="space-y-6">
+        {% csrf_token %}
+        <div>
+            <label class="text-sm text-slate-300" for="{{ form.username.id_for_label }}">Email</label>
+            {{ form.username }}
+        </div>
+        <div>
+            <label class="text-sm text-slate-300" for="{{ form.password.id_for_label }}">Password</label>
+            {{ form.password }}
+        </div>
+        {% for error in form.non_field_errors %}<p class="text-sm text-rose-300">{{ error }}</p>{% endfor %}
+        <button class="w-full rounded-2xl bg-cyan-400 px-5 py-3 text-sm font-semibold text-slate-950">Login</button>
+    </form>
+    <div class="mt-6 flex flex-wrap items-center justify-between gap-3 text-sm">
+        <a href="{% url 'invoicing:password-reset' %}" class="text-cyan-300 hover:text-cyan-200">Reset password</a>
+        <a href="{% url 'invoicing:signup' %}" class="text-slate-300 hover:text-white">Create a tools account</a>
+    </div>
+</div>
+{% endblock %}
+

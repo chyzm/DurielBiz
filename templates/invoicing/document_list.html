@@ -1,0 +1,62 @@
+{% extends "invoicing/base.html" %}
+
+{% block title %}Invoice Service{% endblock %}
+{% block heading %}Invoice Service{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <div class="flex flex-wrap items-center justify-between gap-4">
+        <div>
+            <h3 class="text-2xl font-semibold">Invoices and Receipts</h3>
+            <p class="mt-2 text-sm text-slate-300">Create branded invoice or receipt PDFs with unique numbers for {{ business.name }}.</p>
+        </div>
+        <div class="flex flex-wrap gap-3">
+            <a href="{% url 'invoicing:document-create' 'invoice' %}" class="rounded-2xl bg-cyan-400 px-5 py-3 text-sm font-semibold text-slate-950">New Invoice</a>
+            <a href="{% url 'invoicing:document-create' 'receipt' %}" class="rounded-2xl border border-white/15 px-5 py-3 text-sm font-semibold text-white">New Receipt</a>
+        </div>
+    </div>
+
+    <form method="get" class="flex flex-wrap gap-3 rounded-[2rem] border border-white/10 bg-white/5 p-4">
+        <select name="type" class="rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-sm text-white">
+            <option value="">All documents</option>
+            <option value="invoice" {% if selected_type == 'invoice' %}selected{% endif %}>Invoices</option>
+            <option value="receipt" {% if selected_type == 'receipt' %}selected{% endif %}>Receipts</option>
+        </select>
+        <button class="rounded-xl border border-white/15 px-4 py-2 text-sm">Filter</button>
+    </form>
+
+    <div class="overflow-hidden rounded-[2rem] border border-white/10 bg-white/5">
+        <table class="min-w-full divide-y divide-white/10 text-sm">
+            <thead class="bg-white/5 text-slate-300">
+                <tr>
+                    <th class="px-4 py-3 text-left font-medium">Number</th>
+                    <th class="px-4 py-3 text-left font-medium">Type</th>
+                    <th class="px-4 py-3 text-left font-medium">Customer</th>
+                    <th class="px-4 py-3 text-left font-medium">Issued</th>
+                    <th class="px-4 py-3 text-left font-medium">Total</th>
+                    <th class="px-4 py-3 text-left font-medium"></th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-white/10">
+                {% for document in documents %}
+                    <tr class="bg-slate-950/40">
+                        <td class="px-4 py-3"><a href="{% url 'invoicing:document-detail' document.pk %}" class="text-cyan-300 hover:text-cyan-200">{{ document.number }}</a></td>
+                        <td class="px-4 py-3">{{ document.get_document_type_display }}</td>
+                        <td class="px-4 py-3">{{ document.customer_name }}</td>
+                        <td class="px-4 py-3">{{ document.issue_date }}</td>
+                        <td class="px-4 py-3">{{ document.total }}</td>
+                        <td class="px-4 py-3">
+                            <div class="flex flex-wrap gap-3">
+                                <a href="{% url 'invoicing:document-update' document.pk %}" class="text-slate-200 hover:text-white">Edit</a>
+                                <a href="{% url 'invoicing:document-pdf' document.pk %}" class="text-cyan-300 hover:text-cyan-200">PDF</a>
+                            </div>
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="6" class="px-4 py-8 text-center text-slate-400">No invoices or receipts yet.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

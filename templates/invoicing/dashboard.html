@@ -1,0 +1,111 @@
+{% extends "invoicing/base.html" %}
+
+{% block title %}Tools Dashboard{% endblock %}
+{% block heading %}Tools Dashboard{% endblock %}
+
+{% block content %}
+<div class="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+    <section class="space-y-6">
+        <div class="rounded-[2rem] border border-white/10 bg-white/5 p-6">
+            <div class="flex flex-wrap items-start justify-between gap-4">
+                <div>
+                    <p class="text-sm text-slate-400">Workspace</p>
+                    <h3 class="mt-2 text-3xl font-semibold">{{ business.name }}</h3>
+                    <p class="mt-3 max-w-2xl text-sm leading-6 text-slate-300">
+                        Manage your business profile, service pricing, invoices, receipts, and PDF downloads from this cloud workspace.
+                    </p>
+                </div>
+                <a href="{% url 'invoicing:business-settings' %}" class="rounded-2xl border border-white/15 px-4 py-2 text-sm font-medium text-white">Business Setup</a>
+            </div>
+        </div>
+
+        <div class="rounded-[2rem] border border-white/10 bg-gradient-to-br from-slate-900 via-slate-900 to-cyan-400/10 p-6">
+            <div class="flex flex-wrap items-start justify-between gap-4">
+                <div>
+                    <p class="text-xs uppercase tracking-[0.25em] text-cyan-300">Tool</p>
+                    <h3 class="mt-2 text-2xl font-semibold">Invoice</h3>
+                    <p class="mt-3 max-w-xl text-sm leading-6 text-slate-300">
+                        Create invoices and receipts, select saved services, enter customer details, and download PDFs with your business branding.
+                    </p>
+                </div>
+                {% if subscription and subscription.is_access_active %}
+                    <a href="{% url 'invoicing:document-list' %}" class="rounded-2xl bg-cyan-400 px-5 py-3 text-sm font-semibold text-slate-950">Open Invoice Service</a>
+                {% else %}
+                    <span class="rounded-2xl border border-rose-400/20 bg-rose-400/10 px-4 py-3 text-sm text-rose-100">
+                        {% if subscription and subscription.has_paid_access %}
+                            Locked: renewal required
+                        {% else %}
+                            Locked: upgrade to paid version
+                        {% endif %}
+                    </span>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="rounded-[2rem] border border-white/10 bg-white/5 p-6">
+            <div class="flex items-center justify-between gap-3">
+                <h3 class="text-xl font-semibold">Recent Documents</h3>
+                <a href="{% url 'invoicing:document-list' %}" class="text-sm text-cyan-300 hover:text-cyan-200">View all</a>
+            </div>
+            <div class="mt-5 overflow-hidden rounded-2xl border border-white/10">
+                <table class="min-w-full divide-y divide-white/10 text-sm">
+                    <thead class="bg-white/5 text-slate-300">
+                        <tr>
+                            <th class="px-4 py-3 text-left font-medium">Number</th>
+                            <th class="px-4 py-3 text-left font-medium">Type</th>
+                            <th class="px-4 py-3 text-left font-medium">Customer</th>
+                            <th class="px-4 py-3 text-left font-medium">Total</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-white/10">
+                        {% for document in recent_documents %}
+                            <tr class="bg-slate-950/40">
+                                <td class="px-4 py-3"><a href="{% url 'invoicing:document-detail' document.pk %}" class="text-cyan-300 hover:text-cyan-200">{{ document.number }}</a></td>
+                                <td class="px-4 py-3">{{ document.get_document_type_display }}</td>
+                                <td class="px-4 py-3">{{ document.customer_name }}</td>
+                                <td class="px-4 py-3">{{ document.total }}</td>
+                            </tr>
+                        {% empty %}
+                            <tr><td colspan="4" class="px-4 py-6 text-center text-slate-400">No documents created yet.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
+    <aside class="space-y-6">
+        <div class="rounded-[2rem] border border-white/10 bg-white/5 p-6">
+            <p class="text-sm text-slate-400">Subscription</p>
+            <h3 class="mt-2 text-2xl font-semibold">{{ subscription.get_status_display }}</h3>
+            <div class="mt-4 space-y-3 text-sm text-slate-300">
+                <p>Plan: {{ subscription.plan_name }}</p>
+                <p>Expires: {{ subscription.expires_at|date:"j M Y, g:i a" }}</p>
+                <p>Days remaining: {{ subscription.days_remaining }}</p>
+                {% if subscription.status == 'trial' %}
+                    <p class="rounded-2xl border border-cyan-400/20 bg-cyan-400/10 px-4 py-3 text-cyan-100">
+                        New accounts get 48 hours of free use. After that, the workspace locks until the superadmin activates a paid cycle.
+                    </p>
+                {% elif subscription.has_paid_access %}
+                    <p class="rounded-2xl border border-amber-400/20 bg-amber-400/10 px-4 py-3 text-amber-100">
+                        Paid access runs in 30-day cycles. After expiry, the workspace locks until renewal is activated.
+                    </p>
+                {% else %}
+                    <p class="rounded-2xl border border-rose-400/20 bg-rose-400/10 px-4 py-3 text-rose-100">
+                        Your free trial has ended. Upgrade to the paid version to unlock the invoice service.
+                    </p>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="rounded-[2rem] border border-white/10 bg-white/5 p-6">
+            <h3 class="text-xl font-semibold">Quick Links</h3>
+            <div class="mt-4 grid gap-3">
+                <a href="{% url 'invoicing:service-list' %}" class="rounded-2xl border border-white/10 px-4 py-3 text-sm text-slate-200 hover:bg-white/5">Manage Services</a>
+                <a href="{% url 'invoicing:document-create' 'invoice' %}" class="rounded-2xl border border-white/10 px-4 py-3 text-sm text-slate-200 hover:bg-white/5">New Invoice</a>
+                <a href="{% url 'invoicing:document-create' 'receipt' %}" class="rounded-2xl border border-white/10 px-4 py-3 text-sm text-slate-200 hover:bg-white/5">New Receipt</a>
+            </div>
+        </div>
+    </aside>
+</div>
+{% endblock %}

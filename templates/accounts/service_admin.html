@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+
+{% block title %}Service Admin | DurielBiz POS{% endblock %}
+
+{% block content %}
+    <section class="flex flex-wrap items-center justify-between gap-4">
+        <div>
+            <p class="text-sm text-slate-500">Superadmin control panel</p>
+            <h2 class="text-2xl font-semibold">Cloud Services Admin</h2>
+        </div>
+        <div class="flex flex-wrap gap-3">
+            <a href="{% url 'accounts:service-admin' %}?tab=tools" class="rounded-xl px-4 py-2 text-sm {% if active_tab == 'tools' %}bg-slate-900 text-white{% else %}border border-slate-300 bg-white text-slate-700{% endif %}">Tools</a>
+            <a href="{% url 'accounts:service-admin' %}?tab=cloud" class="rounded-xl px-4 py-2 text-sm {% if active_tab == 'cloud' %}bg-slate-900 text-white{% else %}border border-slate-300 bg-white text-slate-700{% endif %}">Cloud Dashboard</a>
+        </div>
+    </section>
+
+    {% if active_tab == 'tools' %}
+        <section class="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <div class="rounded-2xl bg-white p-5 shadow-sm">
+                <p class="text-sm text-slate-500">Tools Businesses</p>
+                <h3 class="mt-2 text-2xl font-semibold">{{ tool_metrics.total_businesses }}</h3>
+            </div>
+            <div class="rounded-2xl bg-white p-5 shadow-sm">
+                <p class="text-sm text-slate-500">48-Hour Trials</p>
+                <h3 class="mt-2 text-2xl font-semibold">{{ tool_metrics.trial_count }}</h3>
+            </div>
+            <div class="rounded-2xl bg-white p-5 shadow-sm">
+                <p class="text-sm text-slate-500">Paid Active</p>
+                <h3 class="mt-2 text-2xl font-semibold">{{ tool_metrics.active_count }}</h3>
+            </div>
+            <div class="rounded-2xl bg-white p-5 shadow-sm">
+                <p class="text-sm text-slate-500">Locked / Expired</p>
+                <h3 class="mt-2 text-2xl font-semibold">{{ tool_metrics.expired_count }}</h3>
+            </div>
+        </section>
+
+        <section class="mt-6 grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+            <div class="rounded-2xl bg-white p-5 shadow-sm">
+                <h3 class="text-lg font-semibold">Tools Subscriptions</h3>
+                <div class="mt-4 overflow-x-auto">
+                    <table class="min-w-full divide-y divide-slate-200 text-sm">
+                        <thead>
+                            <tr class="text-left text-slate-500">
+                                <th class="py-3 pr-4">Business</th>
+                                <th class="py-3 pr-4">Owner</th>
+                                <th class="py-3 pr-4">Plan</th>
+                                <th class="py-3 pr-4">Status</th>
+                                <th class="py-3 pr-4">Expires</th>
+                                <th class="py-3 pr-4">Usage</th>
+                                <th class="py-3">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+                            {% for subscription in tools_subscriptions %}
+                                <tr>
+                                    <td class="py-4 pr-4 font-medium">{{ subscription.business.name }}</td>
+                                    <td class="py-4 pr-4">{{ subscription.business.owner.email|default:"—" }}</td>
+                                    <td class="py-4 pr-4">{{ subscription.plan_name }}</td>
+                                    <td class="py-4 pr-4">
+                                        <span class="rounded-full px-2 py-1 text-xs {% if subscription.status == 'active' %}bg-emerald-100 text-emerald-700{% elif subscription.status == 'trial' %}bg-cyan-100 text-cyan-700{% elif subscription.status == 'expired' %}bg-amber-100 text-amber-700{% else %}bg-slate-200 text-slate-700{% endif %}">
+                                            {{ subscription.get_status_display }}
+                                        </span>
+                                    </td>
+                                    <td class="py-4 pr-4">{{ subscription.expires_at|date:"d M Y, H:i" }}</td>
+                                    <td class="py-4 pr-4">{{ subscription.document_count }} docs / {{ subscription.service_count }} services</td>
+                                    <td class="py-4">
+                                        <form method="post" action="{% url 'accounts:tools-subscription-activate' subscription.pk %}">
+                                            {% csrf_token %}
+                                            <button class="rounded-lg bg-slate-900 px-3 py-2 text-xs text-white hover:bg-slate-800">Activate 30 Days</button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            {% empty %}
+                                <tr>
+                                    <td colspan="7" class="py-10 text-center text-slate-500">No Tools accounts yet.</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="rounded-2xl bg-white p-5 shadow-sm">
+                <h3 class="text-lg font-semibold">Recent Tools Activity</h3>
+                <div class="mt-4 space-y-3">
+                    {% for document in recent_documents %}
+                        <div class="rounded-xl border border-slate-200 px-4 py-3">
+                            <div class="flex items-start justify-between gap-4">
+                                <div>
+                                    <p class="font-medium">{{ document.number }}</p>
+                                    <p class="text-sm text-slate-500">{{ document.business.name }} · {{ document.customer_name }}</p>
+                                </div>
+                                <span class="text-sm font-semibold">₦{{ document.total }}</span>
+                            </div>
+                            <p class="mt-1 text-xs text-slate-500">{{ document.get_document_type_display }} · {{ document.created_at|date:"d M Y, H:i" }}</p>
+                        </div>
+                    {% empty %}
+                        <p class="text-sm text-slate-500">No Tools document activity yet.</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </section>
+    {% else %}
+        <section class="mt-6 grid gap-4 md:grid-cols-3">
+            <div class="rounded-2xl bg-white p-5 shadow-sm">
+                <p class="text-sm text-slate-500">Cloud Businesses</p>
+                <h3 class="mt-2 text-2xl font-semibold">{{ cloud_metrics.business_count }}</h3>
+            </div>
+            <div class="rounded-2xl bg-white p-5 shadow-sm">
+                <p class="text-sm text-slate-500">Sync Events</p>
+                <h3 class="mt-2 text-2xl font-semibold">{{ cloud_metrics.sync_event_count }}</h3>
+            </div>
+            <div class="rounded-2xl bg-white p-5 shadow-sm">
+                <p class="text-sm text-slate-500">Active Sync Tokens</p>
+                <h3 class="mt-2 text-2xl font-semibold">{{ cloud_metrics.active_token_count }}</h3>
+            </div>
+        </section>
+
+        <section class="mt-6 grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
+            <div class="rounded-2xl bg-white p-5 shadow-sm">
+                <h3 class="text-lg font-semibold">Cloud Dashboard Businesses</h3>
+                <div class="mt-4 overflow-x-auto">
+                    <table class="min-w-full divide-y divide-slate-200 text-sm">
+                        <thead>
+                            <tr class="text-left text-slate-500">
+                                <th class="py-3 pr-4">Business</th>
+                                <th class="py-3 pr-4">Owner</th>
+                                <th class="py-3 pr-4">Branches</th>
+                                <th class="py-3 pr-4">Sales</th>
+                                <th class="py-3 pr-4">Purchases</th>
+                                <th class="py-3">Last Sync</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+                            {% for row in cloud_businesses %}
+                                <tr>
+                                    <td class="py-4 pr-4 font-medium">{{ row.business.name }}</td>
+                                    <td class="py-4 pr-4">{{ row.business.owner.email|default:"—" }}</td>
+                                    <td class="py-4 pr-4">{{ row.business.branch_count }}</td>
+                                    <td class="py-4 pr-4">{{ row.business.sale_count }}</td>
+                                    <td class="py-4 pr-4">{{ row.business.purchase_count }}</td>
+                                    <td class="py-4">{{ row.last_synced_at|date:"d M Y, H:i"|default:"—" }}</td>
+                                </tr>
+                            {% empty %}
+                                <tr>
+                                    <td colspan="6" class="py-10 text-center text-slate-500">No cloud dashboard businesses yet.</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="rounded-2xl bg-white p-5 shadow-sm">
+                <h3 class="text-lg font-semibold">Recent Cloud Activity</h3>
+                <div class="mt-4 space-y-3">
+                    {% for event in recent_sync_events %}
+                        <div class="rounded-xl border border-slate-200 px-4 py-3">
+                            <div class="flex items-start justify-between gap-4">
+                                <div>
+                                    <p class="font-medium">{{ event.business.name }}</p>
+                                    <p class="text-sm text-slate-500">{{ event.message }}</p>
+                                </div>
+                                <span class="text-xs text-slate-500">{{ event.created_at|date:"d M Y, H:i" }}</span>
+                            </div>
+                            <p class="mt-2 text-xs text-slate-500">{{ event.payload_summary }}</p>
+                        </div>
+                    {% empty %}
+                        <p class="text-sm text-slate-500">No cloud sync activity yet.</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </section>
+    {% endif %}
+{% endblock %}

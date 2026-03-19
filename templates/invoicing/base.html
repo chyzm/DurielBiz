@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}DurielBiz Tools{% endblock %}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    {% block extra_head %}{% endblock %}
+</head>
+<body class="min-h-screen bg-slate-950 text-slate-100">
+    <div class="flex min-h-screen">
+        {% if request.user.is_authenticated and business %}
+            <aside class="hidden w-72 border-r border-white/10 bg-slate-950 lg:block">
+                <div class="border-b border-white/10 px-6 py-5">
+                    <p class="text-xs uppercase tracking-[0.2em] text-cyan-300">DurielBiz</p>
+                    <h1 class="mt-2 text-2xl font-semibold">Tools</h1>
+                    <p class="mt-1 text-sm text-slate-400">{{ business.name }}</p>
+                </div>
+                <nav class="space-y-1 px-4 py-5 text-sm">
+                    <a href="{% url 'invoicing:dashboard' %}" class="block rounded-2xl px-4 py-3 hover:bg-white/5">Overview</a>
+                    <a href="{% url 'invoicing:document-list' %}" class="block rounded-2xl px-4 py-3 hover:bg-white/5">Invoice</a>
+                    <a href="{% url 'invoicing:service-list' %}" class="block rounded-2xl px-4 py-3 hover:bg-white/5">Services</a>
+                    <a href="{% url 'invoicing:business-settings' %}" class="block rounded-2xl px-4 py-3 hover:bg-white/5">Business Setup</a>
+                    <a href="{% url 'invoicing:password-change' %}" class="block rounded-2xl px-4 py-3 hover:bg-white/5">Change Password</a>
+                    <a href="{% url 'reports:home' %}" class="block rounded-2xl px-4 py-3 hover:bg-white/5">Back to Home</a>
+                    <form method="post" action="{% url 'invoicing:logout' %}">
+                        {% csrf_token %}
+                        <button class="block w-full rounded-2xl px-4 py-3 text-left hover:bg-white/5">Logout</button>
+                    </form>
+                </nav>
+            </aside>
+        {% endif %}
+
+        <main class="flex-1">
+            <header class="border-b border-white/10 bg-slate-950/90">
+                <div class="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-4 sm:px-6">
+                    <div>
+                        <p class="text-xs uppercase tracking-[0.2em] text-cyan-300">{% block eyebrow %}Cloud Tools{% endblock %}</p>
+                        <h2 class="mt-1 text-2xl font-semibold">{% block heading %}DurielBiz Tools{% endblock %}</h2>
+                    </div>
+                    <div class="flex items-center gap-3 text-sm">
+                        {% if request.user.is_authenticated and business %}
+                            <span class="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-slate-300">{{ request.user.email }}</span>
+                        {% else %}
+                            <a href="{% url 'reports:home' %}" class="rounded-full border border-white/10 px-4 py-2 text-slate-300 hover:border-white/30 hover:text-white">Home</a>
+                        {% endif %}
+                    </div>
+                </div>
+            </header>
+
+            <div class="mx-auto max-w-7xl px-4 py-8 sm:px-6">
+                {% if messages %}
+                    <div class="mb-6 space-y-3">
+                        {% for message in messages %}
+                            <div class="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-slate-200">{{ message }}</div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+                {% block content %}{% endblock %}
+            </div>
+        </main>
+    </div>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>
+

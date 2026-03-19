@@ -1,6 +1,9 @@
 import json
+import os
 
+from django.conf import settings
 from django.contrib import messages
+from django.urls import reverse
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponseForbidden, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -17,7 +20,16 @@ from .services import dashboard_metrics, perform_cloud_sync, sync_export_payload
 
 
 def home(request):
-    return render(request, "home.html")
+    host = request.get_host().split(":", 1)[0].lower()
+    is_local_dev = host in {"127.0.0.1", "localhost"} and os.getenv("DURIELBIZ_DESKTOP") != "1"
+    tools_url = reverse("invoicing:home") if settings.INVOICING_ALLOW_LOCAL or is_local_dev else f"{settings.DURIELBIZ_SITE_URL.rstrip('/')}/tools/"
+    return render(
+        request,
+        "home.html",
+        {
+            "tools_url": tools_url,
+        },
+    )
 
 
 @login_required

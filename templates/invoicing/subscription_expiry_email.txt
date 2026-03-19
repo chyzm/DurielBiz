@@ -1,0 +1,10 @@
+Hello {{ business.owner.get_full_name|default:business.owner.username }},
+
+Your DurielBiz Tools subscription for {{ business.name }} will expire in 3 days.
+
+Expiry date: {{ subscription.expires_at|date:"j M Y, g:i a" }}
+Dashboard: {{ dashboard_url }}
+
+Renew your monthly subscription before the expiry date to avoid being locked out of the invoice service.
+
+DurielBiz Team

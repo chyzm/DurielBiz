@@ -43,6 +43,9 @@
                 <a href="{% url 'sales:history' %}" class="block rounded-xl border border-slate-200 px-4 py-3 hover:bg-slate-50">Review sales history</a>
                 <a href="{% url 'reports:branch-list' %}" class="block rounded-xl border border-slate-200 px-4 py-3 hover:bg-slate-50">Manage branches</a>
                 <a href="{% url 'reports:business-settings' %}" class="block rounded-xl border border-slate-200 px-4 py-3 hover:bg-slate-50">Edit business settings</a>
+                {% if request.user.is_superuser %}
+                    <a href="{% url 'accounts:service-admin' %}" class="block rounded-xl border border-slate-200 px-4 py-3 hover:bg-slate-50">Manage cloud services</a>
+                {% endif %}
             </div>
         </div>
 
