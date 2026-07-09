@@ -1,117 +1,124 @@
 <!DOCTYPE html>
+{% load static %}
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}DurielBiz POS{% endblock %}</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="icon" type="image/svg+xml" href="{% static 'img/logo-mark.svg' %}">
+    <script src="{% static 'js/vendor/tailwind.js' %}"></script>
+    <link rel="stylesheet" href="{% static 'css/theme.css' %}">
+    <script src="{% static 'js/ui.js' %}" defer></script>
+    <style>
+        .sidebar-shell {
+            background: linear-gradient(180deg, #0F1425 0%, #0A0E1A 45%, #0A0E1A 100%);
+            box-shadow: inset -1px 0 0 rgba(255,255,255,0.06);
+        }
+        .sidebar-glow {
+            background: radial-gradient(60% 40% at 30% 0%, rgba(124, 58, 237, 0.35), transparent 70%);
+        }
+        .sidebar-edge {
+            background: linear-gradient(180deg, #4F46E5 0%, #7C3AED 45%, #22D3EE 100%);
+        }
+        .header-accent {
+            background: linear-gradient(90deg, #4F46E5 0%, #7C3AED 45%, #22D3EE 100%);
+        }
+        .header-shell {
+            box-shadow: 0 1px 0 rgba(15, 23, 42, 0.04), 0 8px 20px -12px rgba(15, 23, 42, 0.10);
+        }
+        .badge-live {
+            background: linear-gradient(135deg, #4F46E5, #7C3AED);
+        }
+        .badge-branch {
+            background: linear-gradient(135deg, #059669, #10B981);
+        }
+        @keyframes ping-dot {
+            0% { transform: scale(0.9); opacity: 1; }
+            70% { transform: scale(2.4); opacity: 0; }
+            100% { opacity: 0; }
+        }
+        .ping-dot::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: 9999px;
+            background: currentColor;
+            animation: ping-dot 2.1s cubic-bezier(0.4,0,0.6,1) infinite;
+        }
+        .content-glow {
+            background: radial-gradient(60% 35% at 85% 0%, rgba(79, 70, 229, 0.06), transparent 70%);
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .ping-dot::after { animation: none; }
+        }
+    </style>
     {% block extra_head %}{% endblock %}
 </head>
 <body class="min-h-screen bg-slate-100 text-slate-900">
     <div class="flex min-h-screen">
-        <aside class="hidden w-64 bg-slate-900 text-slate-100 lg:block">
-            <div class="border-b border-slate-800 px-6 py-5">
-                <h1 class="text-xl font-semibold">DurielBiz POS</h1>
-                <p class="mt-1 text-sm text-slate-400">Desktop-first retail starter</p>
+        <aside class="sidebar-shell relative hidden w-64 text-slate-100 lg:block">
+            <div class="pointer-events-none absolute inset-0 sidebar-glow"></div>
+            <div class="pointer-events-none absolute inset-y-0 right-0 w-px sidebar-edge"></div>
+            <div class="relative z-10">
+                {% include "includes/_sidebar_header.html" %}
+                <nav class="space-y-1 px-4 py-4 text-sm">
+                    {% include "includes/_nav_links.html" %}
+                </nav>
             </div>
-            <nav class="space-y-1 px-4 py-4 text-sm">
-                {% if request.user.role == 'admin' or request.user.role == 'cashier' or request.user.role == 'manager' %}
-                    <a href="{% url 'reports:dashboard' %}" class="block rounded-lg px-3 py-2 hover:bg-slate-800">Dashboard</a>
-                {% endif %}
-                {% if request.user.role == 'admin' or request.user.role == 'cashier' %}
-                    <a href="{% url 'sales:pos' %}" class="block rounded-lg px-3 py-2 hover:bg-slate-800">POS Terminal</a>
-                {% endif %}
-                {% if request.user.role == 'admin' or request.user.role == 'inventory' %}
-                    <a href="{% url 'products:list' %}" class="block rounded-lg px-3 py-2 hover:bg-slate-800">Products</a>
-                    <a href="{% url 'products:category-list' %}" class="block rounded-lg px-3 py-2 hover:bg-slate-800">Categories</a>
-                    <a href="{% url 'suppliers:list' %}" class="block rounded-lg px-3 py-2 hover:bg-slate-800">Suppliers</a>
-                    <a href="{% url 'purchases:list' %}" class="block rounded-lg px-3 py-2 hover:bg-slate-800">Purchases</a>
-                    <a href="{% url 'inventory:overview' %}" class="block rounded-lg px-3 py-2 hover:bg-slate-800">Inventory</a>
-                {% endif %}
-                {% if request.user.role == 'admin' %}
-                    <a href="{% url 'sales:customer-list' %}" class="block rounded-lg px-3 py-2 hover:bg-slate-800">Customers</a>
-                    <a href="{% url 'sales:history' %}" class="block rounded-lg px-3 py-2 hover:bg-slate-800">Sales History</a>
-                    <a href="{% url 'accounts:activity-log' %}" class="block rounded-lg px-3 py-2 hover:bg-slate-800">Activity Log</a>
-                    <a href="{% url 'reports:branch-list' %}" class="block rounded-lg px-3 py-2 hover:bg-slate-800">Branches</a>
-                    <a href="{% url 'reports:business-settings' %}" class="block rounded-lg px-3 py-2 hover:bg-slate-800">Business Settings</a>
-                    <a href="{% url 'accounts:admin-center' %}" class="block rounded-lg px-3 py-2 hover:bg-slate-800">Admin</a>
-                {% endif %}
-                <a href="{% url 'accounts:about-support' %}" class="block rounded-lg px-3 py-2 hover:bg-slate-800">About & Support</a>
-            </nav>
         </aside>
 
-        <div id="mobileSidebarBackdrop" class="fixed inset-0 z-40 hidden bg-slate-950/50 lg:hidden"></div>
-        <aside id="mobileSidebar" class="fixed inset-y-0 left-0 z-50 w-72 -translate-x-full overflow-y-auto bg-slate-900 text-slate-100 shadow-2xl transition-transform duration-200 lg:hidden">
-            <div class="border-b border-slate-800 px-5 py-5">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <h1 class="text-xl font-semibold">DurielBiz POS</h1>
-                        <p class="mt-1 text-sm text-slate-400">Desktop-first retail starter</p>
-                    </div>
-                    <button id="closeMobileSidebar" type="button" class="rounded-lg border border-slate-700 px-3 py-2 text-xs text-slate-300">Close</button>
-                </div>
+        <div id="mobileSidebarBackdrop" class="fixed inset-0 z-40 hidden bg-slate-950/60 backdrop-blur-sm lg:hidden"></div>
+        <aside id="mobileSidebar" class="sidebar-shell fixed inset-y-0 left-0 z-50 w-72 -translate-x-full overflow-y-auto text-slate-100 shadow-2xl transition-transform duration-200 lg:hidden">
+            <div class="pointer-events-none absolute inset-0 sidebar-glow"></div>
+            <div class="pointer-events-none absolute inset-y-0 right-0 w-px sidebar-edge"></div>
+            <div class="relative z-10">
+                {% include "includes/_sidebar_header.html" with show_close=True %}
+                <nav class="space-y-1 px-4 py-4 text-sm">
+                    {% include "includes/_nav_links.html" %}
+                </nav>
             </div>
-            <nav class="space-y-1 px-4 py-4 text-sm">
-                {% if request.user.role == 'admin' or request.user.role == 'cashier' or request.user.role == 'manager' %}
-                    <a href="{% url 'reports:dashboard' %}" class="block rounded-lg px-3 py-2 hover:bg-slate-800">Dashboard</a>
-                {% endif %}
-                {% if request.user.role == 'admin' or request.user.role == 'cashier' %}
-                    <a href="{% url 'sales:pos' %}" class="block rounded-lg px-3 py-2 hover:bg-slate-800">POS Terminal</a>
-                {% endif %}
-                {% if request.user.role == 'admin' or request.user.role == 'inventory' %}
-                    <a href="{% url 'products:list' %}" class="block rounded-lg px-3 py-2 hover:bg-slate-800">Products</a>
-                    <a href="{% url 'products:category-list' %}" class="block rounded-lg px-3 py-2 hover:bg-slate-800">Categories</a>
-                    <a href="{% url 'suppliers:list' %}" class="block rounded-lg px-3 py-2 hover:bg-slate-800">Suppliers</a>
-                    <a href="{% url 'purchases:list' %}" class="block rounded-lg px-3 py-2 hover:bg-slate-800">Purchases</a>
-                    <a href="{% url 'inventory:overview' %}" class="block rounded-lg px-3 py-2 hover:bg-slate-800">Inventory</a>
-                {% endif %}
-                {% if request.user.role == 'admin' %}
-                    <a href="{% url 'sales:customer-list' %}" class="block rounded-lg px-3 py-2 hover:bg-slate-800">Customers</a>
-                    <a href="{% url 'sales:history' %}" class="block rounded-lg px-3 py-2 hover:bg-slate-800">Sales History</a>
-                    <a href="{% url 'accounts:activity-log' %}" class="block rounded-lg px-3 py-2 hover:bg-slate-800">Activity Log</a>
-                    <a href="{% url 'reports:branch-list' %}" class="block rounded-lg px-3 py-2 hover:bg-slate-800">Branches</a>
-                    <a href="{% url 'reports:business-settings' %}" class="block rounded-lg px-3 py-2 hover:bg-slate-800">Business Settings</a>
-                    <a href="{% url 'accounts:admin-center' %}" class="block rounded-lg px-3 py-2 hover:bg-slate-800">Admin</a>
-                {% endif %}
-                <a href="{% url 'accounts:about-support' %}" class="block rounded-lg px-3 py-2 hover:bg-slate-800">About & Support</a>
-            </nav>
         </aside>
 
-        <main class="flex-1">
-            <header class="border-b border-slate-200 bg-white">
+        <main class="relative flex-1">
+            <header class="header-shell relative border-b border-slate-200 bg-white">
+                <div class="header-accent h-0.5 w-full"></div>
                 <div class="flex flex-wrap items-start justify-between gap-4 px-4 py-4 sm:px-6">
                     <div class="flex items-start gap-3">
-                        <button id="openMobileSidebar" type="button" class="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 lg:hidden">Menu</button>
+                        <button id="openMobileSidebar" type="button" class="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 transition hover:border-slate-400 hover:bg-slate-50 lg:hidden">Menu</button>
                         <div>
-                        <p class="text-sm text-slate-500">Welcome back</p>
-                        <h2 class="text-lg font-semibold">{{ request.user.get_full_name|default:request.user.username }}</h2>
-                        <p class="mt-1 text-sm text-slate-500">
-                            {% if request.user.role == 'admin' %}
-                                Access: All branches
-                            {% elif request.user.branch %}
-                                Branch: {{ request.user.branch.name }}
-                            {% else %}
-                                Branch: Not assigned
-                            {% endif %}
-                        </p>
-                    </div>
+                            <p class="flex items-center gap-1.5 text-sm text-slate-500">
+                                Welcome back
+                                <span class="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500"><span class="ping-dot absolute inset-0 rounded-full bg-emerald-500 text-emerald-500"></span></span>
+                            </p>
+                            <h2 class="text-lg font-semibold">{{ request.user.get_full_name|default:request.user.username }}</h2>
+                            <p class="mt-1 text-sm text-slate-500">
+                                {% if request.user.role == 'admin' %}
+                                    Access: All branches
+                                {% elif request.user.branch %}
+                                    Branch: {{ request.user.branch.name }}
+                                {% else %}
+                                    Branch: Not assigned
+                                {% endif %}
+                            </p>
+                        </div>
                     </div>
                     <div class="flex flex-wrap items-center justify-end gap-3 text-sm">
                         {% if request.user.role == 'admin' %}
-                            <span class="rounded-full bg-indigo-50 px-3 py-1 text-indigo-700">All Branches</span>
+                            <span class="badge-live rounded-full px-3 py-1 font-medium text-white shadow-sm shadow-indigo-500/30">All Branches</span>
                         {% elif request.user.branch %}
-                            <span class="rounded-full bg-emerald-50 px-3 py-1 text-emerald-700">{{ request.user.branch.name }}</span>
+                            <span class="badge-branch rounded-full px-3 py-1 font-medium text-white shadow-sm shadow-emerald-500/30">{{ request.user.branch.name }}</span>
                         {% endif %}
-                        <span class="rounded-full bg-slate-100 px-3 py-1">{{ request.user.get_role_display|default:"User" }}</span>
+                        <span class="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-slate-700">{{ request.user.get_role_display|default:"User" }}</span>
                         <form method="post" action="{% url 'accounts:logout' %}">
                             {% csrf_token %}
-                            <button class="rounded-lg border border-slate-300 px-3 py-2 hover:bg-slate-50">Logout</button>
+                            <button class="rounded-lg border border-slate-300 px-3 py-2 transition hover:border-slate-400 hover:bg-slate-50">Logout</button>
                         </form>
                     </div>
                 </div>
             </header>
 
-            <div class="px-6 py-6">
+            <div class="content-glow pointer-events-none absolute inset-x-0 top-0 h-64"></div>
+            <div class="relative px-6 py-6">
                 {% block content %}{% endblock %}
             </div>
         </main>
@@ -147,12 +154,12 @@
                 const container = document.getElementById('toastContainer');
                 const toast = document.createElement('div');
                 const styles = {
-                    info: 'border-slate-300 bg-white text-slate-800',
-                    success: 'border-emerald-200 bg-emerald-50 text-emerald-800',
-                    warning: 'border-amber-200 bg-amber-50 text-amber-800',
-                    error: 'border-rose-200 bg-rose-50 text-rose-800'
+                    info: 'border-slate-300 bg-white text-slate-800 border-l-4 border-l-indigo-400',
+                    success: 'border-emerald-200 bg-emerald-50 text-emerald-800 border-l-4 border-l-emerald-500',
+                    warning: 'border-amber-200 bg-amber-50 text-amber-800 border-l-4 border-l-amber-500',
+                    error: 'border-rose-200 bg-rose-50 text-rose-800 border-l-4 border-l-rose-500'
                 };
-                toast.className = `pointer-events-auto rounded-2xl border px-4 py-3 text-sm shadow-lg transition ${styles[type] || styles.info}`;
+                toast.className = `animate-toast-in pointer-events-auto rounded-2xl border px-4 py-3 text-sm shadow-lg backdrop-blur-sm transition ${styles[type] || styles.info}`;
                 toast.textContent = message;
                 container.appendChild(toast);
                 setTimeout(() => {

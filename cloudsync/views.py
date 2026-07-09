@@ -2,7 +2,6 @@ import csv
 from functools import wraps
 
 from django.contrib import messages
-from django.contrib.auth import login as auth_login
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse, HttpResponseBadRequest, HttpResponseForbidden, JsonResponse
 from django.shortcuts import redirect, render
@@ -10,11 +9,9 @@ from django.urls import reverse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 
-from accounts.models import User
 from pos_system.pagination import paginate_queryset
 
-from .forms import CloudSignupForm
-from .models import Business, BusinessMembership, RemoteInventoryLog, SyncCredential
+from .models import RemoteInventoryLog, SyncCredential
 from .services import dashboard_metrics, ingest_payload, parse_request_json, user_business
 
 
@@ -29,32 +26,6 @@ def business_required(view_func):
         return view_func(request, *args, **kwargs)
 
     return login_required(_wrapped)
-
-
-def signup(request):
-    if request.user.is_authenticated and user_business(request.user):
-        return redirect("cloudsync:dashboard")
-
-    form = CloudSignupForm(request.POST or None)
-    if request.method == "POST" and form.is_valid():
-        user = form.save(commit=False)
-        user.email = form.cleaned_data["email"]
-        user.role = User.Role.ADMIN
-        user.save()
-
-        business = Business.objects.create(
-            name=form.cleaned_data["business_name"],
-            slug=form.cleaned_data["business_slug"],
-            owner=user,
-        )
-        BusinessMembership.objects.create(user=user, business=business, role=BusinessMembership.Role.OWNER)
-        SyncCredential.objects.create(business=business)
-
-        auth_login(request, user)
-        messages.success(request, "Your cloud dashboard is ready. Next, connect your existing local POS from the sync settings page.")
-        return redirect("cloudsync:settings")
-
-    return render(request, "cloudsync/signup.html", {"form": form})
 
 
 @business_required

@@ -1,210 +1,334 @@
 <!DOCTYPE html>
+{% load static %}
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DurielTech | IT Company</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <title>DurielTech | IT Solutions</title>
+    <script src="{% static 'js/vendor/tailwind.js' %}"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        ink: '#0C1220',
+                        deep: '#101828',
+                        gold: '#E3BC6A',
+                        golddark: '#C89B3F',
+                        ivory: '#F7F4ED'
+                    },
+                    fontFamily: {
+                        display: ['Fraunces', 'Georgia', 'serif'],
+                        sans: ['Inter', 'system-ui', 'sans-serif']
+                    },
+                    boxShadow: {
+                        card: '0 24px 60px -24px rgba(12, 18, 32, 0.45)',
+                        lift: '0 32px 80px -32px rgba(12, 18, 32, 0.55)'
+                    }
+                }
+            }
+        }
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        html { scroll-behavior: smooth; }
+        .reveal { opacity: 0; transform: translateY(24px); transition: opacity .7s ease, transform .7s ease; }
+        .reveal.in { opacity: 1; transform: none; }
+        @media (prefers-reduced-motion: reduce) {
+            html { scroll-behavior: auto; }
+            .reveal { opacity: 1; transform: none; transition: none; }
+        }
+        .grain {
+            background-image: radial-gradient(rgba(227,188,106,0.10) 1px, transparent 1px);
+            background-size: 26px 26px;
+        }
+    </style>
 </head>
-<body class="min-h-screen bg-slate-950 text-white">
-    <header class="border-b border-white/10 bg-slate-950/90 backdrop-blur">
+<body class="min-h-screen bg-ivory font-sans text-slate-800 antialiased">
+
+    <!-- ===================== HEADER ===================== -->
+    <header class="sticky top-0 z-50 border-b border-white/10 bg-ink/95 backdrop-blur">
         <div class="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6">
             <a href="{% url 'reports:home' %}" class="flex items-center gap-3">
-                <div class="flex h-11 w-11 items-center justify-center rounded-2xl bg-cyan-400 font-bold text-slate-950">DT</div>
-                <div>
-                    <p class="text-lg font-semibold">DurielTech</p>
-                    <p class="text-xs text-slate-400">IT company building practical business systems</p>
+                <!-- Logo mark (from brand logo) -->
+                <svg viewBox="0 0 100 100" class="h-10 w-10" aria-hidden="true">
+                    <polygon points="16,6 46,6 74,34 74,56" fill="#E3BC6A"/>
+                    <polygon points="84,44 84,66 56,94 26,94" fill="#E3BC6A"/>
+                </svg>
+                <div class="leading-tight">
+                    <p class="font-display text-xl font-semibold tracking-wide text-white">DURIEL TECH</p>
+                    <p class="text-[11px] uppercase tracking-[0.28em] text-gold">…IT Solutions</p>
                 </div>
             </a>
-            <nav class="hidden items-center gap-6 text-sm text-slate-300 lg:flex">
-                <a href="#products" class="hover:text-white">Products</a>
-                <a href="#services" class="hover:text-white">Services</a>
-                <a href="#industries" class="hover:text-white">Industries</a>
-                <a href="#clients" class="hover:text-white">Clients</a>
-                <a href="{{ tools_url }}" class="hover:text-white">Tools</a>
-                <a href="{% url 'cloudsync:dashboard' %}" class="hover:text-white">Cloud Dashboard Login</a>
+            <nav class="hidden items-center gap-8 text-sm font-medium text-slate-300 lg:flex">
+                <a href="#products" class="transition hover:text-gold">Products</a>
+                <a href="#services" class="transition hover:text-gold">Services</a>
+                <a href="#clients" class="transition hover:text-gold">Clients</a>
+                <a href="{{ tools_url }}" class="transition hover:text-gold">Tools</a>
             </nav>
-            <div class="hidden items-center gap-3 sm:flex">
-                <a href="{% url 'accounts:login' %}" class="rounded-xl border border-white/15 px-4 py-2 text-sm text-slate-200 hover:border-white/30 hover:text-white">Local Product Login</a>
-                <a href="{% url 'accounts:signup' %}" class="rounded-xl bg-cyan-400 px-4 py-2 text-sm font-medium text-slate-950">Create Cloud Account</a>
+            <div class="hidden items-center sm:flex">
+                <a href="{% url 'cloudsync:dashboard' %}" class="rounded-full bg-gold px-5 py-2.5 text-sm font-semibold text-ink shadow-card transition hover:bg-golddark">
+                    Cloud Dashboard Login
+                </a>
             </div>
-            <button id="openHomeMobileMenu" type="button" class="rounded-xl border border-white/15 px-3 py-2 text-sm text-slate-200 sm:hidden">
+            <button id="openHomeMobileMenu" type="button" aria-label="Open menu" class="rounded-xl border border-white/15 px-3 py-2 text-sm text-slate-200 sm:hidden">
                 Menu
             </button>
         </div>
-        <div id="homeMobileMenu" class="hidden border-t border-white/10 px-4 py-4 sm:hidden">
-            <nav class="flex flex-col gap-3 text-sm text-slate-300">
-                <a href="#products" class="hover:text-white">Products</a>
-                <a href="#services" class="hover:text-white">Services</a>
-                <a href="#industries" class="hover:text-white">Industries</a>
-                <a href="#clients" class="hover:text-white">Clients</a>
-                <a href="{{ tools_url }}" class="hover:text-white">Tools</a>
-                <a href="{% url 'cloudsync:dashboard' %}" class="hover:text-white">Cloud Dashboard Login</a>
-                <div class="mt-2 grid gap-3">
-                    <a href="{% url 'accounts:login' %}" class="rounded-xl border border-white/15 px-4 py-3 text-center text-sm text-slate-200 hover:border-white/30 hover:text-white">Local POS Login</a>
-                    <a href="{% url 'accounts:signup' %}" class="rounded-xl bg-cyan-400 px-4 py-3 text-center text-sm font-medium text-slate-950">Create Cloud Account</a>
-                </div>
+        <div id="homeMobileMenu" class="hidden border-t border-white/10 bg-ink px-4 py-5 sm:hidden">
+            <nav class="flex flex-col gap-4 text-sm text-slate-300">
+                <a href="#products" class="hover:text-gold">Products</a>
+                <a href="#services" class="hover:text-gold">Services</a>
+                <a href="#clients" class="hover:text-gold">Clients</a>
+                <a href="{{ tools_url }}" class="hover:text-gold">Tools</a>
+                <a href="{% url 'cloudsync:dashboard' %}" class="mt-2 rounded-full bg-gold px-4 py-3 text-center font-semibold text-ink">Cloud Dashboard Login</a>
             </nav>
         </div>
     </header>
 
     <main>
-        <section class="mx-auto grid max-w-7xl gap-12 px-4 py-16 sm:px-6 lg:grid-cols-[1.15fr_0.85fr] lg:py-24">
-            <div>
-                <div class="inline-flex rounded-full border border-cyan-400/20 bg-cyan-400/10 px-4 py-1 text-sm text-cyan-300">
-                    Software, healthtech, retail systems, and mobility solutions
-                </div>
-                <h1 class="mt-6 max-w-4xl text-4xl font-semibold tracking-tight text-white md:text-6xl">
-                    DurielTech builds practical digital systems for healthcare, business operations, and field services.
-                </h1>
-                <p class="mt-6 max-w-3xl text-lg leading-8 text-slate-300">
-                    We design and deploy usable software products for real operations. Our products cover clinical workflows, desktop-first retail POS, and mobile physiotherapy service delivery.
-                </p>
-                <div class="mt-8 flex flex-wrap gap-4">
-                    <a href="#products" class="rounded-2xl bg-white px-6 py-3 text-sm font-semibold text-slate-950">View Products</a>
-                    <a href="#services" class="rounded-2xl border border-white/15 px-6 py-3 text-sm font-semibold text-white">Our Services</a>
-                </div>
-                <div class="mt-8 flex flex-col gap-3 text-sm text-slate-300 sm:flex-row sm:flex-wrap sm:items-center sm:gap-6">
-                    <a href="tel:07031016787" class="inline-flex items-center gap-2 hover:text-white">
-                        <span class="text-cyan-300">Phone</span>
-                        <span>07031016787</span>
-                    </a>
-                    <a href="mailto:info@durieltech.com.ng" class="inline-flex items-center gap-2 hover:text-white">
-                        <span class="text-cyan-300">Email</span>
-                        <span>info@durieltech.com.ng</span>
-                    </a>
-                </div>
-                <dl class="mt-12 grid gap-4 sm:grid-cols-3">
-                    <div class="rounded-2xl border border-white/10 bg-white/5 p-5">
-                        <dt class="text-sm text-slate-400">Products</dt>
-                        <dd class="mt-2 text-2xl font-semibold">3 Core Platforms</dd>
-                    </div>
-                    <div class="rounded-2xl border border-white/10 bg-white/5 p-5">
-                        <dt class="text-sm text-slate-400">Client sectors</dt>
-                        <dd class="mt-2 text-2xl font-semibold">Health, retail, travel</dd>
-                    </div>
-                    <div class="rounded-2xl border border-white/10 bg-white/5 p-5">
-                        <dt class="text-sm text-slate-400">Delivery model</dt>
-                        <dd class="mt-2 text-2xl font-semibold">Local + cloud</dd>
-                    </div>
-                </dl>
-            </div>
-            <div class="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-2xl shadow-black/30">
-                <div class="rounded-2xl border border-white/10 bg-slate-900 p-5">
-                    <p class="text-sm text-slate-400">Selected product stack</p>
-                    <div class="mt-5 space-y-4">
-                        <div class="rounded-2xl bg-slate-800 p-4">
-                            <p class="text-xs uppercase tracking-wide text-cyan-300">DurielMedic</p>
-                            <p class="mt-2 text-lg font-semibold">Clinical and health operations platform</p>
-                            <p class="mt-2 text-sm text-slate-400">EMR-style workflows, patient records, and facility operations.</p>
-                        </div>
-                        <div class="rounded-2xl bg-slate-800 p-4">
-                            <p class="text-xs uppercase tracking-wide text-emerald-300">DurielBiz POS</p>
-                            <p class="mt-2 text-lg font-semibold">Desktop-first POS with cloud monitoring</p>
-                            <p class="mt-2 text-sm text-slate-400">Offline sales, inventory, branch control, and remote owner dashboard.</p>
-                        </div>
-                        <div class="rounded-2xl bg-slate-800 p-4">
-                            <p class="text-xs uppercase tracking-wide text-amber-300">SUavedef Mobile Physio</p>
-                            <p class="mt-2 text-lg font-semibold">Mobile physiotherapy service platform</p>
-                            <p class="mt-2 text-sm text-slate-400">Supports field physiotherapy access, coordination, and service delivery.</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </section>
+        <!-- ===================== HERO ===================== -->
+        <section class="relative overflow-hidden bg-ink text-white">
+            <!-- Oversized brand chevron watermark -->
+            <svg viewBox="0 0 100 100" class="pointer-events-none absolute -right-24 -top-24 h-[560px] w-[560px] opacity-[0.06]" aria-hidden="true">
+                <polygon points="16,6 46,6 74,34 74,56" fill="#E3BC6A"/>
+                <polygon points="84,44 84,66 56,94 26,94" fill="#E3BC6A"/>
+            </svg>
+            <div class="grain pointer-events-none absolute inset-0" aria-hidden="true"></div>
 
-        <section id="products" class="border-t border-white/10 bg-slate-900/60">
-            <div class="mx-auto max-w-7xl px-4 py-20 sm:px-6">
-                <div class="max-w-3xl">
-                    <h2 class="text-3xl font-semibold">Products</h2>
-                    <p class="mt-4 text-slate-300">DurielTech products are built around real operational workflows, not generic software abstractions.</p>
-                </div>
-                <div class="mt-10 grid gap-6 lg:grid-cols-3">
-                    <div class="rounded-3xl border border-white/10 bg-white/5 p-6">
-                        <h3 class="text-xl font-semibold">DurielMedic</h3>
-                        <p class="mt-3 text-sm leading-6 text-slate-300">A healthcare operations product for clinics, physiotherapy practices, and patient management workflows.</p>
-                    </div>
-                    <div class="rounded-3xl border border-white/10 bg-white/5 p-6">
-                        <h3 class="text-xl font-semibold">DurielBiz POS</h3>
-                        <p class="mt-3 text-sm leading-6 text-slate-300">A desktop-first POS for branches, inventory, receipts, loyalty, and online monitoring from the cloud.</p>
-                    </div>
-                    <div class="rounded-3xl border border-white/10 bg-white/5 p-6">
-                        <h3 class="text-xl font-semibold">SUavedef Mobile Physio</h3>
-                        <p class="mt-3 text-sm leading-6 text-slate-300">A mobile-first physiotherapy service solution supporting remote delivery and field operations.</p>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <section id="services" class="mx-auto max-w-7xl px-4 py-20 sm:px-6">
-            <div class="grid gap-10 lg:grid-cols-[0.9fr_1.1fr]">
+            <div class="relative mx-auto grid max-w-7xl gap-14 px-4 pb-20 pt-16 sm:px-6 lg:grid-cols-[1.05fr_0.95fr] lg:items-center lg:pb-28 lg:pt-24">
                 <div>
-                    <h2 class="text-3xl font-semibold">Services</h2>
-                    <p class="mt-4 text-slate-300">We build, customize, deploy, and support operational technology for organizations that need systems to work in the real world.</p>
+                    <p class="inline-flex items-center gap-2 rounded-full border border-gold/30 bg-gold/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.2em] text-gold">
+                        <span class="h-1.5 w-1.5 rounded-full bg-gold"></span>
+                        Healthtech · Retail systems · Cloud
+                    </p>
+                    <h1 class="mt-7 font-display text-4xl font-semibold leading-[1.08] tracking-tight sm:text-5xl lg:text-6xl">
+                        Software built for how
+                        <span class="text-gold">real operations</span>
+                        actually run.
+                    </h1>
+                    <p class="mt-6 max-w-xl text-lg leading-8 text-slate-300">
+                        We design and deploy systems that power everyday operations, reliable where you work, monitored from anywhere.
+                    </p>
+                    <div class="mt-9 flex flex-wrap items-center gap-4">
+                        <a href="#products" class="rounded-full bg-gold px-7 py-3.5 text-sm font-semibold text-ink shadow-lift transition hover:bg-golddark">
+                            Explore our products
+                        </a>
+                        <a href="{% url 'cloudsync:dashboard' %}" class="rounded-full border border-white/20 px-7 py-3.5 text-sm font-semibold text-white transition hover:border-gold hover:text-gold">
+                            Open cloud dashboard
+                        </a>
+                    </div>
+                    <div class="mt-10 flex flex-wrap gap-x-8 gap-y-3 text-sm text-slate-400">
+                        <a href="tel:07031016787" class="transition hover:text-gold">📞 0703 101 6787</a>
+                        <a href="mailto:info@durieltech.com.ng" class="transition hover:text-gold">✉️ info@durieltech.com.ng</a>
+                    </div>
                 </div>
-                <div class="grid gap-4 sm:grid-cols-2">
-                    <div class="rounded-2xl border border-white/10 bg-white/5 p-5">Custom software development</div>
-                    <div class="rounded-2xl border border-white/10 bg-white/5 p-5">Business process automation</div>
-                    <div class="rounded-2xl border border-white/10 bg-white/5 p-5">POS and inventory systems</div>
-                    <div class="rounded-2xl border border-white/10 bg-white/5 p-5">Healthcare technology solutions</div>
-                    <div class="rounded-2xl border border-white/10 bg-white/5 p-5">Cloud dashboards and reporting</div>
-                    <div class="rounded-2xl border border-white/10 bg-white/5 p-5">Deployment, support, and training</div>
+
+                <!-- Layered hero visual -->
+                <div class="relative">
+                    <div class="absolute -left-6 -top-6 h-full w-full rounded-3xl border border-gold/25" aria-hidden="true"></div>
+                    <div class="relative overflow-hidden rounded-3xl shadow-lift">
+                        <img src="https://images.unsplash.com/photo-1573165231977-3f0e27806045?auto=format&fit=crop&w=1200&q=80"
+                             alt="Engineers building software on multiple screens"
+                             class="h-[420px] w-full object-cover" loading="eager">
+                        <div class="absolute inset-0 bg-gradient-to-t from-ink/90 via-ink/20 to-transparent"></div>
+                        <div class="absolute bottom-5 left-5 right-5 flex items-end justify-between gap-4">
+                            {% comment %} <div>
+                                <p class="text-xs uppercase tracking-[0.2em] text-gold">Built &amp; supported in Nigeria</p>
+                                <p class="mt-1 font-display text-xl font-semibold">From clinic floor to shop counter</p>
+                            </div> {% endcomment %}
+                        </div>
+                    </div>
+                    <!-- Floating stat card -->
+                    <div class="absolute -bottom-8 -left-4 hidden rounded-2xl border border-white/10 bg-deep/95 p-5 shadow-lift backdrop-blur sm:block">
+                      <p class="text-xs uppercase tracking-[0.18em] text-slate-400">Why businesses choose us</p>
+                     <p class="mt-1 font-display text-2xl font-semibold text-gold">Built for daily operations</p>
+                     <p class="mt-1 text-xs text-slate-400">Reliable, visible anywhere</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Client strip -->
+            <div id="clients" class="relative border-t border-white/10">
+                <div class="mx-auto flex max-w-7xl flex-wrap items-center justify-center gap-x-10 gap-y-3 px-4 py-6 text-sm text-slate-400 sm:px-6">
+                    <span class="text-xs uppercase tracking-[0.22em] text-gold/80">Trusted by</span>
+                    <span>Rofim Travels</span>
+                    <span>Lukwing Travels</span>
+                    <span>Vertexslab Ltd</span>
+                    <span>Jumbo Sports</span>
+                    <span>University of Nigeria, Nsukka</span>
+                    <span>ESUT</span>
                 </div>
             </div>
         </section>
 
-        <section id="industries" class="border-t border-white/10 bg-slate-900/60">
-            <div class="mx-auto max-w-7xl px-4 py-20 sm:px-6">
-                <h2 class="text-3xl font-semibold">Industries We Cover</h2>
-                <div class="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                    <div class="rounded-2xl border border-white/10 bg-white/5 p-5">Healthcare and physiotherapy</div>
-                    <div class="rounded-2xl border border-white/10 bg-white/5 p-5">Retail and supermarkets</div>
-                    <div class="rounded-2xl border border-white/10 bg-white/5 p-5">Travel and booking operations</div>
-                    <div class="rounded-2xl border border-white/10 bg-white/5 p-5">Education and institutions</div>
-                    <div class="rounded-2xl border border-white/10 bg-white/5 p-5">Corporate operations and internal tools</div>
-                    <div class="rounded-2xl border border-white/10 bg-white/5 p-5">Field service and mobility solutions</div>
+        <!-- ===================== PRODUCTS ===================== -->
+        <section id="products" class="mx-auto max-w-7xl px-4 py-24 sm:px-6">
+            <div class="reveal max-w-2xl">
+                <p class="text-xs font-semibold uppercase tracking-[0.24em] text-golddark">Our products</p>
+                <h2 class="mt-3 font-display text-3xl font-semibold tracking-tight text-ink sm:text-4xl">
+                    Two platforms. One promise — systems that work.
+                </h2>
+            </div>
+
+            <div class="mt-14 space-y-10">
+                <!-- DurielMedic -->
+                <article class="reveal grid overflow-hidden rounded-3xl bg-white shadow-card lg:grid-cols-2">
+                    <div class="relative min-h-[300px]">
+                        <img src="https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?auto=format&fit=crop&w=1200&q=80"
+                             alt="Clinician reviewing patient records on a tablet"
+                             class="absolute inset-0 h-full w-full object-cover" loading="lazy">
+                        <div class="absolute left-5 top-5 rounded-full bg-ink/85 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-gold backdrop-blur">
+                            Healthcare
+                        </div>
+                    </div>
+                    <div class="flex flex-col justify-center p-8 lg:p-12">
+                        <h3 class="font-display text-2xl font-semibold text-ink sm:text-3xl">DurielMedic EMR</h3>
+                        <p class="mt-4 leading-7 text-slate-600">
+                            An electronic medical records platform for clinics and physiotherapy practices — patient records, clinical workflows, and facility operations in one dependable system.
+                        </p>
+                        <div class="mt-6 flex flex-wrap gap-2 text-xs font-medium text-slate-600">
+                            <span class="rounded-full bg-ivory px-3 py-1.5">Patient records</span>
+                            <span class="rounded-full bg-ivory px-3 py-1.5">Clinical workflows</span>
+                            <span class="rounded-full bg-ivory px-3 py-1.5">Facility operations</span>
+                        </div>
+                    </div>
+                </article>
+
+                <!-- DurielBiz POS -->
+                <article class="reveal grid overflow-hidden rounded-3xl bg-white shadow-card lg:grid-cols-2">
+                    <div class="flex flex-col justify-center p-8 lg:order-1 lg:p-12">
+                        <h3 class="font-display text-2xl font-semibold text-ink sm:text-3xl">DurielBiz POS</h3>
+                        <p class="mt-4 leading-7 text-slate-600">
+                            A desktop-first point-of-sale that keeps selling even when the internet doesn't — offline sales, inventory and branch control, with an owner's dashboard in the cloud.
+                        </p>
+                        <div class="mt-6 flex flex-wrap gap-2 text-xs font-medium text-slate-600">
+                            <span class="rounded-full bg-ivory px-3 py-1.5">Offline sales</span>
+                            <span class="rounded-full bg-ivory px-3 py-1.5">Inventory &amp; branches</span>
+                            <span class="rounded-full bg-ivory px-3 py-1.5">Cloud monitoring</span>
+                        </div>
+                        <a href="{% url 'cloudsync:dashboard' %}" class="mt-7 inline-flex w-fit items-center gap-2 text-sm font-semibold text-golddark transition hover:text-ink">
+                            Open the cloud dashboard <span aria-hidden="true">→</span>
+                        </a>
+                    </div>
+                    <div class="relative min-h-[300px] lg:order-2">
+                        <img src="https://images.unsplash.com/photo-1556740738-b6a63e27c4df?auto=format&fit=crop&w=1200&q=80"
+                             alt="Card payment at a retail point of sale"
+                             class="absolute inset-0 h-full w-full object-cover" loading="lazy">
+                        <div class="absolute left-5 top-5 rounded-full bg-ink/85 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-gold backdrop-blur">
+                            Retail
+                        </div>
+                    </div>
+                </article>
+            </div>
+        </section>
+
+        <!-- ===================== SERVICES ===================== -->
+        <section id="services" class="border-y border-slate-200 bg-white">
+            <div class="mx-auto grid max-w-7xl gap-12 px-4 py-24 sm:px-6 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
+                <div class="reveal">
+                    <p class="text-xs font-semibold uppercase tracking-[0.24em] text-golddark">What we do</p>
+                    <h2 class="mt-3 font-display text-3xl font-semibold tracking-tight text-ink sm:text-4xl">
+                        Build, deploy, support.
+                    </h2>
+                    <p class="mt-5 leading-7 text-slate-600">
+                        Beyond our products, we partner with organisations in healthcare, retail, travel and education to build technology that holds up in daily use.
+                    </p>
+                </div>
+                <div class="reveal grid gap-4 sm:grid-cols-2">
+                    <div class="rounded-2xl border border-slate-200 bg-ivory p-6 transition hover:-translate-y-1 hover:shadow-card">
+                        <p class="font-display text-lg font-semibold text-ink">Custom software</p>
+                        <p class="mt-2 text-sm leading-6 text-slate-600">Purpose-built applications shaped around your workflow.</p>
+                    </div>
+                    <div class="rounded-2xl border border-slate-200 bg-ivory p-6 transition hover:-translate-y-1 hover:shadow-card">
+                        <p class="font-display text-lg font-semibold text-ink">Process automation</p>
+                        <p class="mt-2 text-sm leading-6 text-slate-600">Turn manual, repetitive operations into reliable systems.</p>
+                    </div>
+                    <div class="rounded-2xl border border-slate-200 bg-ivory p-6 transition hover:-translate-y-1 hover:shadow-card">
+                        <p class="font-display text-lg font-semibold text-ink">Cloud dashboards</p>
+                        <p class="mt-2 text-sm leading-6 text-slate-600">Reporting and remote visibility over your operations.</p>
+                    </div>
+                    <div class="rounded-2xl border border-slate-200 bg-ivory p-6 transition hover:-translate-y-1 hover:shadow-card">
+                        <p class="font-display text-lg font-semibold text-ink">Deployment &amp; training</p>
+                        <p class="mt-2 text-sm leading-6 text-slate-600">On-site setup, staff training, and ongoing support.</p>
+                    </div>
                 </div>
             </div>
         </section>
 
-        <section id="clients" class="mx-auto max-w-7xl px-4 py-20 sm:px-6">
-            <div class="max-w-3xl">
-                <h2 class="text-3xl font-semibold">Some Clients</h2>
-                <p class="mt-4 text-slate-300">Organizations and businesses we have built for or supported.</p>
-            </div>
-            <div class="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                <div class="rounded-2xl border border-white/10 bg-white/5 p-5">Rofim Travels</div>
-                <div class="rounded-2xl border border-white/10 bg-white/5 p-5">Lukwing Travels</div>
-                <div class="rounded-2xl border border-white/10 bg-white/5 p-5">Vertexslab Ltd</div>
-                <div class="rounded-2xl border border-white/10 bg-white/5 p-5">Jumbo Sports</div>
-                <div class="rounded-2xl border border-white/10 bg-white/5 p-5">University of Nigeria Nsukka</div>
-                <div class="rounded-2xl border border-white/10 bg-white/5 p-5">Enugu State University of Science and Technology</div>
-            </div>
-        </section>
-
-        <section class="border-t border-white/10 bg-slate-900/60">
-            <div class="mx-auto flex max-w-7xl flex-col gap-6 px-4 py-16 sm:px-6 lg:flex-row lg:items-center lg:justify-between">
-                <div>
-                    <h2 class="text-3xl font-semibold">Access DurielBiz POS, cloud dashboards, and tools</h2>
-                    <p class="mt-3 max-w-2xl text-slate-300">DurielBiz POS remains one of DurielTech’s core products for businesses that need fast local operations with remote owner visibility, while Tools adds a separate cloud invoicing workspace.</p>
+        <!-- ===================== CTA ===================== -->
+        <section class="relative overflow-hidden bg-ink">
+            <svg viewBox="0 0 100 100" class="pointer-events-none absolute -left-20 -bottom-24 h-[420px] w-[420px] opacity-[0.07]" aria-hidden="true">
+                <polygon points="16,6 46,6 74,34 74,56" fill="#E3BC6A"/>
+                <polygon points="84,44 84,66 56,94 26,94" fill="#E3BC6A"/>
+            </svg>
+            <div class="relative mx-auto flex max-w-7xl flex-col gap-8 px-4 py-20 sm:px-6 lg:flex-row lg:items-center lg:justify-between">
+                <div class="reveal max-w-2xl">
+                    <h2 class="font-display text-3xl font-semibold tracking-tight text-white sm:text-4xl">
+                        See your business from anywhere.
+                    </h2>
+                    <p class="mt-4 leading-7 text-slate-300">
+                        Sign in to the cloud dashboard for live sales, inventory and branch reports — or explore our cloud invoicing tools.
+                    </p>
                 </div>
-                <div class="flex flex-wrap gap-3">
-                    <a href="{% url 'accounts:login' %}" class="rounded-2xl bg-white px-5 py-3 text-sm font-semibold text-slate-950">Local POS Login</a>
-                    <a href="{% url 'cloudsync:dashboard' %}" class="rounded-2xl border border-white/15 px-5 py-3 text-sm font-semibold text-white">Cloud Dashboard Login</a>
-                    <a href="{{ tools_url }}" class="rounded-2xl border border-emerald-400/30 bg-emerald-400/10 px-5 py-3 text-sm font-semibold text-emerald-200">Tools</a>
-                    <a href="{% url 'accounts:signup' %}" class="rounded-2xl border border-cyan-400/30 bg-cyan-400/10 px-5 py-3 text-sm font-semibold text-cyan-300">Create Cloud Account</a>
+                <div class="reveal flex flex-wrap gap-4">
+                    <a href="{% url 'cloudsync:dashboard' %}" class="rounded-full bg-gold px-7 py-3.5 text-sm font-semibold text-ink shadow-lift transition hover:bg-golddark">
+                        Cloud Dashboard Login
+                    </a>
+                    <a href="{{ tools_url }}" class="rounded-full border border-white/20 px-7 py-3.5 text-sm font-semibold text-white transition hover:border-gold hover:text-gold">
+                        Explore Tools
+                    </a>
                 </div>
             </div>
         </section>
     </main>
+
+    <!-- ===================== FOOTER ===================== -->
+    <footer class="border-t border-white/10 bg-ink">
+        <div class="mx-auto flex max-w-7xl flex-col gap-6 px-4 py-10 text-sm text-slate-400 sm:px-6 lg:flex-row lg:items-center lg:justify-between">
+            <div class="flex items-center gap-3">
+                <svg viewBox="0 0 100 100" class="h-8 w-8" aria-hidden="true">
+                    <polygon points="16,6 46,6 74,34 74,56" fill="#E3BC6A"/>
+                    <polygon points="84,44 84,66 56,94 26,94" fill="#E3BC6A"/>
+                </svg>
+                <div class="leading-tight">
+                    <p class="font-display font-semibold text-white">DURIEL TECH</p>
+                    <p class="text-[10px] uppercase tracking-[0.28em] text-gold">…IT Solutions</p>
+                </div>
+            </div>
+            <div class="flex flex-wrap gap-x-8 gap-y-2">
+                <a href="tel:07031016787" class="transition hover:text-gold">0703 101 6787</a>
+                <a href="mailto:info@durieltech.com.ng" class="transition hover:text-gold">info@durieltech.com.ng</a>
+            </div>
+            <p>© 2026 DurielTech. All rights reserved.</p>
+        </div>
+    </footer>
+
     <script>
+        // Mobile menu
         const homeMobileMenu = document.getElementById('homeMobileMenu');
         const openHomeMobileMenu = document.getElementById('openHomeMobileMenu');
-
         if (homeMobileMenu && openHomeMobileMenu) {
             openHomeMobileMenu.addEventListener('click', () => {
                 homeMobileMenu.classList.toggle('hidden');
             });
+        }
+
+        // Scroll reveal (respects reduced motion)
+        if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches && 'IntersectionObserver' in window) {
+            const io = new IntersectionObserver((entries) => {
+                entries.forEach((e) => {
+                    if (e.isIntersecting) {
+                        e.target.classList.add('in');
+                        io.unobserve(e.target);
+                    }
+                });
+            }, { threshold: 0.15 });
+            document.querySelectorAll('.reveal').forEach((el) => io.observe(el));
+        } else {
+            document.querySelectorAll('.reveal').forEach((el) => el.classList.add('in'));
         }
     </script>
 </body>

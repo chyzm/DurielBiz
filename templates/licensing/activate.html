@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+{% load static %}
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Activate DurielBiz POS</title>
+    <link rel="icon" type="image/svg+xml" href="{% static 'img/logo-mark.svg' %}">
+    <script src="{% static 'js/vendor/tailwind.js' %}"></script>
+    <link rel="stylesheet" href="{% static 'css/theme.css' %}">
+</head>
+<body class="relative flex min-h-screen items-center justify-center overflow-hidden bg-slate-950 px-4">
+    <div class="pointer-events-none absolute inset-0" style="background: radial-gradient(60% 50% at 50% 0%, rgba(79, 70, 229, 0.35), transparent 70%);"></div>
+
+    <div class="animate-fade-in-up relative w-full max-w-md rounded-2xl bg-white p-8 shadow-2xl">
+        <div class="mb-6 flex items-center gap-3">
+            <img src="{% static 'img/logo-mark.svg' %}" alt="" class="h-10 w-10 rounded-xl" width="40" height="40">
+            <div>
+                <p class="text-sm font-medium text-indigo-600">DurielTech</p>
+                <h1 class="text-xl font-semibold text-slate-900">Activate DurielBiz POS</h1>
+            </div>
+        </div>
+
+        {% if status.licensed %}
+            <div class="mb-6 flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+                <span class="h-2 w-2 rounded-full bg-emerald-500"></span>
+                <span class="font-semibold">This computer is already activated.</span>
+            </div>
+        {% elif status.trial_active %}
+            <div class="mb-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                Trial mode — {{ status.days_left }} day{{ status.days_left|pluralize }} left.
+            </div>
+        {% else %}
+            <div class="mb-6 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                Your 14-day trial has ended. Enter the activation key below to continue using DurielBiz POS.
+            </div>
+        {% endif %}
+
+        {% if messages %}
+            {% for message in messages %}
+                <div class="mb-4 rounded-xl border px-4 py-3 text-sm {% if message.tags == 'error' %}border-rose-200 bg-rose-50 text-rose-700{% else %}border-emerald-200 bg-emerald-50 text-emerald-700{% endif %}">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+
+        <div class="mb-6 rounded-xl border border-slate-200 bg-slate-50 p-4">
+            <p class="text-xs font-medium uppercase tracking-wide text-slate-500">This computer's ID</p>
+            <p class="mt-1 break-all font-mono text-sm text-slate-800">{{ fingerprint }}</p>
+            <p class="mt-2 text-xs text-slate-500">For your support records — you don't need to send this anywhere to activate.</p>
+        </div>
+
+        {% if status.licensed %}
+            <button type="button" disabled class="w-full cursor-not-allowed rounded-lg border border-slate-200 bg-slate-100 px-4 py-2.5 font-medium text-slate-400">Activated</button>
+            <a href="{% url 'accounts:login' %}" class="mt-3 block text-center text-sm font-medium text-indigo-600 hover:underline">Go to login</a>
+        {% else %}
+            <form method="post" class="space-y-4">
+                {% csrf_token %}
+                <div>
+                    <label class="block text-sm font-medium text-slate-700">Activation key</label>
+                    <input type="password" name="activation_key" required class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 font-mono text-sm" placeholder="Enter the activation key">
+                </div>
+                <button class="w-full rounded-lg bg-indigo-600 px-4 py-2.5 font-medium text-white transition hover:bg-indigo-700">Activate</button>
+            </form>
+        {% endif %}
+
+        <div class="mt-6 border-t border-slate-100 pt-4 text-center text-xs text-slate-500">
+            <p>Support: <a href="tel:07031016787" class="font-medium text-slate-700 hover:underline">07031016787</a> · <a href="mailto:info@durieltech.com.ng" class="font-medium text-slate-700 hover:underline">info@durieltech.com.ng</a></p>
+        </div>
+    </div>
+</body>
+</html>

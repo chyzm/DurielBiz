@@ -7,6 +7,7 @@ class InventoryLog(models.Model):
         MANUAL = "manual", "Manual"
         PURCHASE = "purchase", "Purchase"
         SALE = "sale", "Sale"
+        REFUND = "refund", "Refund"
 
     class Action(models.TextChoices):
         ADD = "add", "Add"

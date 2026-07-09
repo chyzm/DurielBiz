@@ -1,6 +1,9 @@
 import os
+import secrets
 from functools import wraps
+from urllib.parse import urlparse
 
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import views as auth_views
 from django.contrib.auth.decorators import login_required
@@ -9,26 +12,40 @@ from django.db.models.deletion import ProtectedError
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse_lazy
 from django.utils.decorators import method_decorator
+from django.views import View
 
 from pos_system.pagination import paginate_queryset
+from pos_system.throttle import register_attempt, throttle, too_many_attempts
 
 from cloudsync.services import user_business
-from .activity import log_activity
+from .activity import get_client_ip, log_activity
 from .forms import (
+    CreateCloudBusinessForm,
     EmailOrUsernameAuthenticationForm,
+    OTPPasswordResetForm,
+    OTPRequestForm,
     StaffUserCreationForm,
     StaffUserUpdateForm,
     StyledPasswordChangeForm,
-    StyledPasswordResetForm,
     StyledSetPasswordForm,
 )
+from .otp import consume_otp, create_otp, find_valid_otp, send_otp_email
 from .permissions import get_role_home_url, role_required
-from accounts.models import ActivityLog, User
+from accounts.models import ActivityLog, EmailOTP, User
 from inventory.models import InventoryLog
 from purchases.models import Purchase
 from sales.models import Sale
-from cloudsync.models import Business as CloudBusiness, SyncEvent
+from cloudsync.models import Business as CloudBusiness, BusinessMembership, SyncCredential, SyncEvent
 from invoicing.models import Document, InvoiceBusiness, ToolSubscription
+
+
+def is_local_preview_eligible(request):
+    """True only for a manual local run (never the packaged desktop app, which
+    always sets DURIELBIZ_DESKTOP=1 and is excluded before this is even checked)."""
+    if os.getenv("DURIELBIZ_DESKTOP") == "1":
+        return False
+    host = request.get_host().split(":")[0].lower()
+    return host in {"127.0.0.1", "localhost"}
 
 
 def is_cloud_request(request):
@@ -36,6 +53,18 @@ def is_cloud_request(request):
         return False
     host = request.get_host().split(":")[0].lower()
     if host in {"127.0.0.1", "localhost"}:
+        # Dev-only escape hatch so the cloud login variant can be previewed from
+        # localhost without deploying. The real packaged desktop app can never reach
+        # this branch — it always sets DURIELBIZ_DESKTOP=1 and returns above — so this
+        # is safe to leave available regardless of DEBUG (which can vary per .env).
+        mode = request.GET.get("mode")
+        if mode in {"cloud", "local"}:
+            request.session["dev_login_mode"] = mode
+        if request.session.get("dev_login_mode") == "cloud":
+            return True
+        next_path = urlparse(request.GET.get("next", "")).path
+        if next_path.startswith("/cloud/") or next_path == "/cloud":
+            return True
         return False
     return True
 
@@ -79,29 +108,114 @@ class AccountLoginView(auth_views.LoginView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["is_cloud_login"] = is_cloud_request(self.request)
+        context["dev_login_preview"] = is_local_preview_eligible(self.request)
         return context
 
+    def post(self, request, *args, **kwargs):
+        throttle_key = f"login:{get_client_ip(request)}"
+        if too_many_attempts(throttle_key, limit=8, window_seconds=900):
+            form = self.get_form_class()(request, data=request.POST)
+            form.add_error(None, "Too many failed login attempts. Please try again in a few minutes.")
+            return self.render_to_response(self.get_context_data(form=form))
+        return super().post(request, *args, **kwargs)
 
-class CloudPasswordResetView(CloudModeRequiredMixin, auth_views.PasswordResetView):
-    form_class = StyledPasswordResetForm
+    def form_invalid(self, form):
+        register_attempt(f"login:{get_client_ip(self.request)}", window_seconds=900)
+        return super().form_invalid(form)
+
+
+class CloudPasswordResetView(CloudModeRequiredMixin, View):
+    """Step 1: collect the account email and, if it exists, email a one-time code."""
+
     template_name = "registration/password_reset_form.html"
-    email_template_name = "registration/password_reset_email.html"
-    subject_template_name = "registration/password_reset_subject.txt"
-    success_url = reverse_lazy("accounts:password-reset-done")
+
+    def get(self, request):
+        return render(request, self.template_name, {"form": OTPRequestForm()})
+
+    def post(self, request):
+        form = OTPRequestForm(request.POST)
+        if not form.is_valid():
+            return render(request, self.template_name, {"form": form})
+
+        email = form.cleaned_data["email"]
+        request.session["password_reset_email"] = email
+
+        throttle_key = f"password-reset:{get_client_ip(request)}"
+        if not throttle(throttle_key, limit=3, window_seconds=3600):
+            user = User.objects.filter(email__iexact=email, is_active=True).first()
+            if user:
+                otp = create_otp(email, EmailOTP.Purpose.PASSWORD_RESET)
+                send_otp_email(
+                    otp,
+                    subject="Your DurielBiz password reset code",
+                    template_name="registration/password_reset_otp_email.txt",
+                )
+        return redirect("accounts:password-reset-done")
 
 
-class CloudPasswordResetDoneView(CloudModeRequiredMixin, auth_views.PasswordResetDoneView):
+class CloudPasswordResetDoneView(CloudModeRequiredMixin, View):
     template_name = "registration/password_reset_done.html"
 
+    def get(self, request):
+        return render(request, self.template_name)
 
-class CloudPasswordResetConfirmView(CloudModeRequiredMixin, auth_views.PasswordResetConfirmView):
-    form_class = StyledSetPasswordForm
+
+class CloudPasswordResetConfirmView(CloudModeRequiredMixin, View):
+    """Step 2: verify the emailed code and set a new password."""
+
     template_name = "registration/password_reset_confirm.html"
-    success_url = reverse_lazy("accounts:password-reset-complete")
+
+    def get(self, request):
+        email = request.session.get("password_reset_email")
+        if not email:
+            messages.error(request, "Start the password reset process again.")
+            return redirect("accounts:password-reset")
+        return render(request, self.template_name, {"form": OTPPasswordResetForm(), "email": email})
+
+    def post(self, request):
+        email = request.session.get("password_reset_email")
+        if not email:
+            messages.error(request, "Start the password reset process again.")
+            return redirect("accounts:password-reset")
+
+        throttle_key = f"password-reset-verify:{get_client_ip(request)}"
+        if throttle(throttle_key, limit=8, window_seconds=900):
+            messages.error(request, "Too many attempts. Request a new code and try again later.")
+            return redirect("accounts:password-reset")
+
+        user = User.objects.filter(email__iexact=email, is_active=True).first()
+        form = OTPPasswordResetForm(request.POST, user=user)
+        form_valid = form.is_valid()
+
+        otp = find_valid_otp(email, form.data.get("code", ""), EmailOTP.Purpose.PASSWORD_RESET) if user else None
+        if not otp:
+            form.add_error("code", "That code is invalid or has expired.")
+            form_valid = False
+
+        if form_valid:
+            consume_otp(otp)
+            user.set_password(form.cleaned_data["new_password1"])
+            user.save(update_fields=["password"])
+            request.session.pop("password_reset_email", None)
+            log_activity(
+                user=user,
+                module=ActivityLog.Module.AUTH,
+                action="password_reset_via_otp",
+                description=f"{user.username} reset their password via an emailed verification code",
+                entity_type="user",
+                entity_id=user.pk,
+                ip_address=get_client_ip(request),
+            )
+            return redirect("accounts:password-reset-complete")
+
+        return render(request, self.template_name, {"form": form, "email": email})
 
 
-class CloudPasswordResetCompleteView(CloudModeRequiredMixin, auth_views.PasswordResetCompleteView):
+class CloudPasswordResetCompleteView(CloudModeRequiredMixin, View):
     template_name = "registration/password_reset_complete.html"
+
+    def get(self, request):
+        return render(request, self.template_name)
 
 
 class CloudPasswordChangeView(CloudModeRequiredMixin, auth_views.PasswordChangeView):
@@ -120,6 +234,8 @@ class CloudPasswordChangeDoneView(CloudModeRequiredMixin, auth_views.PasswordCha
 
 @login_required
 def role_home(request):
+    if request.user.must_change_password:
+        return redirect("accounts:password-change-required")
     return redirect(get_role_home_url(request.user))
 
 
@@ -211,6 +327,53 @@ def activate_tools_subscription(request, pk):
     return redirect(f"{reverse_lazy('accounts:service-admin')}?tab=tools")
 
 
+@superadmin_required
+def create_cloud_business(request):
+    """DurielTech-only: create a cloud business account for a client and generate
+    their initial password. The client is forced to change it on first login."""
+    form = CreateCloudBusinessForm(request.POST or None)
+    generated_password = None
+    created_user = None
+
+    if request.method == "POST" and form.is_valid():
+        generated_password = secrets.token_urlsafe(9)
+        user = User.objects.create_user(
+            username=form.cleaned_data["username"],
+            email=form.cleaned_data["email"],
+            password=generated_password,
+            role=User.Role.ADMIN,
+        )
+        user.must_change_password = True
+        user.save(update_fields=["must_change_password"])
+
+        business = CloudBusiness.objects.create(
+            name=form.cleaned_data["business_name"],
+            slug=form.cleaned_data["business_slug"],
+            owner=user,
+        )
+        BusinessMembership.objects.create(user=user, business=business, role=BusinessMembership.Role.OWNER)
+        SyncCredential.objects.create(business=business)
+
+        log_activity(
+            user=request.user,
+            module=ActivityLog.Module.USERS,
+            action="cloud_business_created",
+            description=f"{request.user.username} created cloud business '{business.name}' for {user.username}",
+            entity_type="business",
+            entity_id=business.pk,
+            metadata={"client_username": user.username, "client_email": user.email},
+        )
+        created_user = user
+        messages.success(request, f"Cloud business '{business.name}' created. Copy the password below before leaving this page — it will not be shown again.")
+        form = CreateCloudBusinessForm()
+
+    return render(
+        request,
+        "accounts/create_cloud_business.html",
+        {"form": form, "generated_password": generated_password, "created_user": created_user},
+    )
+
+
 @login_required
 @role_required(User.Role.ADMIN)
 def user_management(request):
@@ -264,6 +427,65 @@ def user_update(request, pk):
 
 @login_required
 @role_required(User.Role.ADMIN)
+def admin_reset_password(request, pk):
+    target_user = get_object_or_404(User, pk=pk)
+    if target_user == request.user:
+        messages.info(request, "Use \"Change Password\" from the sidebar to update your own password.")
+        return redirect("accounts:user-detail", pk=pk)
+
+    if throttle(f"admin-reset:{request.user.pk}", limit=10, window_seconds=3600):
+        messages.error(request, "Too many password resets attempted. Please try again in an hour.")
+        return redirect("accounts:user-detail", pk=pk)
+
+    form = StyledSetPasswordForm(target_user, request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        force_change = bool(request.POST.get("force_change_at_next_login"))
+        form.save()
+        target_user.must_change_password = force_change
+        target_user.save(update_fields=["must_change_password"])
+        log_activity(
+            user=request.user,
+            module=ActivityLog.Module.USERS,
+            action="password_reset_by_admin",
+            description=f"{request.user.username} reset the password for {target_user.username}",
+            entity_type="user",
+            entity_id=target_user.pk,
+            metadata={"forced_change": force_change},
+            ip_address=get_client_ip(request),
+        )
+        messages.success(request, f"Password for {target_user.username} has been reset.")
+        return redirect("accounts:user-detail", pk=target_user.pk)
+
+    return render(request, "accounts/admin_reset_password.html", {"form": form, "user_obj": target_user})
+
+
+@login_required
+def password_change_local(request):
+    form = StyledSetPasswordForm(request.user, request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        form.save()
+        request.user.must_change_password = False
+        request.user.save(update_fields=["must_change_password"])
+        log_activity(
+            user=request.user,
+            module=ActivityLog.Module.AUTH,
+            action="password_changed",
+            description=f"{request.user.username} changed their own password",
+            entity_type="user",
+            entity_id=request.user.pk,
+        )
+        messages.success(request, "Your password has been updated.")
+        return redirect(get_role_home_url(request.user))
+
+    return render(
+        request,
+        "accounts/password_change_local.html",
+        {"form": form, "forced": request.user.must_change_password},
+    )
+
+
+@login_required
+@role_required(User.Role.ADMIN)
 def user_delete(request, pk):
     user_obj = get_object_or_404(User, pk=pk)
     if request.method == "POST":
@@ -313,6 +535,13 @@ def activity_log_list(request):
 @login_required
 def about_support(request):
     business = user_business(request.user)
+
+    license_status = None
+    if os.getenv("DURIELBIZ_DESKTOP") == "1" and settings.LICENSE_MASTER_KEY_HASH:
+        from licensing.services import get_license_status
+
+        license_status = get_license_status()
+
     return render(
         request,
         "accounts/about_support.html",
@@ -323,15 +552,18 @@ def about_support(request):
             "company_name": "DurielTech",
             "product_name": "DurielBiz POS",
             "app_version": "1.0.0",
+            "license_status": license_status,
             "deployment_modes": [
-                "Local desktop POS with offline-first operation",
-                "LAN access on the same network",
-                "Cloud dashboard sync for remote monitoring",
+                "Works fully offline on this computer — sales keep going even without internet",
+                "Can be viewed from other devices on the same Wi-Fi/network",
+                "Optional cloud dashboard for checking sales remotely, from anywhere",
             ],
-            "license_notes": [
-                "Release builds should be distributed with the approved installer or the packaged desktop binaries.",
-                "Cloud dashboard access depends on valid business account setup and sync configuration.",
-                "Windows publisher verification requires a real code-signing certificate during release builds.",
+            "product_highlights": [
+                "Fast checkout with barcode/name search and dual checkout lanes",
+                "Multi-branch inventory, purchases, and stock tracking",
+                "Customer loyalty points, discounts, and VAT support",
+                "Receipts formatted for 58mm and 80mm thermal printers",
+                "Sales, category, and profit reports with CSV/PDF export",
             ],
         },
     )

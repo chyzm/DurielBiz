@@ -15,7 +15,10 @@ DEFAULT_BIND_HOST = "127.0.0.1"
 DEFAULT_PORT = 9000
 PROJECT_ITEMS = [
     "accounts",
+    "cloudsync",
     "inventory",
+    "invoicing",
+    "licensing",
     "notifications",
     "pos_system",
     "products",
@@ -48,6 +51,18 @@ def bundle_dir() -> Path:
     if getattr(sys, "frozen", False):
         return Path(getattr(sys, "_MEIPASS"))
     return Path(__file__).resolve().parent
+
+
+def sync_env_file(runtime_root: Path) -> None:
+    """Copy .env into the runtime directory if the build/source folder has one.
+    Not part of PROJECT_ITEMS since it isn't bundled via --add-data (it holds
+    secrets and is gitignored) — this picks it up from the build machine's own
+    project folder instead, alongside where build_desktop.ps1 is run from."""
+    source_env = bundle_dir() / ".env"
+    if not source_env.exists():
+        return
+    runtime_root.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(source_env, runtime_root / ".env")
 
 
 def legacy_app_data_dir() -> Path:
@@ -124,6 +139,7 @@ def sync_project_files(target_root: Path | None = None) -> Path:
             target.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(source, target)
 
+    sync_env_file(runtime_root)
     migrate_legacy_database(data_dir())
     return runtime_root
 
@@ -161,6 +177,7 @@ def service_sync_project_files() -> Path:
         else:
             target.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(source, target)
+    sync_env_file(runtime_root)
     target_data_dir = service_data_dir()
     target_data_dir.mkdir(parents=True, exist_ok=True)
     migrate_legacy_database(target_data_dir)
@@ -293,7 +310,13 @@ def execute_django_command(project_root: Path, command_args: list[str]) -> int:
 
 def serve_mode() -> int:
     project_root = Path(os.environ["DURIELBIZ_APP_DIR"])
-    return execute_django_command(project_root, ["runserver", f"{bind_host()}:{bind_port()}", "--noreload"])
+    # --insecure: the desktop build runs with DEBUG=False, and runserver only serves
+    # STATIC_URL automatically when DEBUG=True unless this flag is passed. Without it,
+    # every CSS/JS/image under {% static %} 404s in the packaged app. Safe here since
+    # this server only ever binds to 127.0.0.1 or a private LAN, never the public internet.
+    return execute_django_command(
+        project_root, ["runserver", f"{bind_host()}:{bind_port()}", "--noreload", "--insecure"]
+    )
 
 
 def manage_mode(arguments: list[str]) -> int:

@@ -23,6 +23,7 @@ Desktop-first point of sale system built with Django. The project is designed to
 - Toast-based expiry notifications
 - Admin-only sales history by date
 - Desktop packaging entrypoint with PyInstaller support
+- 14-day desktop trial with single-master-key, machine-locked activation
 
 ## Email and passwords
 
@@ -285,33 +286,36 @@ After first login:
 
 Use this checklist before selling or deploying to a client:
 
-1. Build fresh desktop binaries with `build_desktop.ps1`
-2. Rebuild the installer with `build_installer.ps1`
-3. Test the installer on a clean Windows machine
-4. Create a sample admin user and verify login
-5. Set Business Settings:
+1. Confirm `LICENSE_MASTER_KEY_HASH` is set in `.env` before building, if this client's build should enforce the trial/license
+2. Build fresh desktop binaries with `build_desktop.ps1`
+3. Rebuild the installer with `build_installer.ps1`
+4. Test the installer on a clean Windows machine
+5. Create a sample admin user and verify login
+6. Set Business Settings:
    - business name
    - phone
    - address
    - receipt footer
    - default branch
-6. Test a full flow:
+   - VAT rate, if applicable
+7. Test a full flow:
    - create product
    - add stock
-   - make sale
-   - print receipt
+   - make sale, review the order, then confirm & print
    - view dashboard
-7. If remote monitoring is included:
+8. If remote monitoring is included:
    - create cloud account
    - copy sync token and ingest URL
    - enable cloud sync locally
    - run `Sync Now`
    - verify cloud dashboard receives data
-8. Deliver the client handoff items:
-   - installer
-   - admin login
-   - backup path
-   - support contact
+9. Once the client is ready to pay, open their activation screen and enter your saved activation key (see [Licensing](#licensing-trial--activation))
+10. Deliver the client handoff items:
+    - installer
+    - admin login
+    - confirmation the app is activated (or that the trial is running)
+    - backup path
+    - support contact
 
 ## Client handoff
 
@@ -321,6 +325,7 @@ Provide these to the buyer at delivery:
 - Admin tool: `dist\DurielBizPOSAdmin.exe`
 - Local data path: `%LOCALAPPDATA%\DurielBizPOS\db.sqlite3`
 - Local runtime log: `%LOCALAPPDATA%\DurielBizPOS\runtime\launcher.log`
+- Activation done on-site if the client has already paid (see [Licensing](#licensing-trial--activation)) — otherwise they get a 14-day trial automatically
 - Support contact:
   - `07031016787`
   - `info@durieltech.com.ng`
@@ -363,6 +368,44 @@ This is the current desktop strategy:
 - backend runs locally
 - UI opens in the system browser
 - suitable for packaging as a lightweight Windows desktop install
+
+## Licensing (trial & activation)
+
+The desktop build includes a 14-day trial and a single-master-key activation system, implemented in the `licensing` app. It only ever applies to the packaged desktop app — the cloud dashboard and local development (`manage.py runserver`) are never gated.
+
+### How it works
+
+- **Trial**: the first time the app runs on a machine, it silently starts a 14-day trial. The countdown is stored in two places — a signed file in the app's data directory and a signed value in the Windows registry (`HKEY_CURRENT_USER\Software\DurielTech\DurielBizPOS`). Whichever of the two records the *earlier* start date wins, so deleting or editing just one of them does not reset or extend the trial.
+- **One activation key, known only to you**: there is a single master activation key. You type the same key into any client's activation screen when they've paid. The app never stores or ships the plaintext key — only a SHA-256 hash of it (`LICENSE_MASTER_KEY_HASH` in `.env`), so the key itself can't be recovered from a shipped build.
+- **Machine lock happens at the moment of activation**: when the correct key is entered, the app records *that machine's* current hardware fingerprint (from its Windows `MachineGuid`) as the activated fingerprint. Every subsequent request re-derives the current machine's fingerprint and compares it to what was recorded — so if someone copies an already-activated install (files and/or data folder) to a different PC, that copy's fingerprint won't match and it will not show as licensed there.
+- **Lockout**: once the trial runs out and the machine isn't activated, every page redirects to `/licensing/activate/`, which shows the machine's ID (for your support records) and a field for the activation key. Nothing else in the app is reachable until it's activated.
+- **Enforcement switch**: the whole system is inert unless both are true: `DURIELBIZ_DESKTOP=1` (set automatically by `desktop_launcher.py`) and `LICENSE_MASTER_KEY_HASH` is set in `.env`. Leave `LICENSE_MASTER_KEY_HASH` blank to ship a build with no trial/licensing enforcement at all.
+
+### Vendor workflow
+
+1. Generate the master key **once**, on your own machine:
+
+```powershell
+python manage.py generate_master_key
+```
+
+This prints the plaintext **activation key** and its **hash**. Save the plaintext key somewhere offline and secret (password manager, etc.) — this is the one key you'll type into every client's activation screen when they pay. Paste only the **hash** into `LICENSE_MASTER_KEY_HASH` in `.env` before building the distributable; it's safe to ship since a hash can't be reversed back into the key.
+
+2. When a client is ready to pay (or you're setting them up), open their activation screen (`/licensing/activate/`, shown automatically once the trial ends, or reachable anytime) and type in your saved activation key. That machine is now activated — no fingerprint exchange, no per-client key generation, no internet connection needed.
+
+### Client-facing behavior
+
+- The activation page shows the trial countdown while it's still running.
+- On expiry, the app locks to `/licensing/activate/` with the machine's ID displayed (informational, for support) and an "Activation key" field.
+- Activation is a one-time action per machine; the recorded fingerprint is re-checked on every request, not just cached as a flag.
+
+### Security notes
+
+- The activation key is never shipped in plaintext — only its SHA-256 hash lives in the built app, so extracting the build doesn't reveal the key.
+- Because the same key activates any machine you type it into, its secrecy is what protects against unlimited activations — treat it like a master password. If it ever leaks, rotate it: generate a new one, update `LICENSE_MASTER_KEY_HASH`, and rebuild.
+- What *is* strongly protected: an already-activated install cannot be copied to a second machine and remain licensed there, because the fingerprint check is re-derived locally every time, not carried in a portable token.
+- The dual-stored trial start date is a reasonable deterrent against casually deleting the app's data folder to "restart" the trial, not a guarantee against a determined, technically skilled attacker patching the app itself. There is no purely offline desktop licensing scheme that fully defeats that threat.
+- Relevant files: `licensing/fingerprint.py`, `licensing/state.py`, `licensing/services.py`, `licensing/middleware.py`, `licensing/management/commands/generate_master_key.py`.
 
 ## Offline desktop install
 
@@ -729,6 +772,8 @@ python manage.py collectstatic --noinput
 
 7. Reload the web app.
 8. Open the public URL and create the first business account from `/accounts/signup/`.
+
+Static files (CSS/JS/images) are served through the app itself via WhiteNoise (`whitenoise.middleware.WhiteNoiseMiddleware`), so no separate PythonAnywhere "static files" mapping is required — it works correctly whether or not `collectstatic` has been run.
 
 #### Local-to-cloud configuration example
 

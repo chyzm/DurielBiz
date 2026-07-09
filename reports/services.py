@@ -28,17 +28,29 @@ def user_identity(user):
     return user.email or user.get_full_name() or user.username
 
 
+def _percent_change(current, previous):
+    if not previous:
+        return None
+    return float((current - previous) / previous * 100)
+
+
 def dashboard_metrics(*, branch=None):
     today = timezone.localdate()
+    yesterday = today - timedelta(days=1)
     sales_filter = {"status": Sale.Status.COMPLETED}
     if branch is not None:
         sales_filter["branch"] = branch
 
     sales_today = Sale.objects.filter(created_at__date=today, **sales_filter)
+    sales_yesterday = Sale.objects.filter(created_at__date=yesterday, **sales_filter)
 
     revenue_today = sales_today.aggregate(total=Sum("total"))["total"] or Decimal("0.00")
+    revenue_yesterday = sales_yesterday.aggregate(total=Sum("total"))["total"] or Decimal("0.00")
     profit_today = (
         SaleItem.objects.filter(sale__in=sales_today).aggregate(total=Sum("profit"))["total"] or Decimal("0.00")
+    )
+    profit_yesterday = (
+        SaleItem.objects.filter(sale__in=sales_yesterday).aggregate(total=Sum("profit"))["total"] or Decimal("0.00")
     )
     sales_count = sales_today.count()
 
@@ -50,6 +62,12 @@ def dashboard_metrics(*, branch=None):
         .values("product__name")
         .annotate(quantity_sold=Sum("quantity"), revenue=Sum("line_total"))
         .order_by("-quantity_sold")
+    )
+    top_categories = (
+        top_products_queryset
+        .values("product__category__name")
+        .annotate(revenue=Sum("line_total"))
+        .order_by("-revenue")[:5]
     )
 
     last_week_queryset = Sale.objects.filter(status=Sale.Status.COMPLETED, created_at__date__gte=today - timedelta(days=6))
@@ -70,9 +88,12 @@ def dashboard_metrics(*, branch=None):
 
     return {
         "revenue_today": revenue_today,
+        "revenue_change_pct": _percent_change(revenue_today, revenue_yesterday),
         "profit_today": profit_today,
+        "profit_change_pct": _percent_change(profit_today, profit_yesterday),
         "sales_count": sales_count,
         "top_products": top_products,
+        "top_categories": top_categories,
         "low_stock": low_stock_products_queryset(branch=branch),
         "expiring_products": expiring_products,
         "selected_branch_name": branch.name if branch else "All Branches",
@@ -81,6 +102,88 @@ def dashboard_metrics(*, branch=None):
             "values": [float(item["total"] or 0) for item in last_week],
         },
     }
+
+
+def category_sales_report(*, branch=None, start_date=None, end_date=None):
+    queryset = SaleItem.objects.filter(sale__status=Sale.Status.COMPLETED)
+    if branch is not None:
+        queryset = queryset.filter(sale__branch=branch)
+    if start_date:
+        queryset = queryset.filter(sale__created_at__date__gte=start_date)
+    if end_date:
+        queryset = queryset.filter(sale__created_at__date__lte=end_date)
+    return (
+        queryset.values("product__category__name")
+        .annotate(quantity_sold=Sum("quantity"), revenue=Sum("line_total"), profit=Sum("profit"))
+        .order_by("-revenue")
+    )
+
+
+def profit_by_product_report(*, branch=None, start_date=None, end_date=None):
+    queryset = SaleItem.objects.filter(sale__status=Sale.Status.COMPLETED)
+    if branch is not None:
+        queryset = queryset.filter(sale__branch=branch)
+    if start_date:
+        queryset = queryset.filter(sale__created_at__date__gte=start_date)
+    if end_date:
+        queryset = queryset.filter(sale__created_at__date__lte=end_date)
+    return (
+        queryset.values("product__id", "product__name", "product__category__name")
+        .annotate(quantity_sold=Sum("quantity"), revenue=Sum("line_total"), profit=Sum("profit"))
+        .order_by("-profit")
+    )
+
+
+def render_profit_report_pdf(rows, *, branch_name, start_date, end_date):
+    from io import BytesIO
+
+    from django.http import HttpResponse
+    from reportlab.lib import colors
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.styles import getSampleStyleSheet
+    from reportlab.lib.units import mm
+    from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+
+    buffer = BytesIO()
+    pdf = SimpleDocTemplate(buffer, pagesize=A4, leftMargin=18 * mm, rightMargin=18 * mm, topMargin=18 * mm, bottomMargin=18 * mm)
+    styles = getSampleStyleSheet()
+    story = [
+        Paragraph("Profit by Product", styles["Title"]),
+        Paragraph(f"{branch_name} | {start_date} to {end_date}", styles["Normal"]),
+        Spacer(1, 12),
+    ]
+
+    table_rows = [["Product", "Category", "Qty Sold", "Revenue", "Profit"]]
+    for row in rows:
+        table_rows.append(
+            [
+                row["product__name"],
+                row["product__category__name"] or "—",
+                str(row["quantity_sold"] or 0),
+                f"{row['revenue'] or 0:.2f}",
+                f"{row['profit'] or 0:.2f}",
+            ]
+        )
+
+    table = Table(table_rows, colWidths=[55 * mm, 35 * mm, 25 * mm, 30 * mm, 30 * mm])
+    table.setStyle(
+        TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#0f172a")),
+                ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                ("BOX", (0, 0), (-1, -1), 0.5, colors.lightgrey),
+                ("INNERGRID", (0, 0), (-1, -1), 0.25, colors.lightgrey),
+                ("PADDING", (0, 0), (-1, -1), 6),
+                ("ALIGN", (2, 1), (-1, -1), "RIGHT"),
+            ]
+        )
+    )
+    story.append(table)
+    pdf.build(story)
+
+    response = HttpResponse(buffer.getvalue(), content_type="application/pdf")
+    response["Content-Disposition"] = f'attachment; filename="profit-by-product-{start_date}-to-{end_date}.pdf"'
+    return response
 
 
 def current_branch():

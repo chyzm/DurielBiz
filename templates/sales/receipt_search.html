@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block title %}Find a Receipt | DurielBiz POS{% endblock %}
+
+{% block content %}
+    <section class="rounded-2xl bg-white p-5 shadow-sm">
+        <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+                <h3 class="text-lg font-semibold">Find a Receipt</h3>
+                <p class="text-sm text-slate-500">Search by receipt number, customer name, or phone to reprint a receipt.</p>
+            </div>
+            <form method="get" class="flex gap-3">
+                <input type="search" name="q" value="{{ search }}" placeholder="e.g. SALE-000042 or customer phone" class="rounded-xl border border-slate-300 px-4 py-2 text-sm">
+                <button class="rounded-xl bg-slate-900 px-4 py-2 text-sm text-white">Search</button>
+            </form>
+        </div>
+
+        <div class="mt-5 overflow-x-auto">
+            <table class="min-w-full divide-y divide-slate-200 text-sm">
+                <thead>
+                    <tr class="text-left text-slate-500">
+                        <th class="py-3 pr-4">Receipt</th>
+                        <th class="py-3 pr-4">Date</th>
+                        <th class="py-3 pr-4">Customer</th>
+                        <th class="py-3 pr-4">Branch</th>
+                        <th class="py-3 pr-4">Total</th>
+                        <th class="py-3">Reprint</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    {% for sale in sales %}
+                        <tr>
+                            <td class="py-4 pr-4">{{ sale.receipt_number }}</td>
+                            <td class="py-4 pr-4">{{ sale.created_at|date:"d M Y, H:i" }}</td>
+                            <td class="py-4 pr-4">{{ sale.customer_name|default:"Walk-in" }}</td>
+                            <td class="py-4 pr-4">{{ sale.branch.name|default:"—" }}</td>
+                            <td class="py-4 pr-4">₦{{ sale.total }}</td>
+                            <td class="py-4"><a href="{% url 'sales:receipt' sale.pk %}" class="text-slate-700 hover:underline">Reprint</a></td>
+                        </tr>
+                    {% empty %}
+                        <tr><td colspan="6" class="py-10 text-center text-slate-500">{% if search %}No receipts matched "{{ search }}".{% else %}Search for a receipt above.{% endif %}</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% include "includes/pagination.html" with page_obj=sales page_param="page" %}
+    </section>
+{% endblock %}

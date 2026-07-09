@@ -1,5 +1,6 @@
 from django.contrib.auth.models import AbstractUser
 from django.db import models
+from django.utils import timezone
 
 
 class User(AbstractUser):
@@ -11,6 +12,7 @@ class User(AbstractUser):
 
     role = models.CharField(max_length=20, choices=Role.choices, default=Role.CASHIER)
     phone_number = models.CharField(max_length=20, blank=True)
+    must_change_password = models.BooleanField(default=False)
     branch = models.ForeignKey(
         "reports.Branch",
         on_delete=models.SET_NULL,
@@ -54,3 +56,25 @@ class ActivityLog(models.Model):
 
     def __str__(self) -> str:
         return f"{self.get_module_display()} - {self.action}"
+
+
+class EmailOTP(models.Model):
+    class Purpose(models.TextChoices):
+        PASSWORD_RESET = "password_reset", "Password Reset"
+
+    email = models.EmailField()
+    code = models.CharField(max_length=6)
+    purpose = models.CharField(max_length=20, choices=Purpose.choices)
+    is_used = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+
+    class Meta:
+        indexes = [models.Index(fields=["email", "purpose", "code"])]
+        ordering = ["-created_at"]
+
+    def is_valid(self) -> bool:
+        return not self.is_used and timezone.now() <= self.expires_at
+
+    def __str__(self) -> str:
+        return f"{self.email} - {self.get_purpose_display()}"

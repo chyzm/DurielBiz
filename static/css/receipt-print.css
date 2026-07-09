@@ -1,0 +1,25 @@
+.receipt-paper {
+    width: 100%;
+    max-width: var(--receipt-width, 80mm);
+    margin: 0 auto;
+}
+
+@media print {
+    body {
+        background: white;
+        padding: 0;
+    }
+
+    .receipt-paper {
+        max-width: var(--receipt-width, 80mm);
+        width: var(--receipt-width, 80mm);
+        border-radius: 0;
+        box-shadow: none;
+        padding: 0;
+    }
+
+    a,
+    button {
+        display: none !important;
+    }
+}

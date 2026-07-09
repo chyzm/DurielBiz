@@ -12,14 +12,12 @@ from .views import (
     sales_export_csv,
     sales_list,
     settings_view,
-    signup,
 )
 
 app_name = "cloudsync"
 
 urlpatterns = [
     path("", dashboard, name="dashboard"),
-    path("signup/", signup, name="signup"),
     path("branches/", branch_list, name="branches"),
     path("sales/", sales_list, name="sales"),
     path("sales/export.csv", sales_export_csv, name="sales-export-csv"),

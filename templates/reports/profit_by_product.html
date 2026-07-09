@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+
+{% block title %}Profit by Product | DurielBiz POS{% endblock %}
+
+{% block content %}
+    <section class="rounded-2xl bg-white p-5 shadow-sm">
+        <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+                <h3 class="text-lg font-semibold">Profit by Product</h3>
+                <p class="text-sm text-slate-500">Products ranked by profit contribution · {{ branch_label }}</p>
+            </div>
+            <form method="get" class="flex flex-col gap-3 sm:flex-row">
+                <input type="date" name="start_date" value="{{ start_date }}" class="rounded-xl border border-slate-300 px-4 py-2 text-sm">
+                <input type="date" name="end_date" value="{{ end_date }}" class="rounded-xl border border-slate-300 px-4 py-2 text-sm">
+                <select name="branch" class="rounded-xl border border-slate-300 px-4 py-2 text-sm">
+                    <option value="">All branches</option>
+                    {% for branch in branches %}
+                        <option value="{{ branch.code }}" {% if selected_branch == branch.code %}selected{% endif %}>{{ branch.name }}</option>
+                    {% endfor %}
+                </select>
+                <button class="rounded-xl bg-slate-900 px-4 py-2 text-sm text-white">Filter</button>
+                <button formaction="{% url 'reports:report-profit-export' %}" class="rounded-xl border border-slate-300 px-4 py-2 text-sm">Export CSV</button>
+                <button formaction="{% url 'reports:report-profit-export-pdf' %}" class="rounded-xl border border-slate-300 px-4 py-2 text-sm">Export PDF</button>
+            </form>
+        </div>
+
+        <div class="mt-5 overflow-x-auto">
+            <table class="min-w-full divide-y divide-slate-200 text-sm">
+                <thead>
+                    <tr class="text-left text-slate-500">
+                        <th class="py-3 pr-4">Product</th>
+                        <th class="py-3 pr-4">Category</th>
+                        <th class="py-3 pr-4">Quantity Sold</th>
+                        <th class="py-3 pr-4">Revenue</th>
+                        <th class="py-3">Profit</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    {% for row in rows %}
+                        <tr>
+                            <td class="py-4 pr-4 font-medium">{{ row.product__name }}</td>
+                            <td class="py-4 pr-4">{{ row.product__category__name|default:"Uncategorized" }}</td>
+                            <td class="py-4 pr-4">{{ row.quantity_sold }}</td>
+                            <td class="py-4 pr-4">₦{{ row.revenue }}</td>
+                            <td class="py-4">₦{{ row.profit }}</td>
+                        </tr>
+                    {% empty %}
+                        <tr><td colspan="5" class="py-10 text-center text-slate-500">No sales found for this range.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% include "includes/pagination.html" with page_obj=rows page_param="page" %}
+    </section>
+{% endblock %}

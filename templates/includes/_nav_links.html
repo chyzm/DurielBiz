@@ -1,0 +1,28 @@
+{% if request.user.role == 'admin' or request.user.role == 'cashier' or request.user.role == 'manager' %}
+    <a href="{% url 'reports:dashboard' %}" class="nav-link block rounded-lg px-3 py-2 hover:bg-slate-800 {% if request.resolver_match.view_name == 'reports:dashboard' %}nav-link-active{% endif %}">Dashboard</a>
+{% endif %}
+{% if request.user.role == 'admin' or request.user.role == 'cashier' %}
+    <a href="{% url 'sales:pos' %}" class="nav-link block rounded-lg px-3 py-2 hover:bg-slate-800 {% if request.resolver_match.view_name == 'sales:pos' %}nav-link-active{% endif %}">POS Terminal</a>
+{% endif %}
+{% if request.user.role == 'cashier' or request.user.role == 'manager' %}
+    <a href="{% url 'sales:receipt-search' %}" class="nav-link block rounded-lg px-3 py-2 hover:bg-slate-800 {% if request.resolver_match.view_name == 'sales:receipt-search' %}nav-link-active{% endif %}">Receipts</a>
+{% endif %}
+{% if request.user.role == 'admin' or request.user.role == 'inventory' %}
+    <a href="{% url 'products:list' %}" class="nav-link block rounded-lg px-3 py-2 hover:bg-slate-800 {% if request.resolver_match.view_name == 'products:list' %}nav-link-active{% endif %}">Products</a>
+    <a href="{% url 'products:category-list' %}" class="nav-link block rounded-lg px-3 py-2 hover:bg-slate-800 {% if request.resolver_match.view_name == 'products:category-list' %}nav-link-active{% endif %}">Categories</a>
+    <a href="{% url 'suppliers:list' %}" class="nav-link block rounded-lg px-3 py-2 hover:bg-slate-800 {% if request.resolver_match.view_name == 'suppliers:list' %}nav-link-active{% endif %}">Suppliers</a>
+    <a href="{% url 'purchases:list' %}" class="nav-link block rounded-lg px-3 py-2 hover:bg-slate-800 {% if request.resolver_match.view_name == 'purchases:list' %}nav-link-active{% endif %}">Purchases</a>
+    <a href="{% url 'inventory:overview' %}" class="nav-link block rounded-lg px-3 py-2 hover:bg-slate-800 {% if request.resolver_match.view_name == 'inventory:overview' %}nav-link-active{% endif %}">Inventory</a>
+{% endif %}
+{% if request.user.role == 'admin' %}
+    <a href="{% url 'sales:customer-list' %}" class="nav-link block rounded-lg px-3 py-2 hover:bg-slate-800 {% if request.resolver_match.view_name == 'sales:customer-list' %}nav-link-active{% endif %}">Customers</a>
+    <a href="{% url 'sales:history' %}" class="nav-link block rounded-lg px-3 py-2 hover:bg-slate-800 {% if request.resolver_match.view_name == 'sales:history' %}nav-link-active{% endif %}">Sales History</a>
+    <a href="{% url 'reports:report-category' %}" class="nav-link block rounded-lg px-3 py-2 hover:bg-slate-800 {% if request.resolver_match.view_name == 'reports:report-category' %}nav-link-active{% endif %}">Category Report</a>
+    <a href="{% url 'reports:report-profit' %}" class="nav-link block rounded-lg px-3 py-2 hover:bg-slate-800 {% if request.resolver_match.view_name == 'reports:report-profit' %}nav-link-active{% endif %}">Profit Report</a>
+    <a href="{% url 'accounts:activity-log' %}" class="nav-link block rounded-lg px-3 py-2 hover:bg-slate-800 {% if request.resolver_match.view_name == 'accounts:activity-log' %}nav-link-active{% endif %}">Activity Log</a>
+    <a href="{% url 'reports:branch-list' %}" class="nav-link block rounded-lg px-3 py-2 hover:bg-slate-800 {% if request.resolver_match.view_name == 'reports:branch-list' %}nav-link-active{% endif %}">Branches</a>
+    <a href="{% url 'reports:business-settings' %}" class="nav-link block rounded-lg px-3 py-2 hover:bg-slate-800 {% if request.resolver_match.view_name == 'reports:business-settings' %}nav-link-active{% endif %}">Business Settings</a>
+    <a href="{% url 'accounts:admin-center' %}" class="nav-link block rounded-lg px-3 py-2 hover:bg-slate-800 {% if request.resolver_match.view_name == 'accounts:admin-center' %}nav-link-active{% endif %}">Admin</a>
+{% endif %}
+<a href="{% url 'accounts:password-change-local' %}" class="nav-link block rounded-lg px-3 py-2 hover:bg-slate-800 {% if request.resolver_match.view_name == 'accounts:password-change-local' %}nav-link-active{% endif %}">Change Password</a>
+<a href="{% url 'accounts:about-support' %}" class="nav-link block rounded-lg px-3 py-2 hover:bg-slate-800 {% if request.resolver_match.view_name == 'accounts:about-support' %}nav-link-active{% endif %}">About & Support</a>

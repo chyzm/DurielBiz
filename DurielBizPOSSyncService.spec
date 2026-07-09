@@ -1,7 +1,7 @@
 # -*- mode: python ; coding: utf-8 -*-
 from PyInstaller.utils.hooks import collect_data_files
 
-datas = [('accounts', 'accounts'), ('inventory', 'inventory'), ('notifications', 'notifications'), ('pos_system', 'pos_system'), ('products', 'products'), ('purchases', 'purchases'), ('reports', 'reports'), ('sales', 'sales'), ('suppliers', 'suppliers'), ('templates', 'templates'), ('static', 'static'), ('manage.py', '.')]
+datas = [('accounts', 'accounts'), ('cloudsync', 'cloudsync'), ('inventory', 'inventory'), ('invoicing', 'invoicing'), ('licensing', 'licensing'), ('notifications', 'notifications'), ('pos_system', 'pos_system'), ('products', 'products'), ('purchases', 'purchases'), ('reports', 'reports'), ('sales', 'sales'), ('suppliers', 'suppliers'), ('templates', 'templates'), ('static', 'static'), ('manage.py', '.'), ('.env', '.')]
 datas += collect_data_files('tzdata')
 
 
@@ -10,7 +10,7 @@ a = Analysis(
     pathex=[],
     binaries=[],
     datas=datas,
-    hiddenimports=['django.core.management.commands.migrate', 'win32timezone'],
+    hiddenimports=['django.core.management.commands.migrate', 'win32timezone', 'whitenoise.middleware'],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],

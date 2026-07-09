@@ -2,72 +2,181 @@
 
 {% block title %}Cloud Overview | DurielBiz{% endblock %}
 
+{% block extra_head %}
+<style>
+    .life-card {
+        box-shadow:
+            0 1px 0 rgba(255,255,255,0.7) inset,
+            0 1px 2px rgba(15, 23, 42, 0.04),
+            0 12px 24px -12px rgba(15, 23, 42, 0.12);
+    }
+    .hero-card {
+        box-shadow:
+            0 1px 0 rgba(255,255,255,0.15) inset,
+            0 20px 40px -16px rgba(79, 70, 229, 0.45);
+    }
+    @keyframes ping-dot {
+        0% { transform: scale(0.9); opacity: 1; }
+        70% { transform: scale(2.4); opacity: 0; }
+        100% { opacity: 0; }
+    }
+    .ping-dot::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        border-radius: 9999px;
+        background: currentColor;
+        animation: ping-dot 2s cubic-bezier(0.4,0,0.6,1) infinite;
+    }
+    .status-dot[data-status="success"],
+    .status-dot[data-status="synced"],
+    .status-dot[data-status="completed"] { background: #10B981; color: #10B981; }
+    .status-dot[data-status="pending"],
+    .status-dot[data-status="processing"],
+    .status-dot[data-status="in_progress"] { background: #F59E0B; color: #F59E0B; }
+    .status-dot[data-status="failed"],
+    .status-dot[data-status="error"] { background: #F43F5E; color: #F43F5E; }
+    .status-dot { background: #94A3B8; color: #94A3B8; }
+
+    .status-pill[data-status="success"],
+    .status-pill[data-status="synced"],
+    .status-pill[data-status="completed"] { background: #ECFDF5; color: #047857; }
+    .status-pill[data-status="pending"],
+    .status-pill[data-status="processing"],
+    .status-pill[data-status="in_progress"] { background: #FFFBEB; color: #B45309; }
+    .status-pill[data-status="failed"],
+    .status-pill[data-status="error"] { background: #FFF1F2; color: #BE123C; }
+    .status-pill { background: #F1F5F9; color: #475569; }
+</style>
+{% endblock %}
+
 {% block content %}
-    <section class="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
-        <div class="rounded-2xl bg-white p-5 shadow-sm">
-            <p class="text-sm text-slate-500">Branches</p>
-            <h3 class="mt-2 text-2xl font-semibold">{{ total_branches }}</h3>
+
+    <section class="grid grid-cols-2 gap-4 lg:grid-cols-4 xl:grid-cols-7">
+        <div class="hero-card relative overflow-hidden rounded-2xl p-5 text-white col-span-2" style="background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 60%, #4338CA 100%);">
+            <div class="pointer-events-none absolute -right-8 -top-10 h-40 w-40 rounded-full bg-white/10 blur-2xl"></div>
+            <div class="pointer-events-none absolute -bottom-10 -left-6 h-32 w-32 rounded-full bg-cyan-300/20 blur-2xl"></div>
+            <div class="relative flex items-center justify-between">
+                <p class="text-sm text-indigo-100">Revenue Today</p>
+                <span class="relative inline-flex items-center gap-1.5 rounded-full bg-white/15 px-2.5 py-1 text-[11px] font-medium text-white">
+                    <span class="ping-dot relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-300 text-emerald-300"></span>
+                    Live
+                </span>
+            </div>
+            <h3 class="relative mt-3 text-3xl font-semibold tracking-tight">₦{{ revenue_today }}</h3>
+            <p class="relative mt-1 text-xs text-indigo-100">Across all synced branches</p>
         </div>
-        <div class="rounded-2xl bg-white p-5 shadow-sm">
-            <p class="text-sm text-slate-500">Sales Today</p>
-            <h3 class="mt-2 text-2xl font-semibold">{{ sales_count_today }}</h3>
+
+        <div class="life-card rounded-2xl bg-white p-5">
+            <div class="flex items-center justify-between">
+                <p class="text-sm text-slate-500">Branches</p>
+                <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600">
+                    <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V7l7-4 7 4v14M9 9h1M9 13h1M14 9h1M14 13h1M9 21v-4h6v4"/></svg>
+                </span>
+            </div>
+            <h3 class="mt-2 text-2xl font-semibold text-slate-900">{{ total_branches }}</h3>
         </div>
-        <div class="rounded-2xl bg-white p-5 shadow-sm">
-            <p class="text-sm text-slate-500">Revenue Today</p>
-            <h3 class="mt-2 text-2xl font-semibold">₦{{ revenue_today }}</h3>
+
+        <div class="life-card rounded-2xl bg-white p-5">
+            <div class="flex items-center justify-between">
+                <p class="text-sm text-slate-500">Sales Today</p>
+                <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-cyan-50 text-cyan-600">
+                    <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h2l.4 2M7 13h10l3-8H6.4M7 13L5.4 5M7 13l-2.293 2.293A1 1 0 0 0 5.414 17H17M17 17a2 2 0 1 0 0 4 2 2 0 0 0 0-4ZM9 21a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z"/></svg>
+                </span>
+            </div>
+            <h3 class="mt-2 text-2xl font-semibold text-slate-900">{{ sales_count_today }}</h3>
         </div>
-        <div class="rounded-2xl bg-white p-5 shadow-sm">
-            <p class="text-sm text-slate-500">Discounts Today</p>
-            <h3 class="mt-2 text-2xl font-semibold">₦{{ discount_today }}</h3>
+
+        <div class="life-card rounded-2xl bg-white p-5">
+            <div class="flex items-center justify-between">
+                <p class="text-sm text-slate-500">Discounts Today</p>
+                <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-50 text-amber-600">
+                    <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41 11 3.83A2 2 0 0 0 9.59 3.24L4 3a1 1 0 0 0-1 1l.24 5.59a2 2 0 0 0 .59 1.41l9.58 9.59a2 2 0 0 0 2.83 0l4.35-4.35a2 2 0 0 0 0-2.83Z"/><circle cx="8" cy="8" r="1.5"/></svg>
+                </span>
+            </div>
+            <h3 class="mt-2 text-2xl font-semibold text-slate-900">₦{{ discount_today }}</h3>
         </div>
-        <div class="rounded-2xl bg-white p-5 shadow-sm">
-            <p class="text-sm text-slate-500">Purchases Today</p>
-            <h3 class="mt-2 text-2xl font-semibold">{{ purchase_count_today }}</h3>
+
+        <div class="life-card rounded-2xl bg-white p-5">
+            <div class="flex items-center justify-between">
+                <p class="text-sm text-slate-500">Purchases Today</p>
+                <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-violet-50 text-violet-600">
+                    <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4M3 6h18M16 10a4 4 0 0 1-8 0"/></svg>
+                </span>
+            </div>
+            <h3 class="mt-2 text-2xl font-semibold text-slate-900">{{ purchase_count_today }}</h3>
         </div>
-        <div class="rounded-2xl bg-white p-5 shadow-sm">
-            <p class="text-sm text-slate-500">Inventory Logs Today</p>
-            <h3 class="mt-2 text-2xl font-semibold">{{ inventory_count_today }}</h3>
+
+        <div class="life-card rounded-2xl bg-white p-5">
+            <div class="flex items-center justify-between">
+                <p class="text-sm text-slate-500">Inventory Logs Today</p>
+                <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
+                    <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M4 7v13a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1V7M4 7l1.5-4h13L20 7M9 11h6"/></svg>
+                </span>
+            </div>
+            <h3 class="mt-2 text-2xl font-semibold text-slate-900">{{ inventory_count_today }}</h3>
         </div>
     </section>
 
     <section class="mt-6 grid gap-6 lg:grid-cols-2">
-        <div class="rounded-2xl bg-white p-5 shadow-sm">
-            <h3 class="text-lg font-semibold">Recent Synced Sales</h3>
+        <div class="life-card rounded-2xl bg-white p-5">
+            <div class="flex items-center justify-between">
+                <h3 class="text-lg font-semibold text-slate-900">Recent Synced Sales</h3>
+                <span class="relative inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-medium text-emerald-700">
+                    <span class="ping-dot relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500 text-emerald-500"></span>
+                    Syncing
+                </span>
+            </div>
             <div class="mt-4 space-y-3">
                 {% for sale in recent_sales %}
-                    <div class="rounded-xl border border-slate-200 px-4 py-3">
+                    <div class="group rounded-xl border border-slate-200 px-4 py-3 transition hover:border-indigo-200 hover:bg-indigo-50/30">
                         <div class="flex items-start justify-between gap-4">
-                            <div>
-                                <p class="font-medium">{{ sale.receipt_number }}</p>
-                                <p class="text-sm text-slate-500">{{ sale.branch.name|default:"—" }} · {{ sale.created_at_remote|date:"d M Y, H:i" }}</p>
+                            <div class="flex items-start gap-3">
+                                <span class="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-indigo-50 text-xs font-semibold text-indigo-600">
+                                    {{ sale.branch.name|default:"—"|slice:":2"|upper }}
+                                </span>
+                                <div>
+                                    <p class="font-medium text-slate-900">{{ sale.receipt_number }}</p>
+                                    <p class="text-sm text-slate-500">{{ sale.branch.name|default:"—" }} · {{ sale.created_at_remote|date:"d M Y, H:i" }}</p>
+                                </div>
                             </div>
-                            <span class="font-semibold">₦{{ sale.total }}</span>
+                            <span class="whitespace-nowrap font-semibold text-slate-900">₦{{ sale.total }}</span>
                         </div>
-                        <div class="mt-2 flex flex-wrap gap-2">
+                        <div class="mt-2 flex flex-wrap gap-2 pl-12">
                             {% for item in sale.items.all %}
-                                <span class="rounded-full bg-slate-100 px-2 py-1 text-xs">{{ item.product_name }} × {{ item.quantity }}</span>
+                                <span class="rounded-full bg-slate-100 px-2 py-1 text-xs text-slate-600 group-hover:bg-white">{{ item.product_name }} × {{ item.quantity }}</span>
                             {% endfor %}
                         </div>
                     </div>
                 {% empty %}
-                    <p class="text-sm text-slate-500">No synced sales yet.</p>
+                    <div class="rounded-xl border border-dashed border-slate-200 px-4 py-8 text-center">
+                        <p class="text-sm font-medium text-slate-600">No synced sales yet</p>
+                        <p class="mt-1 text-xs text-slate-400">Sales will appear here as soon as a branch syncs.</p>
+                    </div>
                 {% endfor %}
             </div>
         </div>
-        <div class="rounded-2xl bg-white p-5 shadow-sm">
-            <h3 class="text-lg font-semibold">Recent Sync Activity</h3>
+
+        <div class="life-card rounded-2xl bg-white p-5">
+            <div class="flex items-center justify-between">
+                <h3 class="text-lg font-semibold text-slate-900">Recent Sync Activity</h3>
+            </div>
             <div class="mt-4 space-y-3">
                 {% for event in recent_syncs %}
-                    <div class="rounded-xl border border-slate-200 px-4 py-3">
+                    <div class="relative rounded-xl border border-slate-200 px-4 py-3 pl-6">
+                        <span class="status-dot ping-dot absolute left-2.5 top-4.5 h-2 w-2 rounded-full" data-status="{{ event.status|default:''|lower }}"></span>
                         <div class="flex items-center justify-between gap-4">
-                            <span class="font-medium">{{ event.get_status_display }}</span>
+                            <span class="status-pill rounded-full px-2.5 py-1 text-xs font-medium" data-status="{{ event.status|default:''|lower }}">{{ event.get_status_display }}</span>
                             <span class="text-sm text-slate-500">{{ event.created_at|date:"d M Y, H:i" }}</span>
                         </div>
-                        <p class="mt-1 text-sm text-slate-600">{{ event.message }}</p>
-                        <p class="mt-1 text-xs text-slate-500">{{ event.payload_summary }}</p>
+                        <p class="mt-2 text-sm text-slate-700">{{ event.message }}</p>
+                        <p class="mt-1 truncate font-mono text-xs text-slate-400">{{ event.payload_summary }}</p>
                     </div>
                 {% empty %}
-                    <p class="text-sm text-slate-500">No sync activity yet.</p>
+                    <div class="rounded-xl border border-dashed border-slate-200 px-4 py-8 text-center">
+                        <p class="text-sm font-medium text-slate-600">No sync activity yet</p>
+                        <p class="mt-1 text-xs text-slate-400">You'll see sync events here once a branch comes online.</p>
+                    </div>
                 {% endfor %}
             </div>
         </div>

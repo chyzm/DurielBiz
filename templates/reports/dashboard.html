@@ -1,21 +1,63 @@
 {% extends "base.html" %}
+{% load static %}
 
 {% block title %}Dashboard | DurielBiz POS{% endblock %}
 
 {% block extra_head %}
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="{% static 'js/vendor/chart.js' %}"></script>
 {% endblock %}
 
 {% block content %}
-    <section class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <div class="rounded-2xl bg-white p-5 shadow-sm">
+    <section class="rounded-2xl bg-white p-5 shadow-sm">
+        <div class="mb-4 flex items-center justify-between">
+            <div>
+                <h3 class="text-lg font-semibold">Weekly Sales — {{ selected_branch_name }}</h3>
+                <p class="text-sm text-slate-500">Completed sales over the last 7 days · {{ selected_branch_name }}</p>
+            </div>
+            <div class="flex items-center gap-3">
+                {% if request.user.role == 'admin' %}
+                    <form method="get" class="flex items-center gap-2">
+                        <select name="branch" class="rounded-xl border border-slate-300 px-3 py-2 text-sm">
+                            <option value="">All branches</option>
+                            {% for branch in branches %}
+                                <option value="{{ branch.code }}" {% if selected_branch == branch.code %}selected{% endif %}>{{ branch.name }}</option>
+                            {% endfor %}
+                        </select>
+                        <button class="rounded-lg border border-slate-300 px-4 py-2 text-sm transition hover:bg-slate-50">Apply</button>
+                    </form>
+                {% else %}
+                    <span class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">{{ selected_branch_name }}</span>
+                {% endif %}
+                <a href="{% url 'sales:pos' %}" class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-700">Open POS</a>
+            </div>
+        </div>
+        {% if sales_count == 0 %}
+            <div class="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
+                No sales yet today — open the POS terminal to ring up your first sale.
+            </div>
+        {% endif %}
+        <canvas id="salesChart" height="90"></canvas>
+    </section>
+
+    <section class="mt-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <a href="{% url 'sales:history' %}" class="card-interactive block rounded-2xl bg-white p-5 shadow-sm">
             <p class="text-sm text-slate-500">Today's Revenue</p>
             <h3 class="mt-2 text-2xl font-semibold">₦{{ revenue_today }}</h3>
-        </div>
-        <div class="rounded-2xl bg-white p-5 shadow-sm">
+            {% if revenue_change_pct is not None %}
+                <p class="mt-1 text-xs {% if revenue_change_pct >= 0 %}text-emerald-600{% else %}text-rose-600{% endif %}">
+                    {% if revenue_change_pct >= 0 %}+{% endif %}{{ revenue_change_pct|floatformat:0 }}% vs yesterday
+                </p>
+            {% endif %}
+        </a>
+        <a href="{% url 'reports:report-profit' %}" class="card-interactive block rounded-2xl bg-white p-5 shadow-sm">
             <p class="text-sm text-slate-500">Today's Profit</p>
             <h3 class="mt-2 text-2xl font-semibold">₦{{ profit_today }}</h3>
-        </div>
+            {% if profit_change_pct is not None %}
+                <p class="mt-1 text-xs {% if profit_change_pct >= 0 %}text-emerald-600{% else %}text-rose-600{% endif %}">
+                    {% if profit_change_pct >= 0 %}+{% endif %}{{ profit_change_pct|floatformat:0 }}% vs yesterday
+                </p>
+            {% endif %}
+        </a>
         <div class="rounded-2xl bg-white p-5 shadow-sm">
             <p class="text-sm text-slate-500">Sales Count</p>
             <h3 class="mt-2 text-2xl font-semibold">{{ sales_count }}</h3>
@@ -27,32 +69,6 @@
     </section>
 
     <section class="mt-6 grid gap-6 xl:grid-cols-3">
-        <div class="rounded-2xl bg-white p-5 shadow-sm xl:col-span-2">
-            <div class="mb-4 flex items-center justify-between">
-                <div>
-                    <h3 class="text-lg font-semibold">Weekly Sales — {{ selected_branch_name }}</h3>
-                    <p class="text-sm text-slate-500">Completed sales over the last 7 days · {{ selected_branch_name }}</p>
-                </div>
-                <div class="flex items-center gap-3">
-                    {% if request.user.role == 'admin' %}
-                        <form method="get" class="flex items-center gap-2">
-                            <select name="branch" class="rounded-xl border border-slate-300 px-3 py-2 text-sm">
-                                <option value="">All branches</option>
-                                {% for branch in branches %}
-                                    <option value="{{ branch.code }}" {% if selected_branch == branch.code %}selected{% endif %}>{{ branch.name }}</option>
-                                {% endfor %}
-                            </select>
-                            <button class="rounded-lg border border-slate-300 px-4 py-2 text-sm">Apply</button>
-                        </form>
-                    {% else %}
-                        <span class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">{{ selected_branch_name }}</span>
-                    {% endif %}
-                    <a href="{% url 'sales:pos' %}" class="rounded-lg bg-slate-900 px-4 py-2 text-sm text-white">Open POS</a>
-                </div>
-            </div>
-            <canvas id="salesChart" height="120"></canvas>
-        </div>
-
         <div class="rounded-2xl bg-white p-5 shadow-sm">
             <h3 class="text-lg font-semibold">Top Products Today</h3>
             <div class="mt-4 space-y-3">
@@ -70,9 +86,24 @@
             </div>
             {% include "includes/pagination.html" with page_obj=top_products page_param="top_page" %}
         </div>
-    </section>
 
-    <section class="mt-6 grid gap-6 lg:grid-cols-2">
+        <div class="rounded-2xl bg-white p-5 shadow-sm">
+            <div class="flex items-center justify-between">
+                <h3 class="text-lg font-semibold">Top Categories Today</h3>
+                <a href="{% url 'reports:report-category' %}" class="text-xs font-medium text-indigo-600 hover:underline">View full report</a>
+            </div>
+            <div class="mt-4 space-y-3">
+                {% for item in top_categories %}
+                    <div class="flex items-center justify-between rounded-xl bg-slate-50 px-3 py-2">
+                        <span class="font-medium">{{ item.product__category__name|default:"Uncategorized" }}</span>
+                        <span class="text-sm font-semibold">₦{{ item.revenue }}</span>
+                    </div>
+                {% empty %}
+                    <p class="text-sm text-slate-500">No completed sales yet today.</p>
+                {% endfor %}
+            </div>
+        </div>
+
         <div class="rounded-2xl bg-white p-5 shadow-sm">
             <h3 class="text-lg font-semibold">Low Stock</h3>
             <div class="mt-4 space-y-3">
@@ -87,10 +118,12 @@
             </div>
             {% include "includes/pagination.html" with page_obj=low_stock page_param="low_page" %}
         </div>
+    </section>
 
+    <section class="mt-6">
         <div class="rounded-2xl bg-white p-5 shadow-sm">
             <h3 class="text-lg font-semibold">Expiring Products</h3>
-            <div class="mt-4 space-y-3">
+            <div class="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {% for product in expiring_products %}
                     <div class="flex items-center justify-between rounded-xl border border-rose-100 bg-rose-50 px-3 py-2">
                         <span>{{ product.name }}</span>
@@ -115,8 +148,8 @@
                 datasets: [{
                     label: 'Revenue',
                     data: salesChartData.values,
-                    borderColor: '#0f172a',
-                    backgroundColor: 'rgba(15, 23, 42, 0.1)',
+                    borderColor: '#4f46e5',
+                    backgroundColor: 'rgba(79, 70, 229, 0.12)',
                     fill: true,
                     tension: 0.3
                 }]

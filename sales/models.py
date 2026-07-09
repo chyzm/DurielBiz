@@ -60,6 +60,15 @@ class Sale(models.Model):
     payment_method = models.CharField(max_length=20, choices=PaymentMethod.choices, default=PaymentMethod.CASH)
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.DRAFT)
     note = models.TextField(blank=True)
+    voided_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name="voided_sales",
+        null=True,
+        blank=True,
+    )
+    voided_at = models.DateTimeField(null=True, blank=True)
+    void_reason = models.CharField(max_length=255, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

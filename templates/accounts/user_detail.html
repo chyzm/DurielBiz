@@ -29,6 +29,9 @@
             <h4 class="text-lg font-semibold">Actions</h4>
             <div class="mt-4 space-y-3 text-sm">
                 <a href="{% url 'accounts:user-update' user_obj.pk %}" class="block rounded-xl bg-slate-900 px-4 py-3 text-center text-white">Edit User</a>
+                {% if user_obj != request.user %}
+                    <a href="{% url 'accounts:user-reset-password' user_obj.pk %}" class="block rounded-xl bg-amber-600 px-4 py-3 text-center text-white hover:bg-amber-700">Reset Password</a>
+                {% endif %}
                 <a href="{% url 'accounts:user-delete' user_obj.pk %}" class="block rounded-xl border border-rose-300 px-4 py-3 text-center text-rose-700">Delete User</a>
                 <a href="{% url 'accounts:user-management' %}" class="block rounded-xl border border-slate-300 px-4 py-3 text-center">Back to Users</a>
             </div>

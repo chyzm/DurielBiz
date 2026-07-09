@@ -33,6 +33,8 @@ class BusinessSettingsForm(forms.ModelForm):
             "address",
             "phone",
             "receipt_footer",
+            "vat_enabled",
+            "vat_rate_percent",
             "loyalty_points_per_1000",
             "loyalty_cash_value_per_point",
             "cloud_sync_enabled",
@@ -57,6 +59,12 @@ class BusinessSettingsForm(forms.ModelForm):
             ),
             "receipt_footer": forms.TextInput(
                 attrs={"class": "mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"}
+            ),
+            "vat_enabled": forms.CheckboxInput(
+                attrs={"class": "mt-3 h-4 w-4 rounded border-slate-300 text-slate-900"}
+            ),
+            "vat_rate_percent": forms.NumberInput(
+                attrs={"class": "mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm", "step": "0.01", "min": "0", "max": "100"}
             ),
             "loyalty_points_per_1000": forms.NumberInput(
                 attrs={"class": "mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"}

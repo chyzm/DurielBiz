@@ -12,10 +12,10 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
 
-from accounts.activity import log_activity
+from accounts.activity import get_client_ip, log_activity
 from accounts.models import ActivityLog
 from accounts.models import User
-from accounts.permissions import get_user_branch, role_required
+from accounts.permissions import get_user_branch, role_required, scope_queryset_to_user_branch
 from pos_system.pagination import paginate_queryset
 from products.models import BranchStock, Product
 from products.stock import branch_quantity
@@ -24,16 +24,20 @@ from reports.models import BusinessSettings
 
 from .forms import CheckoutForm, CustomerForm
 from .models import Customer, Sale
-from .services import create_sale
+from .services import compute_sale_preview, create_sale, void_sale
 
 
 def filtered_sales_queryset(request):
-    sales = (
-        Sale.objects.filter(status=Sale.Status.COMPLETED)
-        .select_related("cashier", "customer", "branch")
-        .prefetch_related("items__product")
-        .order_by("-created_at")
-    )
+    status_filter = request.GET.get("status", "completed").strip().lower()
+    sales = Sale.objects.select_related("cashier", "customer", "branch").prefetch_related("items__product").order_by("-created_at")
+    if status_filter == "voided":
+        sales = sales.filter(status=Sale.Status.VOIDED)
+    elif status_filter == "all":
+        sales = sales.filter(status__in=[Sale.Status.COMPLETED, Sale.Status.VOIDED])
+    else:
+        status_filter = "completed"
+        sales = sales.filter(status=Sale.Status.COMPLETED)
+
     start_date = request.GET.get("start_date", "").strip()
     end_date = request.GET.get("end_date", "").strip()
     branch_code = request.GET.get("branch", "").strip()
@@ -57,6 +61,7 @@ def filtered_sales_queryset(request):
         "end_date": end_date or today,
         "branches": branches,
         "selected_branch": branch_code,
+        "selected_status": status_filter,
     }
 
 
@@ -112,7 +117,7 @@ def pos_terminal(request):
         else:
             messages.success(request, f"Sale {sale.receipt_number} completed successfully.")
             return redirect(
-                f"{reverse('sales:pos')}?receipt={sale.pk}&lane={sale.lane_name}&completed_lane={sale.lane_name}"
+                f"{reverse('sales:pos')}?receipt={sale.pk}&lane={sale.lane_name}&completed_lane={sale.lane_name}&autoprint=1"
             )
 
     product_payload = [
@@ -143,19 +148,103 @@ def pos_terminal(request):
             "completed_lane": request.GET.get("completed_lane", ""),
             "is_admin_user": request.user.role == User.Role.ADMIN,
             "loyalty_value_per_point": float(business_settings.loyalty_cash_value_per_point),
+            "vat_enabled": business_settings.vat_enabled,
+            "vat_rate_percent": float(business_settings.vat_rate_percent),
             "active_branch": default_branch,
         },
     )
 
 
 @login_required
-@role_required(User.Role.ADMIN)
+@role_required(User.Role.ADMIN, User.Role.CASHIER)
+def checkout_preview(request):
+    """Renders a receipt preview from the current cart without saving anything —
+    the sale is only actually created when the cashier confirms via Print."""
+    if request.method != "POST":
+        return HttpResponse(status=405)
+
+    form = CheckoutForm(request.POST)
+    if not form.is_valid():
+        first_field, first_errors = next(iter(form.errors.items()))
+        label = form.fields[first_field].label or first_field.replace("_", " ").title() if first_field != "__all__" else ""
+        message = f"{label}: {first_errors[0]}" if label else first_errors[0]
+        return HttpResponse(f'<p class="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{message}</p>', status=400)
+
+    try:
+        preview_sale = compute_sale_preview(
+            cashier=request.user,
+            items=form.cleaned_data["items_json"],
+            payment_method=form.cleaned_data["payment_method"],
+            paid_amount=form.cleaned_data["paid_amount"],
+            customer_name=form.cleaned_data["customer_name"],
+            customer_phone=form.cleaned_data["customer_phone"],
+            note=form.cleaned_data["note"],
+            lane_name=form.cleaned_data["lane_name"] or "checkout_a",
+            redeemed_points=form.cleaned_data["redeemed_points"] or 0,
+            discount=form.cleaned_data["discount"] or 0,
+        )
+    except Product.DoesNotExist:
+        return HttpResponse('<p class="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">One of the selected products no longer exists.</p>', status=400)
+    except ValidationError as exc:
+        return HttpResponse(f'<p class="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{exc.messages[0]}</p>', status=400)
+
+    return render(
+        request,
+        "sales/_receipt_content.html",
+        {"sale": preview_sale, "items": preview_sale.items},
+    )
+
+
+@login_required
+@role_required(User.Role.ADMIN, User.Role.CASHIER, User.Role.MANAGER)
 def receipt_detail(request, pk):
+    receipt_queryset = Sale.objects.select_related("cashier", "customer", "branch").prefetch_related("items__product")
+    receipt_queryset = scope_queryset_to_user_branch(receipt_queryset, request.user)
+    sale = get_object_or_404(receipt_queryset, pk=pk)
+    return render(request, "sales/receipt.html", {"sale": sale})
+
+
+@login_required
+@role_required(User.Role.ADMIN, User.Role.CASHIER, User.Role.MANAGER)
+def receipt_search(request):
+    query = request.GET.get("q", "").strip()
+    sales = Sale.objects.filter(status=Sale.Status.COMPLETED).select_related("cashier", "customer", "branch").order_by("-created_at")
+    sales = scope_queryset_to_user_branch(sales, request.user)
+    if query:
+        filters = Q(customer_phone__icontains=query) | Q(customer_name__icontains=query)
+        receipt_digits = query.upper().replace("SALE-", "").lstrip("0")
+        if receipt_digits.isdigit():
+            filters |= Q(pk=int(receipt_digits))
+        sales = sales.filter(filters)
+    return render(
+        request,
+        "sales/receipt_search.html",
+        {"sales": paginate_queryset(request, sales, per_page=15), "search": query},
+    )
+
+
+@login_required
+@role_required(User.Role.ADMIN)
+def void_sale_view(request, pk):
     sale = get_object_or_404(
         Sale.objects.select_related("cashier", "customer", "branch").prefetch_related("items__product"),
         pk=pk,
     )
-    return render(request, "sales/receipt.html", {"sale": sale})
+    if sale.status != Sale.Status.COMPLETED:
+        messages.error(request, f"Sale {sale.receipt_number} cannot be voided (status: {sale.get_status_display()}).")
+        return redirect("sales:receipt", pk=sale.pk)
+
+    if request.method == "POST":
+        reason = request.POST.get("reason", "").strip()
+        try:
+            void_sale(sale=sale, voided_by=request.user, reason=reason, ip_address=get_client_ip(request))
+        except ValidationError as exc:
+            messages.error(request, exc.messages[0])
+            return render(request, "sales/void_confirm.html", {"sale": sale, "reason": reason})
+        messages.success(request, f"Sale {sale.receipt_number} voided successfully.")
+        return redirect("sales:receipt", pk=sale.pk)
+
+    return render(request, "sales/void_confirm.html", {"sale": sale})
 
 
 @login_required
@@ -189,6 +278,7 @@ def sales_history_export_csv(request):
         [
             "Receipt",
             "Date",
+            "Status",
             "Cashier",
             "Customer",
             "Customer Phone",
@@ -205,6 +295,7 @@ def sales_history_export_csv(request):
             "Total",
             "Paid Amount",
             "Discount",
+            "VAT",
             "Change Due",
         ]
     )
@@ -216,6 +307,7 @@ def sales_history_export_csv(request):
                 [
                     sale.receipt_number,
                     timezone.localtime(sale.created_at).strftime("%Y-%m-%d %H:%M"),
+                    sale.get_status_display(),
                     sale.cashier.username,
                     sale.customer_name or "Walk-in",
                     sale.customer_phone or "",
@@ -232,6 +324,7 @@ def sales_history_export_csv(request):
                     sale.total,
                     sale.paid_amount,
                     sale.discount,
+                    sale.tax,
                     sale.change_due,
                 ]
             )
@@ -242,6 +335,7 @@ def sales_history_export_csv(request):
                 [
                     sale.receipt_number,
                     timezone.localtime(sale.created_at).strftime("%Y-%m-%d %H:%M"),
+                    sale.get_status_display(),
                     sale.cashier.username,
                     sale.customer_name or "Walk-in",
                     sale.customer_phone or "",
@@ -258,6 +352,7 @@ def sales_history_export_csv(request):
                     sale.total,
                     sale.paid_amount,
                     sale.discount,
+                    sale.tax,
                     sale.change_due,
                 ]
             )

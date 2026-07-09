@@ -35,6 +35,8 @@ class BusinessSettings(models.Model):
     address = models.TextField(blank=True)
     phone = models.CharField(max_length=30, blank=True)
     receipt_footer = models.CharField(max_length=255, blank=True, default="Thank you for your patronage.")
+    vat_enabled = models.BooleanField(default=False)
+    vat_rate_percent = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal("0.00"))
     loyalty_points_per_1000 = models.PositiveIntegerField(default=1)
     loyalty_cash_value_per_point = models.DecimalField(max_digits=8, decimal_places=2, default=Decimal("1.00"))
     cloud_sync_enabled = models.BooleanField(default=False)

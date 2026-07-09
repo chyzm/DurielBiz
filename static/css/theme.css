@@ -1,0 +1,116 @@
+:root {
+    --brand-primary: #4f46e5;
+    --brand-primary-dark: #4338ca;
+    --brand-ink: #0f172a;
+}
+
+/* Focus ring: consistent, visible keyboard focus without Tailwind's default browser outline */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+    outline: 2px solid var(--brand-primary);
+    outline-offset: 2px;
+}
+
+/* Hover-lift for interactive cards (product tiles, linked KPI cards) */
+.card-interactive {
+    transition: transform 150ms ease, box-shadow 150ms ease;
+}
+
+.card-interactive:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 24px -12px rgba(15, 23, 42, 0.25);
+}
+
+@keyframes fade-in-up {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.animate-fade-in-up {
+    animation: fade-in-up 200ms ease-out;
+}
+
+@keyframes toast-in {
+    from {
+        opacity: 0;
+        transform: translateY(8px) scale(0.98);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.animate-toast-in {
+    animation: toast-in 200ms ease-out;
+}
+
+@keyframes pulse-soft {
+    0%, 100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.6;
+    }
+}
+
+.animate-pulse-soft {
+    animation: pulse-soft 1.6s ease-in-out infinite;
+}
+
+.skeleton {
+    background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 37%, #e2e8f0 63%);
+    background-size: 400% 100%;
+    animation: skeleton-shimmer 1.4s ease infinite;
+}
+
+@keyframes skeleton-shimmer {
+    0% {
+        background-position: 100% 50%;
+    }
+
+    100% {
+        background-position: 0 50%;
+    }
+}
+
+/* Sidebar nav active-link indicator */
+.nav-link {
+    border-left: 3px solid transparent;
+    transition: background-color 120ms ease, color 120ms ease, border-color 120ms ease;
+}
+
+.nav-link-active {
+    background-color: rgba(79, 70, 229, 0.18);
+    border-left-color: var(--brand-primary);
+    color: #ffffff;
+}
+
+/* Shared brand gradients, reused across the login/dashboard/POS hero panels */
+.accent-bar-x {
+    background: linear-gradient(90deg, #4F46E5 0%, #7C3AED 45%, #22D3EE 100%);
+}
+
+.hero-panel {
+    background: linear-gradient(120deg, #0F1425 0%, #1E1B4B 55%, #0A0E1A 100%);
+}
+
+.badge-gradient-indigo {
+    background: linear-gradient(135deg, #4F46E5, #7C3AED);
+}
+
+.badge-gradient-emerald {
+    background: linear-gradient(135deg, #059669, #10B981);
+}

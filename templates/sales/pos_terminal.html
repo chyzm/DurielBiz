@@ -35,30 +35,32 @@
 {% endblock %}
 
 {% block content %}
-    <section class="grid gap-6 xl:grid-cols-[minmax(0,1.7fr)_minmax(360px,0.95fr)]">
+    <section class="grid gap-6 lg:grid-cols-[minmax(0,1.6fr)_minmax(340px,0.9fr)]">
         <div class="space-y-6">
-            <div class="overflow-hidden rounded-3xl bg-gradient-to-r from-slate-950 via-slate-900 to-slate-800 p-6 text-white shadow-sm">
-                <div class="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+            <div class="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#0F1425] via-[#1E1B4B] to-[#0A0E1A] p-6 text-white shadow-sm">
+                <div class="pointer-events-none absolute inset-0 opacity-40" style="background: radial-gradient(55% 60% at 15% 0%, rgba(124, 58, 237, 0.35), transparent 70%);"></div>
+                <div class="relative flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
                     <div>
-                        <p class="text-xs uppercase tracking-[0.25em] text-slate-300">Point Of Sale</p>
-                        <h2 class="mt-2 text-2xl font-semibold">Fast checkout — {{ active_branch.name|default:"All Branches" }}</h2>
+                        <p class="text-xs uppercase tracking-[0.25em] text-indigo-200">Point Of Sale</p>
+                        <h2 class="mt-2 text-xl font-semibold text-white sm:text-2xl">Fast checkout — {{ active_branch.name|default:"All Branches" }}</h2>
                         <p class="mt-2 text-sm text-slate-300">Scan barcode or search by name. Stock reflects {{ active_branch.name|default:"aggregate stock" }}.</p>
                     </div>
-                    <div class="grid gap-3 sm:grid-cols-3">
+                    <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
                         <div class="rounded-2xl bg-white/10 px-4 py-3">
                             <p class="text-xs text-slate-300">Branch</p>
-                            <p class="mt-1 font-semibold">{{ active_branch.name|default:"General stock" }}</p>
+                            <p class="mt-1 font-semibold text-white">{{ active_branch.name|default:"General stock" }}</p>
                         </div>
-                        <div class="rounded-2xl bg-white/10 px-4 py-3">
-                            <p class="text-xs text-slate-300">Lanes</p>
-                            <p class="mt-1 font-semibold">2 active</p>
+                        <div class="rounded-2xl bg-gradient-to-br from-indigo-600 to-violet-600 px-4 py-3 shadow-sm shadow-indigo-500/30">
+                            <p class="text-xs text-indigo-100">Lanes</p>
+                            <p class="mt-1 font-semibold text-white">2 active</p>
                         </div>
                         <div class="rounded-2xl bg-white/10 px-4 py-3">
                             <p class="text-xs text-slate-300">Receipt Mode</p>
-                            <p class="mt-1 font-semibold">{{ business_settings.thermal_paper_width|default:"80mm" }}</p>
+                            <p class="mt-1 font-semibold text-white">{{ business_settings.thermal_paper_width|default:"80mm" }}</p>
                         </div>
                     </div>
                 </div>
+                <div class="relative mt-5 h-0.5 w-full rounded-full bg-gradient-to-r from-indigo-500 via-violet-500 to-cyan-400 opacity-80"></div>
             </div>
 
             <div class="rounded-3xl bg-white p-5 shadow-sm">
@@ -67,9 +69,9 @@
                         <h3 class="text-lg font-semibold text-slate-900">Product search</h3>
                         <p class="text-sm text-slate-500">Barcode scanners can focus this field and press Enter automatically.</p>
                     </div>
-                    <div class="flex gap-2">
-                        <button type="button" class="lane-tab rounded-xl border border-slate-300 px-4 py-2 text-sm" data-lane="checkout_a">Checkout A</button>
-                        <button type="button" class="lane-tab rounded-xl border border-slate-300 px-4 py-2 text-sm" data-lane="checkout_b">Checkout B</button>
+                    <div class="flex flex-wrap gap-2">
+                        <button type="button" class="lane-tab rounded-xl border border-slate-300 px-4 py-2 text-sm transition hover:border-slate-400" data-lane="checkout_a">Checkout A</button>
+                        <button type="button" class="lane-tab rounded-xl border border-slate-300 px-4 py-2 text-sm transition hover:border-slate-400" data-lane="checkout_b">Checkout B</button>
                     </div>
                 </div>
 
@@ -87,7 +89,7 @@
             </div>
 
             <div class="rounded-3xl bg-white p-5 shadow-sm">
-                <div class="mb-4 flex items-center justify-between">
+                <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
                     <div>
                         <h3 class="text-lg font-semibold">Quick products</h3>
                         <p class="text-sm text-slate-500">Tap a product card to add it to the active lane.</p>
@@ -95,11 +97,11 @@
                     <span id="resultsMeta" class="rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-600">{{ products|length }} visible</span>
                 </div>
 
-                <div id="productGrid" class="grid gap-4 sm:grid-cols-2 2xl:grid-cols-3">
+                <div id="productGrid" class="grid grid-cols-1 gap-4 sm:grid-cols-2 2xl:grid-cols-3">
                     {% for product in products %}
                         <button
                             type="button"
-                            class="product-card rounded-2xl border border-slate-200 bg-slate-50 p-4 text-left transition hover:-translate-y-0.5 hover:border-slate-400 hover:bg-white hover:shadow-sm"
+                            class="product-card rounded-2xl border {% if product.display_stock|default:product.quantity <= product.reorder_level %}border-l-4 border-l-amber-400 border-slate-200{% else %}border-slate-200{% endif %} bg-slate-50 p-4 text-left transition hover:-translate-y-0.5 hover:border-slate-400 hover:bg-white hover:shadow-md"
                             data-id="{{ product.id }}"
                             data-name="{{ product.name }}"
                             data-price="{{ product.selling_price }}"
@@ -128,7 +130,7 @@
             </div>
         </div>
 
-        <div class="rounded-3xl bg-white p-5 shadow-sm">
+        <div class="rounded-3xl bg-white p-5 shadow-sm lg:sticky lg:top-6 lg:self-start">
             <div class="mb-4 flex items-start justify-between gap-3">
                 <div>
                     <h3 class="text-lg font-semibold">Cart <span id="activeLaneTitle" class="text-slate-500">Checkout A</span></h3>
@@ -156,13 +158,19 @@
                         <p class="text-xs uppercase tracking-wide text-slate-500">Redeem</p>
                         <p id="redeemValue" class="mt-2 text-lg font-semibold text-slate-900">₦0.00</p>
                     </div>
+                    {% if vat_enabled %}
+                        <div class="rounded-2xl bg-slate-50 p-4">
+                            <p class="text-xs uppercase tracking-wide text-slate-500">VAT ({{ vat_rate_percent }}%)</p>
+                            <p id="vatValue" class="mt-2 text-lg font-semibold text-slate-900">₦0.00</p>
+                        </div>
+                    {% endif %}
                     <div class="rounded-2xl bg-slate-900 p-4 text-white">
                     <p class="text-xs uppercase tracking-wide text-slate-300">Total</p>
                     <p id="totalValue" class="mt-2 text-lg font-semibold">₦0.00</p>
                 </div>
             </div>
 
-            <form method="post" class="mt-5 space-y-4">
+            <form id="checkoutForm" method="post" class="mt-5 space-y-4">
                 {% csrf_token %}
                 {% if form.non_field_errors %}
                     <div class="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
@@ -208,8 +216,8 @@
                     {{ form.note }}
                 </div>
 
-                <button class="w-full rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white hover:bg-emerald-700">
-                    Complete Checkout
+                <button type="button" id="reviewOrderBtn" class="w-full rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700">
+                    Review Order
                 </button>
             </form>
 
@@ -223,10 +231,23 @@
         </div>
     </section>
 
+    <div id="previewModal" class="fixed inset-0 z-40 hidden items-center justify-center bg-slate-950/60 px-4">
+        <div class="animate-fade-in-up w-full max-w-lg">
+            <div class="mb-3 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-3 text-center text-sm text-indigo-700">
+                Review before printing — nothing is saved yet.
+            </div>
+            <div id="previewContent"></div>
+            <div class="mt-4 flex gap-3">
+                <button type="button" id="backToCartBtn" class="flex-1 rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm transition hover:bg-slate-50">Back to Cart</button>
+                <button type="button" id="confirmPrintBtn" class="hidden flex-1 rounded-xl bg-slate-900 px-4 py-2 text-sm text-white transition hover:bg-slate-800">Confirm & Print</button>
+            </div>
+        </div>
+    </div>
+
     {% if receipt_sale %}
-        <div id="receiptModal" class="fixed inset-0 z-40 flex items-center justify-center bg-slate-950/60 px-4">
-            <div class="w-full max-w-lg">
-                {% include "sales/_receipt_content.html" with sale=receipt_sale %}
+        <div id="receiptModal" data-autoprint="{{ request.GET.autoprint|default:'' }}" class="fixed inset-0 z-40 flex items-center justify-center bg-slate-950/60 px-4">
+            <div class="animate-fade-in-up w-full max-w-lg">
+                {% include "sales/_receipt_content.html" with sale=receipt_sale items=receipt_sale.items.all %}
                 <div class="mt-4 flex gap-3">
                     <button id="closeReceiptModal" class="flex-1 rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm">Close</button>
                     <button onclick="window.print()" class="flex-1 rounded-xl bg-slate-900 px-4 py-2 text-sm text-white">Print</button>
@@ -248,6 +269,7 @@
         const subtotalValue = document.getElementById('subtotalValue');
         const discountValue = document.getElementById('discountValue');
         const redeemValue = document.getElementById('redeemValue');
+        const vatValue = document.getElementById('vatValue');
         const totalValue = document.getElementById('totalValue');
         const changeValue = document.getElementById('changeValue');
         const clearCartBtn = document.getElementById('clearCartBtn');
@@ -263,6 +285,8 @@
         const loyaltyPanel = document.getElementById('loyaltyPanel');
         const isAdmin = {{ is_admin_user|yesno:"true,false" }};
         const loyaltyValuePerPoint = Number('{{ loyalty_value_per_point|escapejs }}');
+        const vatEnabled = {{ vat_enabled|yesno:"true,false" }};
+        const vatRatePercent = Number('{{ vat_rate_percent|escapejs }}');
         const storageKey = 'durielbiz-pos-lanes';
         const laneTabs = document.querySelectorAll('.lane-tab');
         const defaultLanes = {
@@ -295,10 +319,17 @@
             return new Map(lanes[activeLane].cart.map(item => [item.id, item]));
         }
 
+        function vatAmount(subtotal, discount) {
+            if (!vatEnabled) return 0;
+            const taxableBase = Math.max(subtotal - discount, 0);
+            return Math.round(taxableBase * vatRatePercent) / 100;
+        }
+
         function currentLaneTotal() {
             const subtotal = lanes[activeLane].cart.reduce((sum, item) => sum + (item.quantity * item.price), 0);
             const discount = Number(lanes[activeLane].discount || 0);
-            return Math.max(subtotal - discount - redemptionValue(lanes[activeLane].redeemed_points), 0);
+            const vat = vatAmount(subtotal, discount);
+            return Math.max(subtotal - discount - redemptionValue(lanes[activeLane].redeemed_points) + vat, 0);
         }
 
         function updateLaneForm() {
@@ -356,6 +387,7 @@
                 subtotalValue.textContent = currency(0);
                 discountValue.textContent = currency(0);
                 redeemValue.textContent = currency(0);
+                if (vatValue) vatValue.textContent = currency(0);
                 totalValue.textContent = currency(0);
                 lanes[activeLane].paid_amount = '0.00';
                 paidAmountInput.value = '0.00';
@@ -391,10 +423,12 @@
 
             const redeemAmount = redemptionValue(lanes[activeLane].redeemed_points);
             const discountAmount = Number(lanes[activeLane].discount || 0);
-            const total = Math.max(subtotal - discountAmount - redeemAmount, 0);
+            const vat = vatAmount(subtotal, discountAmount);
+            const total = Math.max(subtotal - discountAmount - redeemAmount + vat, 0);
             subtotalValue.textContent = currency(subtotal);
             discountValue.textContent = currency(discountAmount);
             redeemValue.textContent = currency(redeemAmount);
+            if (vatValue) vatValue.textContent = currency(vat);
             totalValue.textContent = currency(total);
             lanes[activeLane].paid_amount = total.toFixed(2);
             paidAmountInput.value = lanes[activeLane].paid_amount;
@@ -635,7 +669,8 @@
             syncCart();
         });
 
-        document.querySelector('form[method="post"]').addEventListener('submit', () => {
+        const checkoutForm = document.getElementById('checkoutForm');
+        checkoutForm.addEventListener('submit', () => {
             saveCurrentLaneFields();
             laneInput.value = activeLane;
             itemsInput.value = JSON.stringify(lanes[activeLane].cart.map(item => ({
@@ -696,6 +731,91 @@
         const closeReceiptModal = document.getElementById('closeReceiptModal');
         if (closeReceiptModal) {
             closeReceiptModal.addEventListener('click', () => receiptModal.remove());
+        }
+        if (receiptModal && receiptModal.dataset.autoprint === '1') {
+            setTimeout(() => window.print(), 150);
+        }
+
+        const reviewOrderBtn = document.getElementById('reviewOrderBtn');
+        const previewModal = document.getElementById('previewModal');
+        const previewContent = document.getElementById('previewContent');
+        const backToCartBtn = document.getElementById('backToCartBtn');
+        const confirmPrintBtn = document.getElementById('confirmPrintBtn');
+
+        function setPreviewVisible(visible) {
+            previewModal.classList.toggle('hidden', !visible);
+            previewModal.classList.toggle('flex', visible);
+        }
+
+        if (reviewOrderBtn) {
+            reviewOrderBtn.addEventListener('click', async () => {
+                saveCurrentLaneFields();
+                laneInput.value = activeLane;
+                itemsInput.value = JSON.stringify(lanes[activeLane].cart.map(item => ({
+                    product_id: item.id,
+                    quantity: item.quantity,
+                    unit_price: item.price
+                })));
+
+                if (!lanes[activeLane].cart.length) {
+                    showToast('Add at least one product to the cart.', 'error');
+                    return;
+                }
+
+                reviewOrderBtn.disabled = true;
+                reviewOrderBtn.textContent = 'Loading review...';
+                try {
+                    // Built explicitly from the lane state (not new FormData(checkoutForm)) —
+                    // some browsers were not reliably capturing the <select> value via FormData.
+                    const lane = lanes[activeLane];
+                    const csrfToken = checkoutForm.querySelector('input[name="csrfmiddlewaretoken"]').value;
+                    const params = new URLSearchParams({
+                        customer_name: lane.customer_name || '',
+                        customer_phone: lane.customer_phone || '',
+                        payment_method: lane.payment_method || 'cash',
+                        paid_amount: lane.paid_amount || '0.00',
+                        redeemed_points: String(lane.redeemed_points || 0),
+                        discount: lane.discount || '0.00',
+                        note: lane.note || '',
+                        lane_name: activeLane,
+                        items_json: itemsInput.value,
+                        csrfmiddlewaretoken: csrfToken
+                    });
+                    const response = await fetch("{% url 'sales:checkout-preview' %}", {
+                        method: 'POST',
+                        body: params,
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                    });
+                    const html = await response.text();
+                    if (response.ok) {
+                        previewContent.innerHTML = html;
+                        confirmPrintBtn.classList.remove('hidden');
+                        confirmPrintBtn.disabled = false;
+                        confirmPrintBtn.textContent = 'Confirm & Print';
+                        setPreviewVisible(true);
+                    } else {
+                        const errorText = html.replace(/<[^>]+>/g, '').trim() || 'Could not build a preview for this order.';
+                        showToast(errorText, 'error');
+                    }
+                } catch (error) {
+                    showToast('Could not reach the server to build a preview.', 'error');
+                } finally {
+                    reviewOrderBtn.disabled = false;
+                    reviewOrderBtn.textContent = 'Review Order';
+                }
+            });
+        }
+
+        if (backToCartBtn) {
+            backToCartBtn.addEventListener('click', () => setPreviewVisible(false));
+        }
+
+        if (confirmPrintBtn) {
+            confirmPrintBtn.addEventListener('click', () => {
+                confirmPrintBtn.disabled = true;
+                confirmPrintBtn.textContent = 'Saving sale...';
+                checkoutForm.requestSubmit ? checkoutForm.requestSubmit() : checkoutForm.submit();
+            });
         }
     </script>
 {% endblock %}
