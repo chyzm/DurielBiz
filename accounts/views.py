@@ -1,4 +1,5 @@
 import os
+import logging
 import secrets
 from functools import wraps
 from urllib.parse import urlparse
@@ -37,6 +38,8 @@ from purchases.models import Purchase
 from sales.models import Sale
 from cloudsync.models import Business as CloudBusiness, BusinessMembership, SyncCredential, SyncEvent
 from invoicing.models import Document, InvoiceBusiness, ToolSubscription
+
+logger = logging.getLogger(__name__)
 
 
 def is_local_preview_eligible(request):
@@ -145,11 +148,16 @@ class CloudPasswordResetView(CloudModeRequiredMixin, View):
             user = User.objects.filter(email__iexact=email, is_active=True).first()
             if user:
                 otp = create_otp(email, EmailOTP.Purpose.PASSWORD_RESET)
-                send_otp_email(
-                    otp,
-                    subject="Your DurielBiz password reset code",
-                    template_name="registration/password_reset_otp_email.txt",
-                )
+                try:
+                    send_otp_email(
+                        otp,
+                        subject="Your DurielBiz password reset code",
+                        template_name="registration/password_reset_otp_email.txt",
+                    )
+                except Exception:
+                    otp.is_used = True
+                    otp.save(update_fields=["is_used"])
+                    logger.exception("Failed to send password reset OTP email to %s", email)
         return redirect("accounts:password-reset-done")
 
 

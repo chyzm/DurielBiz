@@ -1,6 +1,7 @@
 from django.core import mail
 from django.core.cache import cache
 from django.test import TestCase
+from unittest import mock
 
 from accounts.models import EmailOTP, User
 
@@ -29,6 +30,19 @@ class CloudPasswordResetOTPTests(TestCase):
         )
         self.assertRedirects(response, "/accounts/password-reset/done/", fetch_redirect_response=False)
         self.assertEqual(len(mail.outbox), 0)
+
+    def test_email_delivery_failure_does_not_crash_reset_request(self):
+        with mock.patch("accounts.views.send_otp_email", side_effect=OSError("Network is unreachable")):
+            with self.assertLogs("accounts.views", level="ERROR"):
+                response = self.client.post(
+                    "/accounts/password-reset/",
+                    {"email": "cloud_user@example.com"},
+                    HTTP_HOST=self.cloud_host,
+                )
+
+        self.assertRedirects(response, "/accounts/password-reset/done/", fetch_redirect_response=False)
+        otp = EmailOTP.objects.get(email="cloud_user@example.com", purpose=EmailOTP.Purpose.PASSWORD_RESET)
+        self.assertTrue(otp.is_used)
 
     def test_verify_with_correct_code_resets_password(self):
         self.client.post("/accounts/password-reset/", {"email": "cloud_user@example.com"}, HTTP_HOST=self.cloud_host)
