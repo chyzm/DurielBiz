@@ -13,7 +13,7 @@ jobs:
       SECRET_KEY: ci-test-key
       DEBUG: "0"
       DURIELBIZ_ALLOWED_HOSTS: localhost,127.0.0.1
-      DURIELBIZ_DATA_DIR: ${{ runner.temp }}/durielbiz-test-data
+      DURIELBIZ_DATA_DIR: /tmp/durielbiz-test-data
 
     steps:
       - uses: actions/checkout@v4
