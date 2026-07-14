@@ -8,6 +8,7 @@ __pycache__/
 *.mo
 /env/
 .env
+.venv/
 .env.*
 !.env.example
 env/
@@ -17,3 +18,4 @@ dist/
 *.log
 media/
 staticfiles/
+data/

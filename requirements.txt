@@ -1,15 +1,21 @@
-﻿altgraph==0.17.5
+altgraph==0.17.5
 asgiref==3.11.1
+cffi==2.1.0
+charset-normalizer==3.4.9
 cryptography==46.0.1
+dj-database-url==3.1.2
 Django==5.2.12
+gunicorn==26.0.0
 packaging==26.0
 pefile==2024.8.26
+pillow==12.3.0
+pycparser==3.0
 pyinstaller==6.19.0
 pyinstaller-hooks-contrib==2026.3
-reportlab==4.4.10
-pywin32==311 ; sys_platform == "win32"
+python-dotenv==1.2.2
 pywin32-ctypes==0.2.3
-setuptools==82.0.1
+reportlab==4.4.10
 sqlparse==0.5.5
+typing_extensions==4.16.0
 tzdata==2025.3
 whitenoise==6.12.0

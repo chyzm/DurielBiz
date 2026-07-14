@@ -1,0 +1,12 @@
+.venv
+env
+__pycache__
+*.pyc
+.git
+.env
+db.sqlite3
+staticfiles
+*.md
+build_desktop.ps1
+-r
+data/
