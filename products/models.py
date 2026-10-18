@@ -2,6 +2,7 @@ from decimal import Decimal
 
 from django.db import models
 from django.utils.text import slugify
+from accounts.tenancy import TenantOwnedModel
 
 
 def unique_slug_for_instance(instance, source_value, *, slug_field_name="slug", max_length=None):
@@ -22,14 +23,18 @@ def unique_slug_for_instance(instance, source_value, *, slug_field_name="slug", 
     return slug
 
 
-class Category(models.Model):
-    name = models.CharField(max_length=120, unique=True)
-    slug = models.SlugField(max_length=140, unique=True, blank=True)
+class Category(TenantOwnedModel):
+    name = models.CharField(max_length=120)
+    slug = models.SlugField(max_length=140, blank=True)
     description = models.TextField(blank=True)
 
     class Meta:
         ordering = ["name"]
         verbose_name_plural = "categories"
+        constraints = [
+            models.UniqueConstraint(fields=["business", "name"], name="uniq_category_name_business"),
+            models.UniqueConstraint(fields=["business", "slug"], name="uniq_category_slug_business"),
+        ]
 
     def save(self, *args, **kwargs):
         self.slug = unique_slug_for_instance(self, self.name, max_length=self._meta.get_field("slug").max_length)
@@ -39,11 +44,17 @@ class Category(models.Model):
         return self.name
 
 
-class Product(models.Model):
+class Product(TenantOwnedModel):
     name = models.CharField(max_length=255)
-    slug = models.SlugField(max_length=280, unique=True, blank=True)
-    barcode = models.CharField(max_length=100, unique=True, blank=True, null=True)
-    category = models.ForeignKey(Category, on_delete=models.PROTECT, related_name="products")
+    slug = models.SlugField(max_length=280, blank=True)
+    barcode = models.CharField(max_length=100, blank=True, null=True)
+    category = models.ForeignKey(
+        Category,
+        on_delete=models.SET_NULL,
+        related_name="products",
+        blank=True,
+        null=True,
+    )
     supplier = models.ForeignKey(
         "suppliers.Supplier",
         on_delete=models.SET_NULL,
@@ -62,6 +73,10 @@ class Product(models.Model):
 
     class Meta:
         ordering = ["name"]
+        constraints = [
+            models.UniqueConstraint(fields=["business", "slug"], name="uniq_product_slug_business"),
+            models.UniqueConstraint(fields=["business", "barcode"], name="uniq_product_barcode_business"),
+        ]
 
     def save(self, *args, **kwargs):
         self.slug = unique_slug_for_instance(self, self.name, max_length=self._meta.get_field("slug").max_length)
@@ -79,7 +94,7 @@ class Product(models.Model):
         return self.name
 
 
-class BranchStock(models.Model):
+class BranchStock(TenantOwnedModel):
     branch = models.ForeignKey("reports.Branch", on_delete=models.CASCADE, related_name="product_stocks")
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="branch_stocks")
     quantity = models.PositiveIntegerField(default=0)
@@ -87,7 +102,7 @@ class BranchStock(models.Model):
 
     class Meta:
         ordering = ["branch__name", "product__name"]
-        unique_together = ("branch", "product")
+        constraints = [models.UniqueConstraint(fields=["business", "branch", "product"], name="uniq_stock_branch_product_business")]
 
     def __str__(self) -> str:
         return f"{self.product.name} @ {self.branch.name}"

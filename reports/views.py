@@ -1,13 +1,10 @@
 import csv
 import json
-import os
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 
-from django.conf import settings
 from django.contrib import messages
-from django.urls import reverse
 from django.contrib.auth.decorators import login_required
-from django.http import HttpResponse, HttpResponseForbidden, JsonResponse
+from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
@@ -22,24 +19,9 @@ from .models import Branch, BusinessSettings
 from .services import (
     category_sales_report,
     dashboard_metrics,
-    perform_cloud_sync,
     profit_by_product_report,
     render_profit_report_pdf,
-    sync_export_payload,
 )
-
-
-def home(request):
-    host = request.get_host().split(":", 1)[0].lower()
-    is_local_dev = host in {"127.0.0.1", "localhost"} and os.getenv("DURIELBIZ_DESKTOP") != "1"
-    tools_url = reverse("invoicing:home") if settings.INVOICING_ALLOW_LOCAL or is_local_dev else f"{settings.DURIELBIZ_SITE_URL.rstrip('/')}/tools/"
-    return render(
-        request,
-        "home.html",
-        {
-            "tools_url": tools_url,
-        },
-    )
 
 
 @login_required
@@ -95,65 +77,14 @@ def business_settings_view(request):
 
 @login_required
 @role_required(User.Role.ADMIN)
-def sync_now(request):
-    settings_obj = BusinessSettings.get_solo()
-    if request.method != "POST":
-        return redirect("reports:business-settings")
-    if not settings_obj.cloud_sync_enabled:
-        messages.error(request, "Enable cloud sync first.")
-        return redirect("reports:business-settings")
-    if not settings_obj.cloud_sync_token or not settings_obj.sync_dashboard_url:
-        messages.error(request, "Set both cloud sync token and sync dashboard URL first.")
-        return redirect("reports:business-settings")
-    try:
-        response = perform_cloud_sync(settings_obj=settings_obj)
-    except ValueError as exc:
-        messages.error(request, str(exc))
-    else:
-        log_activity(
-            user=request.user,
-            module=ActivityLog.Module.SETTINGS,
-            action="cloud_sync_triggered",
-            description=f"{request.user.username} triggered a cloud sync",
-            entity_type="business_settings",
-            entity_id=settings_obj.pk,
-            metadata=response if isinstance(response, dict) else {},
-        )
-        messages.success(request, "Cloud sync completed successfully.")
-    return redirect("reports:business-settings")
-
-
-@login_required
-def sync_auto(request):
-    settings_obj = BusinessSettings.get_solo()
-    if request.method != "POST":
-        return JsonResponse({"ok": False, "message": "Method not allowed."}, status=405)
-    if not settings_obj.cloud_sync_enabled or not settings_obj.auto_sync_enabled:
-        return JsonResponse({"ok": False, "message": "Automatic cloud sync is disabled."}, status=400)
-    if not settings_obj.cloud_sync_token or not settings_obj.sync_dashboard_url:
-        return JsonResponse({"ok": False, "message": "Cloud sync token or URL is missing."}, status=400)
-    try:
-        response = perform_cloud_sync(settings_obj=settings_obj)
-    except ValueError as exc:
-        return JsonResponse({"ok": False, "message": str(exc)}, status=400)
-    return JsonResponse(
-        {
-            "ok": True,
-            "message": "Automatic cloud sync completed.",
-            "last_cloud_sync_at": settings_obj.last_cloud_sync_at.isoformat() if settings_obj.last_cloud_sync_at else "",
-            "response": response if isinstance(response, dict) else {},
-        }
-    )
-
-
-@login_required
-@role_required(User.Role.ADMIN)
 def branch_list(request):
     form = BranchForm(request.POST or None)
     if request.method == "POST" and form.is_valid():
         branch = form.save()
         if not BusinessSettings.get_solo().default_branch:
-            BusinessSettings.objects.filter(pk=BusinessSettings.get_solo().pk).update(default_branch=branch)
+            settings_obj = BusinessSettings.get_solo()
+            settings_obj.default_branch = branch
+            settings_obj.save(update_fields=["default_branch", "updated_at"])
         log_activity(
             user=request.user,
             module=ActivityLog.Module.SETTINGS,
@@ -196,7 +127,9 @@ def branch_delete(request, pk):
     if request.method == "POST":
         branch_name = branch.name
         if BusinessSettings.get_solo().default_branch_id == branch.pk:
-            BusinessSettings.objects.filter(pk=BusinessSettings.get_solo().pk).update(default_branch=None)
+            settings_obj = BusinessSettings.get_solo()
+            settings_obj.default_branch = None
+            settings_obj.save(update_fields=["default_branch", "updated_at"])
         branch.delete()
         log_activity(
             user=request.user,
@@ -212,15 +145,28 @@ def branch_delete(request, pk):
 
 
 def _report_filters(request):
-    branches = Branch.objects.filter(is_active=True).order_by("name")
-    branch_code = request.GET.get("branch", "").strip()
-    branch_obj = branches.filter(code=branch_code).first() if branch_code else None
+    branches = active_branches_for_user(request.user)
+    if request.user.role == User.Role.ADMIN:
+        branch_code = request.GET.get("branch", "").strip()
+        branch_obj = branches.filter(code=branch_code).first() if branch_code else None
+    else:
+        branch_obj = get_user_branch(request.user)
+        branch_code = branch_obj.code if branch_obj else ""
 
     today = timezone.localdate()
     default_start = (today - timedelta(days=29)).isoformat()
     default_end = today.isoformat()
     start_date = request.GET.get("start_date", "").strip() or default_start
     end_date = request.GET.get("end_date", "").strip() or default_end
+    try:
+        start = date.fromisoformat(start_date)
+        end = date.fromisoformat(end_date)
+        if start > end:
+            raise ValueError("start date is after end date")
+    except ValueError:
+        messages.warning(request, "The date range was invalid; showing the default 30-day period.")
+        start_date, end_date = default_start, default_end
+        start, end = date.fromisoformat(start_date), date.fromisoformat(end_date)
 
     return {
         "branches": branches,
@@ -229,13 +175,13 @@ def _report_filters(request):
         "branch_label": branch_obj.name if branch_obj else "All Branches",
         "start_date": start_date,
         "end_date": end_date,
-        "start": datetime.strptime(start_date, "%Y-%m-%d").date(),
-        "end": datetime.strptime(end_date, "%Y-%m-%d").date(),
+        "start": start,
+        "end": end,
     }
 
 
 @login_required
-@role_required(User.Role.ADMIN)
+@role_required(User.Role.ADMIN, User.Role.MANAGER)
 def reports_category(request):
     filters = _report_filters(request)
     rows = category_sales_report(branch=filters["branch_obj"], start_date=filters["start"], end_date=filters["end"])
@@ -247,7 +193,7 @@ def reports_category(request):
 
 
 @login_required
-@role_required(User.Role.ADMIN)
+@role_required(User.Role.ADMIN, User.Role.MANAGER)
 def reports_category_export_csv(request):
     filters = _report_filters(request)
     rows = category_sales_report(branch=filters["branch_obj"], start_date=filters["start"], end_date=filters["end"])
@@ -265,7 +211,7 @@ def reports_category_export_csv(request):
 
 
 @login_required
-@role_required(User.Role.ADMIN)
+@role_required(User.Role.ADMIN, User.Role.MANAGER)
 def reports_profit_by_product(request):
     filters = _report_filters(request)
     rows = profit_by_product_report(branch=filters["branch_obj"], start_date=filters["start"], end_date=filters["end"])
@@ -277,7 +223,7 @@ def reports_profit_by_product(request):
 
 
 @login_required
-@role_required(User.Role.ADMIN)
+@role_required(User.Role.ADMIN, User.Role.MANAGER)
 def reports_profit_export_csv(request):
     filters = _report_filters(request)
     rows = profit_by_product_report(branch=filters["branch_obj"], start_date=filters["start"], end_date=filters["end"])
@@ -301,29 +247,10 @@ def reports_profit_export_csv(request):
 
 
 @login_required
-@role_required(User.Role.ADMIN)
+@role_required(User.Role.ADMIN, User.Role.MANAGER)
 def reports_profit_export_pdf(request):
     filters = _report_filters(request)
     rows = list(profit_by_product_report(branch=filters["branch_obj"], start_date=filters["start"], end_date=filters["end"]))
     return render_profit_report_pdf(
         rows, branch_name=filters["branch_label"], start_date=filters["start_date"], end_date=filters["end_date"]
     )
-
-
-def sync_export_view(request):
-    settings_obj = BusinessSettings.get_solo()
-    token = request.headers.get("X-Sync-Token") or request.GET.get("token", "").strip()
-    user = getattr(request, "user", None)
-    is_admin_user = bool(user and user.is_authenticated and getattr(user, "role", "") == User.Role.ADMIN)
-
-    if not settings_obj.cloud_sync_enabled and not is_admin_user:
-        return HttpResponseForbidden("Cloud sync is disabled.")
-    if not is_admin_user and (not settings_obj.cloud_sync_token or token != settings_obj.cloud_sync_token):
-        return HttpResponseForbidden("Invalid sync token.")
-
-    scoped_branch = None
-    if user and user.is_authenticated and getattr(user, "role", "") != User.Role.ADMIN:
-        scoped_branch = get_user_branch(user)
-
-    payload = sync_export_payload(since=request.GET.get("since"), branch=scoped_branch)
-    return JsonResponse(payload)

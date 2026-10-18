@@ -2,7 +2,7 @@
 
 Built by `DurielTech`, an IT company delivering operational software for healthcare, retail, mobility, and business automation.
 
-Desktop-first point of sale system built with Django. The project is designed to run locally for a shop on `127.0.0.1:9000`, while keeping the codebase modular enough for later sync, remote reporting, and multi-branch expansion.
+Point of sale system built with Django. The packaged desktop app uses `127.0.0.1:8080`; the local cloud-mode development server uses Django's default `127.0.0.1:8000`.
 
 ## Current scope
 
@@ -16,9 +16,6 @@ Desktop-first point of sale system built with Django. The project is designed to
 - Branded receipt modal with business settings
 - Paginated list and table views across operational screens
 - Branch management with default-branch transaction tagging
-- Token-protected sync export endpoint for remote dashboards
-- Optional automatic scheduled sync from local POS to cloud dashboard
-- Optional Windows background sync service for scheduled sync that survives app/browser restarts
 - 80mm thermal receipt print styling
 - Toast-based expiry notifications
 - Admin-only sales history by date
@@ -93,14 +90,12 @@ Desktop-first point of sale system built with Django. The project is designed to
 - Dashboard cards and summary metrics
 - Revenue and profit aggregates
 - Low stock and expiring product visibility
-- Business settings for receipt branding, branch defaults, sync configuration, and loyalty rules
+- Business settings for receipt branding, branch defaults, and loyalty rules
 
-### Branches and Sync
+### Branches
 
 - Branch CRUD for multi-branch deployments
 - Default branch assignment on sales, purchases, and inventory logs
-- Sync export endpoint at `/sync/export/` for cloud dashboard ingestion
-- Token-based access for external sync clients, with admin override from an authenticated session
 
 ### Notifications
 
@@ -207,7 +202,6 @@ Admin can review logs from the activity log page.
 - `/sales/customers/`
 - `/branches/`
 - `/reports/settings/business/`
-- `/sync/export/`
 - `/notifications/expiring-products/`
 
 ## Project structure
@@ -264,7 +258,7 @@ python manage.py createsuperuser
 python manage.py runserver
 ```
 
-Open `http://127.0.0.1:9000/`.
+Open `http://127.0.0.1:8000/`.
 
 ## Business setup checklist
 
@@ -303,12 +297,6 @@ Use this checklist before selling or deploying to a client:
    - add stock
    - make sale, review the order, then confirm & print
    - view dashboard
-8. If remote monitoring is included:
-   - create cloud account
-   - copy sync token and ingest URL
-   - enable cloud sync locally
-   - run `Sync Now`
-   - verify cloud dashboard receives data
 9. Once the client is ready to pay, open their activation screen and enter your saved activation key (see [Licensing](#licensing-trial--activation))
 10. Deliver the client handoff items:
     - installer
@@ -359,7 +347,6 @@ powershell -ExecutionPolicy Bypass -File .\build_desktop.ps1
 
 - Windowed app is generated in `dist\DurielBizPOS.exe`
 - Console admin tool is generated in `dist\DurielBizPOSAdmin.exe`
-- Windows sync service bundle is generated in `dist\DurielBizPOSSyncService\`
 - `desktop_launcher.py` copies the packaged Django project into the packaged runtime directory
 - The launcher runs migrations automatically, starts Django locally, and opens the POS only after the server is reachable
 
@@ -371,7 +358,7 @@ This is the current desktop strategy:
 
 ## Licensing (trial & activation)
 
-The desktop build includes a 14-day trial and a single-master-key activation system, implemented in the `licensing` app. It only ever applies to the packaged desktop app — the cloud dashboard and local development (`manage.py runserver`) are never gated.
+The desktop build includes a 14-day trial and a single-master-key activation system, implemented in the `licensing` app. It only ever applies to the packaged desktop app — the hosted deployment and local development (`manage.py runserver`) are never gated.
 
 ### How it works
 
@@ -434,10 +421,10 @@ python manage.py createsuperuser
 6. Start the POS locally:
 
 ```powershell
-python manage.py runserver 127.0.0.1:9000
+python manage.py runserver 127.0.0.1:8000
 ```
 
-7. Open `http://127.0.0.1:9000/` in the browser
+7. Open `http://127.0.0.1:8000/` in the browser
 
 This keeps all data on that desktop in the local `db.sqlite3` file.
 
@@ -499,7 +486,6 @@ Installer behavior:
 - Creates Start Menu shortcut
 - Optionally creates a desktop shortcut
 - Stores the desktop app runtime under `%LOCALAPPDATA%\DurielBizPOS\runtime`
-- The Windows background sync service is packaged, but install it manually when needed
 - Uninstall removes the app files and local app data for that Windows user
 
 ### Create an admin user for the desktop app
@@ -554,53 +540,11 @@ Important:
 - Replacing the EXE does not delete existing data
 - If a release includes a new migration, let the first launch finish before closing the app
 
-### Windows background sync service
-
-The desktop build now includes a real Windows service for cloud sync:
-
-- `dist\DurielBizPOSSyncService\DurielBizPOSSyncService.exe`
-- Service name: `DurielBizPOSSyncService`
-- Service runtime: `C:\ProgramData\DurielBizPOS\sync-service-runtime`
-- Shared data depends on the account the service runs under unless `DURIELBIZ_DATA_DIR` is set explicitly
-
-This service keeps scheduled cloud sync running even when the POS window or browser is closed. For it to use the same local database as the desktop app, install it under the same Windows user account as the shop app, or set `DURIELBIZ_DATA_DIR` explicitly before installation.
-
-#### Install manually
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\build_desktop.ps1
-powershell -ExecutionPolicy Bypass -File .\install_sync_service.ps1 -Username ".\YOUR_WINDOWS_USER" -Password "YOUR_WINDOWS_PASSWORD"
-```
-
-#### Remove manually
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\uninstall_sync_service.ps1
-```
-
-#### Direct service commands
-
-```powershell
-.\dist\DurielBizPOSSyncService\DurielBizPOSSyncService.exe --startup auto install
-.\dist\DurielBizPOSSyncService\DurielBizPOSSyncService.exe start
-.\dist\DurielBizPOSSyncService\DurielBizPOSSyncService.exe stop
-.\dist\DurielBizPOSSyncService\DurielBizPOSSyncService.exe remove
-```
-
-#### Logs
-
-- Desktop launcher: `%LOCALAPPDATA%\DurielBizPOS\runtime\launcher.log`
-- Sync service: `C:\ProgramData\DurielBizPOS\sync-service-runtime\sync_service.log`
-
 ## Remote viewing
-
-There are two practical ways to view data remotely with the current codebase.
-
-### Option 1: View over local network
 
 Use this if the phone or another PC is on the same Wi‑Fi/LAN as the POS computer.
 
-#### Step by step with the desktop EXE
+### Step by step with the desktop EXE
 
 1. Install and test the app normally on the shop PC.
 2. On the shop PC, find the IPv4 address:
@@ -640,181 +584,64 @@ ipconfig
 
 ```powershell
 $env:DURIELBIZ_ALLOWED_HOSTS="127.0.0.1,localhost,192.168.1.25"
-python manage.py runserver 0.0.0.0:9000
+python manage.py runserver 0.0.0.0:8080
 ```
 
 3. Open from another device on the same network:
 
 ```text
-http://192.168.1.25:9000/
+http://192.168.1.25:8080/
 ```
 
 This is the simplest remote view option for a single location.
-
-### Option 2: Cloud dashboard sync
-
-Use this if you want true remote viewing outside the shop network.
-
-Current support in this project:
-
-- Business Settings stores:
-  - `cloud_sync_enabled`
-  - `cloud_sync_token`
-  - `sync_dashboard_url`
-- Export payload generation is available locally
-- Push sync is available through the `Sync Now` action
-- Cloud ingest endpoint is available at `/cloud/api/ingest/`
-
-#### Step by step
-
-1. Deploy this project to PythonAnywhere for the cloud dashboard.
-2. In the shop POS, open Business Settings.
-3. Enable cloud sync.
-4. Create a cloud business account from `/accounts/signup/`.
-5. Open `/cloud/settings/` and copy:
-   - the sync token
-   - the ingest URL
-6. Set `cloud_sync_token` on the local POS to the token copied from the cloud dashboard.
-7. Set `sync_dashboard_url` on the local POS to the ingest URL copied from the cloud dashboard.
-8. Use `Sync Now` from local Business Settings.
-9. The local POS pushes branches, sales, purchases, and inventory logs to the cloud dashboard.
-10. Open the cloud dashboard from your phone or browser anywhere.
-
-Current limitation:
-
-- Sync is manual through the `Sync Now` button
-- Automatic scheduled sync can still be added later if needed
 
 ### Security note for remote viewing
 
 - Do not expose the local Django server directly to the public internet in `DEBUG=True`
 - For internet access, use a proper hosted server, HTTPS, authentication, and firewall rules
-- Treat `cloud_sync_token` like a password
 
-## Cloud dashboard for multiple businesses
+## Cloud production requirements
 
-The project now includes a cloud dashboard module for multi-business remote monitoring.
+The Docker Compose deployment is treated as production. Set these values in `.env` before
+starting it:
 
-### What it does
+- `DEBUG=False`
+- `SECRET_KEY` to a unique, private value
+- `DATABASE_URL` to the production MySQL database
+- `DURIELBIZ_ALLOWED_HOSTS` to DNS hostnames only (no `https://` prefix)
+- `DURIELBIZ_CSRF_TRUSTED_ORIGINS` to the HTTPS site origins
 
-- lets each business create its own online dashboard account
-- isolates cloud data per business
-- receives synced data from local POS deployments
-- shows synced branches and sales remotely
+Cloud production fails startup when its secret, HTTPS origin, or MySQL database is
+missing. Desktop installs continue using their local SQLite database. Docker Compose
+runs a separate scheduler container at 08:00 in the configured Django timezone and
+also catches up once when that container starts. The underlying
+`python manage.py send_subscription_reminders` command remains available for hosts
+that use their own daily scheduler. Each reminder is recorded once per subscription term.
 
-### Main cloud routes
+## Cloud and desktop synchronization
 
-- `/accounts/signup/` creates a cloud business account
-- `/cloud/` cloud dashboard overview
-- `/cloud/sales/` synced remote sales
-- `/cloud/branches/` synced branch list
-- `/cloud/settings/` sync token and ingest URL
-- `/cloud/api/ingest/` sync ingest endpoint for local POS
+Synchronization uses an authenticated device credential and a change log for each business.
+The desktop launcher retries in the background every 60 seconds when sync is configured;
+POS checkout stays available while the network is down. New desktop records use device-local
+device-specific negative IDs so their keys do not collide with cloud-created records.
 
-### Cloud models
+1. Apply migrations on the hosted deployment.
+2. Create a device credential on the cloud host:
 
-- `cloudsync.Business`
-- `cloudsync.BusinessMembership`
-- `cloudsync.SyncCredential`
-- `cloudsync.RemoteBranch`
-- `cloudsync.RemoteSale`
-- `cloudsync.RemoteSaleItem`
-- `cloudsync.RemotePurchase`
-- `cloudsync.RemotePurchaseItem`
-- `cloudsync.RemoteInventoryLog`
-- `cloudsync.SyncEvent`
-
-### Local POS to cloud sync
-
-1. Deploy this project to PythonAnywhere for the cloud dashboard.
-2. Create a business account from:
-
-```text
-/accounts/signup/
+```powershell
+python manage.py create_sync_device acme-stores "Shop PC"
 ```
 
-3. Open cloud sync settings from:
+3. Copy the printed values into the desktop `.env`. Set `DURIELBIZ_SYNC_URL` to the full
+   HTTPS endpoint, such as `https://pos.example.com/api/sync/`.
+4. Start the desktop app. On its first successful connection, the cloud business snapshot
+   replaces that business's local records. Back up any desktop data you need before pairing.
+   Later syncs send desktop changes and apply cloud changes in both directions.
+5. Revoke a lost device by setting it inactive under Django Admin → Sync devices.
 
-```text
-/cloud/settings/
-```
-
-4. Copy:
-   - the ingest URL
-   - the sync token
-5. On the local POS desktop app, open Business Settings.
-6. Set:
-   - `cloud_sync_enabled`
-   - `cloud_sync_token`
-   - `sync_dashboard_url`
-7. Optional: enable `auto_sync_enabled` and set `auto_sync_interval_minutes`.
-8. Use `Sync Now` from Business Settings to push local data to the cloud dashboard immediately.
-9. In the desktop app, automatic sync can run server-side in the background while the local POS server is running.
-10. On Windows installs, the background sync service can keep sync running even when the app is closed.
-
-### PythonAnywhere deployment overview
-
-Use PythonAnywhere only for the cloud dashboard and sync API. Keep the sales terminal local.
-
-#### Recommended deploy steps
-
-1. Create a PythonAnywhere account.
-2. Upload or clone this project into your PythonAnywhere home folder.
-3. Create a virtual environment and install requirements.
-4. Create a web app for Django.
-5. Point the PythonAnywhere WSGI file to `pos_system.wsgi`.
-6. Run:
-
-```bash
-python manage.py migrate
-python manage.py collectstatic --noinput
-```
-
-7. Reload the web app.
-8. Open the public URL and create the first business account from `/accounts/signup/`.
-
-Static files (CSS/JS/images) are served through the app itself via WhiteNoise (`whitenoise.middleware.WhiteNoiseMiddleware`), so no separate PythonAnywhere "static files" mapping is required — it works correctly whether or not `collectstatic` has been run.
-
-#### Local-to-cloud configuration example
-
-If your PythonAnywhere app URL is:
-
-```text
-https://yourname.pythonanywhere.com
-```
-
-Then the local POS should use:
-
-- `sync_dashboard_url = https://yourname.pythonanywhere.com/cloud/api/ingest/`
-- `cloud_sync_token = <token copied from /cloud/settings/>`
-
-### Current sync mode
-
-- local POS pushes data manually with the `Sync Now` button
-- local desktop app also runs automatic sync server-side when enabled
-- sync is token-protected
-- each cloud dashboard user sees only their own business data
-- branch data is separated within each business
-
-### Server-side automatic sync
-
-The local desktop launcher now starts a background sync worker automatically. This means scheduled sync no longer depends on an open browser tab.
-
-For Windows packaged installs, use the dedicated Windows service when you want scheduled sync to continue even after closing the desktop app. A lock file prevents duplicate sync runs if both the launcher worker and the service are active at the same time.
-
-For non-desktop deployments, the same worker can be run manually with:
-
-```bash
-python manage.py run_autosync
-```
-
-To run a single due-check and exit:
-
-```bash
-python manage.py run_autosync --once
-```
-
-This is the command to use with platform schedulers such as PythonAnywhere tasks if you need a hosted worker process.
+The first sync treats cloud data as authoritative. If the same record changes independently
+while a desktop is offline, the latest change delivered to the receiving database wins. Sync
+credentials are per device; keep the printed token private.
 
 ## Thermal printing
 

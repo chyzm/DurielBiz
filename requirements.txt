@@ -5,6 +5,7 @@ charset-normalizer==3.4.9
 cryptography==46.0.1
 dj-database-url==3.1.2
 Django==5.2.12
+mysqlclient==2.2.8
 gunicorn==26.0.0
 packaging==26.0
 pefile==2024.8.26

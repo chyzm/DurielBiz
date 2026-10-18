@@ -1,27 +1,27 @@
-import os
 import logging
-import secrets
+import os
 from functools import wraps
-from urllib.parse import urlparse
 
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import views as auth_views
 from django.contrib.auth.decorators import login_required
+from django import forms
+from django.db import transaction
 from django.db.models import Count
 from django.db.models.deletion import ProtectedError
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse_lazy
+from django.utils import timezone
 from django.utils.decorators import method_decorator
+from django.utils.text import slugify
 from django.views import View
 
 from pos_system.pagination import paginate_queryset
 from pos_system.throttle import register_attempt, throttle, too_many_attempts
 
-from cloudsync.services import user_business
 from .activity import get_client_ip, log_activity
 from .forms import (
-    CreateCloudBusinessForm,
     EmailOrUsernameAuthenticationForm,
     OTPPasswordResetForm,
     OTPRequestForm,
@@ -31,50 +31,114 @@ from .forms import (
     StyledSetPasswordForm,
 )
 from .otp import consume_otp, create_otp, find_valid_otp, send_otp_email
-from .permissions import get_role_home_url, role_required
-from accounts.models import ActivityLog, EmailOTP, User
+from .permissions import get_role_home_url, get_user_branch, role_required
+from .subscriptions import add_subscription_term
+from accounts.models import ActivityLog, Business, EmailOTP, SuperadminActivityLog, User
+from accounts.tenancy import reset_current_business_id, set_current_business_id
 from inventory.models import InventoryLog
 from purchases.models import Purchase
 from sales.models import Sale
-from cloudsync.models import Business as CloudBusiness, BusinessMembership, SyncCredential, SyncEvent
-from invoicing.models import Document, InvoiceBusiness, ToolSubscription
 
 logger = logging.getLogger(__name__)
 
 
-def is_local_preview_eligible(request):
-    """True only for a manual local run (never the packaged desktop app, which
-    always sets DURIELBIZ_DESKTOP=1 and is excluded before this is even checked)."""
-    if os.getenv("DURIELBIZ_DESKTOP") == "1":
-        return False
-    host = request.get_host().split(":")[0].lower()
-    return host in {"127.0.0.1", "localhost"}
+class BusinessSetupForm(forms.Form):
+    business_name = forms.CharField(max_length=255)
+    admin_username = forms.CharField(max_length=150)
+    admin_email = forms.EmailField()
+    admin_password = forms.CharField(widget=forms.PasswordInput)
+    subscription_plan = forms.ChoiceField(
+        choices=Business.SubscriptionPlan.choices,
+        initial=Business.SubscriptionPlan.YEARLY,
+        label="Subscription",
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        input_class = (
+            "mt-2 block w-full rounded-xl border border-slate-300 bg-white px-4 py-3 "
+            "text-sm text-slate-900 shadow-sm outline-none transition "
+            "placeholder:text-slate-400 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100"
+        )
+        placeholders = {
+            "business_name": "e.g. Acme Stores",
+            "admin_username": "Choose a username",
+            "admin_email": "admin@example.com",
+            "admin_password": "Create a strong password",
+            "subscription_plan": "Choose a subscription term",
+        }
+        for name, field in self.fields.items():
+            field.widget.attrs.update({"class": input_class, "placeholder": placeholders[name]})
+        self.fields["admin_password"].widget.attrs["autocomplete"] = "new-password"
+
+    def clean_admin_username(self):
+        username = self.cleaned_data["admin_username"]
+        if User.objects.filter(username__iexact=username).exists():
+            raise forms.ValidationError("That username is already in use.")
+        return username
+
+    def clean_admin_email(self):
+        email = self.cleaned_data["admin_email"].strip().lower()
+        if User.objects.filter(email__iexact=email).exists():
+            raise forms.ValidationError("That email address is already used by another user.")
+        return email
+
+    def clean_admin_password(self):
+        from django.contrib.auth.password_validation import validate_password
+
+        password = self.cleaned_data["admin_password"]
+        validate_password(password)
+        return password
+
+    def save(self):
+        name = self.cleaned_data["business_name"].strip()
+        base_slug = slugify(name)[:110] or "business"
+        slug, suffix = base_slug, 2
+        while Business.objects.filter(slug=slug).exists():
+            slug = f"{base_slug[:105]}-{suffix}"
+            suffix += 1
+        plan = self.cleaned_data["subscription_plan"]
+        with transaction.atomic():
+            business = Business.objects.create(
+                name=name,
+                slug=slug,
+                subscription_plan=plan,
+                subscription_expires_at=add_subscription_term(timezone.now(), plan),
+            )
+            admin = User.objects.create_user(
+                username=self.cleaned_data["admin_username"],
+                email=self.cleaned_data["admin_email"],
+                password=self.cleaned_data["admin_password"],
+                role=User.Role.ADMIN,
+                business=business,
+            )
+            from reports.models import BusinessSettings
+
+            token = set_current_business_id(business.pk)
+            try:
+                BusinessSettings.objects.create(business=business, business_name=name)
+            finally:
+                reset_current_business_id(token)
+        return business, admin
 
 
 def is_cloud_request(request):
-    if os.getenv("DURIELBIZ_DESKTOP") == "1":
-        return False
-    host = request.get_host().split(":")[0].lower()
-    if host in {"127.0.0.1", "localhost"}:
-        # Dev-only escape hatch so the cloud login variant can be previewed from
-        # localhost without deploying. The real packaged desktop app can never reach
-        # this branch — it always sets DURIELBIZ_DESKTOP=1 and returns above — so this
-        # is safe to leave available regardless of DEBUG (which can vary per .env).
-        mode = request.GET.get("mode")
-        if mode in {"cloud", "local"}:
-            request.session["dev_login_mode"] = mode
-        if request.session.get("dev_login_mode") == "cloud":
-            return True
-        next_path = urlparse(request.GET.get("next", "")).path
-        if next_path.startswith("/cloud/") or next_path == "/cloud":
-            return True
-        return False
-    return True
+    """True when this deployment is the centrally-hosted one rather than the packaged
+    offline desktop app.
+
+    Account self-service — the emailed OTP password reset and the password-change flow —
+    needs a mail path, which the fully-offline desktop build does not have. This used to
+    also distinguish the read-only cloud dashboard; that has been removed, so the check
+    is now purely about deployment mode.
+
+    Takes `request` for call-site compatibility; the answer no longer depends on it.
+    """
+    return os.getenv("DURIELBIZ_DESKTOP") != "1"
 
 
 class CloudModeRequiredMixin:
     fallback_url = reverse_lazy("accounts:login")
-    fallback_message = "This account action is available only on the cloud dashboard."
+    fallback_message = "This account action is available only on the hosted deployment."
 
     def dispatch(self, request, *args, **kwargs):
         if not is_cloud_request(request):
@@ -111,7 +175,6 @@ class AccountLoginView(auth_views.LoginView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["is_cloud_login"] = is_cloud_request(self.request)
-        context["dev_login_preview"] = is_local_preview_eligible(self.request)
         return context
 
     def post(self, request, *args, **kwargs):
@@ -125,6 +188,18 @@ class AccountLoginView(auth_views.LoginView):
     def form_invalid(self, form):
         register_attempt(f"login:{get_client_ip(self.request)}", window_seconds=900)
         return super().form_invalid(form)
+
+    def form_valid(self, form):
+        user = form.get_user()
+        business = getattr(user, "business", None)
+        if not user.is_superuser and business is not None:
+            if not business.is_active:
+                form.add_error(None, "This business account is inactive. Contact DurielTech to restore access.")
+                return self.render_to_response(self.get_context_data(form=form))
+            if business.subscription_expired:
+                form.add_error(None, "This business subscription has expired. Contact the administrator to renew it.")
+                return self.render_to_response(self.get_context_data(form=form))
+        return super().form_valid(form)
 
 
 class CloudPasswordResetView(CloudModeRequiredMixin, View):
@@ -145,7 +220,9 @@ class CloudPasswordResetView(CloudModeRequiredMixin, View):
 
         throttle_key = f"password-reset:{get_client_ip(request)}"
         if not throttle(throttle_key, limit=3, window_seconds=3600):
-            user = User.objects.filter(email__iexact=email, is_active=True).first()
+            matches = list(User.objects.filter(email__iexact=email, is_active=True)[:2])
+            # Do not send a reset code that could authenticate against the wrong tenant.
+            user = matches[0] if len(matches) == 1 else None
             if user:
                 otp = create_otp(email, EmailOTP.Purpose.PASSWORD_RESET)
                 try:
@@ -191,7 +268,8 @@ class CloudPasswordResetConfirmView(CloudModeRequiredMixin, View):
             messages.error(request, "Too many attempts. Request a new code and try again later.")
             return redirect("accounts:password-reset")
 
-        user = User.objects.filter(email__iexact=email, is_active=True).first()
+        matches = list(User.objects.filter(email__iexact=email, is_active=True)[:2])
+        user = matches[0] if len(matches) == 1 else None
         form = OTPPasswordResetForm(request.POST, user=user)
         form_valid = form.is_valid()
 
@@ -242,18 +320,119 @@ class CloudPasswordChangeDoneView(CloudModeRequiredMixin, auth_views.PasswordCha
 
 @login_required
 def role_home(request):
+    if not request.user.business_id:
+        if request.user.is_superuser:
+            return redirect("accounts:business-setup")
+        messages.error(request, "Your account is not assigned to a business.")
+        return redirect("accounts:logout")
     if request.user.must_change_password:
         return redirect("accounts:password-change-required")
     return redirect(get_role_home_url(request.user))
 
 
+@superadmin_required
+def business_setup(request):
+    form = BusinessSetupForm(request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        business, admin_user = form.save()
+        SuperadminActivityLog.objects.create(
+            user=request.user,
+            business=business,
+            action="business_created",
+            description=f"Created business {business.name} and its first administrator",
+            ip_address=get_client_ip(request),
+        )
+        messages.success(request, f"Business {business.name} and its administrator were created.")
+        return redirect("accounts:superadmin-dashboard")
+    return render(request, "accounts/business_setup.html", {"form": form})
+
+
+@superadmin_required
+def superadmin_dashboard(request):
+    businesses = Business.objects.annotate(user_count=Count("users")).order_by("name")
+    selected_business_id = request.GET.get("business", "").strip()
+    activity_businesses = Business.objects.order_by("name")
+    activities = SuperadminActivityLog.objects.select_related("user", "business").order_by("-created_at")
+    if selected_business_id.isdigit():
+        activities = activities.filter(business_id=int(selected_business_id))
+    activity_page = paginate_queryset(request, activities, per_page=20, page_param="activity_page")
+    context = {
+        "businesses": businesses,
+        "business_count": businesses.count(),
+        "active_business_count": businesses.filter(is_active=True).count(),
+        "expired_business_count": sum(1 for business in businesses if business.subscription_expired),
+        "activity_businesses": activity_businesses,
+        "activity_page": activity_page,
+        "selected_business_id": selected_business_id,
+    }
+    return render(request, "accounts/superadmin_dashboard.html", context)
+
+
+@superadmin_required
+def superadmin_business_action(request, pk):
+    if request.method != "POST":
+        return redirect("accounts:superadmin-dashboard")
+    action = request.POST.get("action", "")
+    with transaction.atomic():
+        business = get_object_or_404(Business.objects.select_for_update(), pk=pk)
+        now = timezone.now()
+        if action == "deactivate":
+            business.is_active = False
+            description = f"Superadmin deactivated business {business.name}"
+        elif action == "activate":
+            business.is_active = True
+            description = f"Superadmin activated business {business.name}"
+        elif action in {"renew_month", "renew_year"}:
+            plan = Business.SubscriptionPlan.MONTHLY if action == "renew_month" else Business.SubscriptionPlan.YEARLY
+            start_at = max(now, business.subscription_expires_at or now)
+            business.subscription_plan = plan
+            business.subscription_expires_at = add_subscription_term(start_at, plan)
+            business.reminder_7_days_sent_at = None
+            business.reminder_1_day_sent_at = None
+            business.is_active = True
+            description = f"Superadmin renewed business {business.name} for {business.get_subscription_plan_display()}"
+        else:
+            messages.error(request, "Choose a valid business action.")
+            return redirect("accounts:superadmin-dashboard")
+        business.save(update_fields=[
+            "is_active", "subscription_plan", "subscription_expires_at",
+            "reminder_7_days_sent_at", "reminder_1_day_sent_at",
+        ])
+        SuperadminActivityLog.objects.create(
+            user=request.user,
+            business=business,
+            action=f"business_{action}",
+            description=description,
+            ip_address=get_client_ip(request),
+        )
+    messages.success(request, f"Updated {business.name}.")
+    return redirect("accounts:superadmin-dashboard")
+
+
+@superadmin_required
+def superadmin_business_activity(request, pk):
+    business = get_object_or_404(Business, pk=pk)
+    tenant_token = set_current_business_id(business.pk)
+    try:
+        logs = ActivityLog.objects.select_related("user").filter(business=business).order_by("-created_at")
+        logs_page = paginate_queryset(request, logs, per_page=20)
+    finally:
+        reset_current_business_id(tenant_token)
+    return render(
+        request,
+        "accounts/superadmin_business_activity.html",
+        {"business": business, "logs": logs_page},
+    )
+
+
 @login_required
 @role_required(User.Role.ADMIN)
 def admin_center(request):
-    users_page = paginate_queryset(request, User.objects.order_by("username"), per_page=10, page_param="users_page")
+    tenant_users = User.objects.filter(business=request.user.business)
+    users_page = paginate_queryset(request, tenant_users.order_by("username"), per_page=10, page_param="users_page")
     context = {
-        "staff_count": User.objects.filter(is_staff=True).count(),
-        "cashier_count": User.objects.filter(role=User.Role.CASHIER).count(),
+        "staff_count": tenant_users.filter(is_staff=True).count(),
+        "cashier_count": tenant_users.filter(role=User.Role.CASHIER).count(),
         "recent_sales_count": Sale.objects.filter(status=Sale.Status.COMPLETED).count(),
         "recent_purchase_count": Purchase.objects.count(),
         "inventory_event_count": InventoryLog.objects.count(),
@@ -264,130 +443,15 @@ def admin_center(request):
     return render(request, "accounts/admin_center.html", context)
 
 
-@superadmin_required
-def service_admin_dashboard(request):
-    tab = request.GET.get("tab", "tools").strip().lower()
-    if tab not in {"tools", "cloud"}:
-        tab = "tools"
-
-    subscriptions = (
-        ToolSubscription.objects.select_related("business", "business__owner")
-        .annotate(document_count=Count("business__documents"), service_count=Count("business__services"))
-        .order_by("expires_at", "business__name")
-    )
-    for subscription in subscriptions:
-        subscription.refresh_status()
-
-    cloud_businesses = (
-        CloudBusiness.objects.select_related("owner", "sync_credential")
-        .annotate(
-            branch_count=Count("branches", distinct=True),
-            sale_count=Count("sales", distinct=True),
-            purchase_count=Count("purchases", distinct=True),
-        )
-        .order_by("name")
-    )
-    cloud_business_rows = [
-        {
-            "business": business,
-            "last_synced_at": getattr(getattr(business, "sync_credential", None), "last_synced_at", None),
-        }
-        for business in cloud_businesses
-    ]
-
-    context = {
-        "active_tab": tab,
-        "tool_metrics": {
-            "total_businesses": InvoiceBusiness.objects.count(),
-            "trial_count": subscriptions.filter(status=ToolSubscription.Status.TRIAL).count(),
-            "active_count": subscriptions.filter(status=ToolSubscription.Status.ACTIVE).count(),
-            "expired_count": subscriptions.filter(status=ToolSubscription.Status.EXPIRED).count(),
-        },
-        "tools_subscriptions": subscriptions,
-        "recent_documents": Document.objects.select_related("business").order_by("-created_at")[:10],
-        "cloud_metrics": {
-            "business_count": cloud_businesses.count(),
-            "sync_event_count": SyncEvent.objects.count(),
-            "active_token_count": CloudBusiness.objects.filter(sync_credential__is_active=True).count(),
-        },
-        "cloud_businesses": cloud_business_rows,
-        "recent_sync_events": SyncEvent.objects.select_related("business").order_by("-created_at")[:12],
-    }
-    return render(request, "accounts/service_admin.html", context)
-
-
-@superadmin_required
-def activate_tools_subscription(request, pk):
-    if request.method != "POST":
-        return redirect("accounts:service-admin")
-    subscription = get_object_or_404(ToolSubscription.objects.select_related("business"), pk=pk)
-    subscription.activate_paid_cycle()
-    log_activity(
-        user=request.user,
-        module=ActivityLog.Module.SETTINGS,
-        action="tools_subscription_activated",
-        description=f"{request.user.username} activated a 30-day Tools subscription for {subscription.business.name}",
-        entity_type="tool_subscription",
-        entity_id=subscription.pk,
-        metadata={"business": subscription.business.name, "expires_at": subscription.expires_at.isoformat()},
-    )
-    messages.success(request, f"30-day paid cycle activated for {subscription.business.name}.")
-    return redirect(f"{reverse_lazy('accounts:service-admin')}?tab=tools")
-
-
-@superadmin_required
-def create_cloud_business(request):
-    """DurielTech-only: create a cloud business account for a client and generate
-    their initial password. The client is forced to change it on first login."""
-    form = CreateCloudBusinessForm(request.POST or None)
-    generated_password = None
-    created_user = None
-
-    if request.method == "POST" and form.is_valid():
-        generated_password = secrets.token_urlsafe(9)
-        user = User.objects.create_user(
-            username=form.cleaned_data["username"],
-            email=form.cleaned_data["email"],
-            password=generated_password,
-            role=User.Role.ADMIN,
-        )
-        user.must_change_password = True
-        user.save(update_fields=["must_change_password"])
-
-        business = CloudBusiness.objects.create(
-            name=form.cleaned_data["business_name"],
-            slug=form.cleaned_data["business_slug"],
-            owner=user,
-        )
-        BusinessMembership.objects.create(user=user, business=business, role=BusinessMembership.Role.OWNER)
-        SyncCredential.objects.create(business=business)
-
-        log_activity(
-            user=request.user,
-            module=ActivityLog.Module.USERS,
-            action="cloud_business_created",
-            description=f"{request.user.username} created cloud business '{business.name}' for {user.username}",
-            entity_type="business",
-            entity_id=business.pk,
-            metadata={"client_username": user.username, "client_email": user.email},
-        )
-        created_user = user
-        messages.success(request, f"Cloud business '{business.name}' created. Copy the password below before leaving this page — it will not be shown again.")
-        form = CreateCloudBusinessForm()
-
-    return render(
-        request,
-        "accounts/create_cloud_business.html",
-        {"form": form, "generated_password": generated_password, "created_user": created_user},
-    )
-
-
 @login_required
 @role_required(User.Role.ADMIN)
 def user_management(request):
     form = StaffUserCreationForm(request.POST or None)
     if request.method == "POST" and form.is_valid():
-        user = form.save()
+        user = form.save(commit=False)
+        user.business = request.user.business
+        user.save()
+        form.save_m2m()
         log_activity(
             user=request.user,
             module=ActivityLog.Module.USERS,
@@ -401,7 +465,7 @@ def user_management(request):
 
     context = {
         "form": form,
-        "users": paginate_queryset(request, User.objects.order_by("username"), per_page=10),
+        "users": paginate_queryset(request, User.objects.filter(business=request.user.business).order_by("username"), per_page=10),
     }
     return render(request, "accounts/user_management.html", context)
 
@@ -409,14 +473,14 @@ def user_management(request):
 @login_required
 @role_required(User.Role.ADMIN)
 def user_detail(request, pk):
-    user_obj = get_object_or_404(User, pk=pk)
+    user_obj = get_object_or_404(User, pk=pk, business=request.user.business)
     return render(request, "accounts/user_detail.html", {"user_obj": user_obj})
 
 
 @login_required
 @role_required(User.Role.ADMIN)
 def user_update(request, pk):
-    user_obj = get_object_or_404(User, pk=pk)
+    user_obj = get_object_or_404(User, pk=pk, business=request.user.business)
     form = StaffUserUpdateForm(request.POST or None, instance=user_obj)
     if request.method == "POST" and form.is_valid():
         form.save()
@@ -436,7 +500,7 @@ def user_update(request, pk):
 @login_required
 @role_required(User.Role.ADMIN)
 def admin_reset_password(request, pk):
-    target_user = get_object_or_404(User, pk=pk)
+    target_user = get_object_or_404(User, pk=pk, business=request.user.business)
     if target_user == request.user:
         messages.info(request, "Use \"Change Password\" from the sidebar to update your own password.")
         return redirect("accounts:user-detail", pk=pk)
@@ -495,7 +559,7 @@ def password_change_local(request):
 @login_required
 @role_required(User.Role.ADMIN)
 def user_delete(request, pk):
-    user_obj = get_object_or_404(User, pk=pk)
+    user_obj = get_object_or_404(User, pk=pk, business=request.user.business)
     if request.method == "POST":
         username = user_obj.username
         try:
@@ -526,10 +590,13 @@ def user_delete(request, pk):
 
 
 @login_required
-@role_required(User.Role.ADMIN)
+@role_required(User.Role.ADMIN, User.Role.MANAGER)
 def activity_log_list(request):
     module = request.GET.get("module", "").strip()
     logs = ActivityLog.objects.select_related("user").order_by("-created_at")
+    user_branch = get_user_branch(request.user)
+    if user_branch is not None:
+        logs = logs.filter(user__branch=user_branch)
     if module:
         logs = logs.filter(module=module)
     logs_page = paginate_queryset(request, logs, per_page=20)
@@ -542,29 +609,29 @@ def activity_log_list(request):
 
 @login_required
 def about_support(request):
-    business = user_business(request.user)
-
     license_status = None
     if os.getenv("DURIELBIZ_DESKTOP") == "1" and settings.LICENSE_MASTER_KEY_HASH:
         from licensing.services import get_license_status
 
         license_status = get_license_status()
 
+    business = getattr(request.user, "business", None)
+
     return render(
         request,
         "accounts/about_support.html",
         {
-            "base_template": "cloudsync/base.html" if business else "base.html",
             "support_phone": "07031016787",
             "support_email": "info@durieltech.com.ng",
             "company_name": "DurielTech",
             "product_name": "DurielBiz POS",
             "app_version": "1.0.0",
             "license_status": license_status,
+            "business": business,
             "deployment_modes": [
                 "Works fully offline on this computer — sales keep going even without internet",
-                "Can be viewed from other devices on the same Wi-Fi/network",
-                "Optional cloud dashboard for checking sales remotely, from anywhere",
+                "Can be reached from other devices on the same Wi-Fi/network",
+                "Can also run hosted, with data synced between the two",
             ],
             "product_highlights": [
                 "Fast checkout with barcode/name search and dual checkout lanes",

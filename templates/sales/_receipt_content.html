@@ -39,6 +39,13 @@
         {% endif %}
         <div class="flex justify-between"><span>Total</span><span>₦{{ sale.total }}</span></div>
         <div class="flex justify-between"><span>Paid</span><span>₦{{ sale.paid_amount }}</span></div>
+        {% if sale.pk %}
+            {% for entry in sale.financial_entries.all %}
+                {% if entry.kind == "payment" %}
+                    <div class="flex justify-between"><span>{{ entry.get_payment_method_display }} tender</span><span>₦{{ entry.tendered_amount }}</span></div>
+                {% endif %}
+            {% endfor %}
+        {% endif %}
         <div class="flex justify-between font-semibold"><span>Change</span><span>₦{{ sale.change_due }}</span></div>
         {% if sale.customer %}
             <div class="flex justify-between"><span>Points Earned</span><span>{{ sale.loyalty_points_awarded }}</span></div>

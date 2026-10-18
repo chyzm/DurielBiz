@@ -37,11 +37,6 @@ class BusinessSettingsForm(forms.ModelForm):
             "vat_rate_percent",
             "loyalty_points_per_1000",
             "loyalty_cash_value_per_point",
-            "cloud_sync_enabled",
-            "cloud_sync_token",
-            "sync_dashboard_url",
-            "auto_sync_enabled",
-            "auto_sync_interval_minutes",
             "thermal_paper_width",
         ]
         widgets = {
@@ -71,21 +66,6 @@ class BusinessSettingsForm(forms.ModelForm):
             ),
             "loyalty_cash_value_per_point": forms.NumberInput(
                 attrs={"class": "mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm", "step": "0.01"}
-            ),
-            "cloud_sync_enabled": forms.CheckboxInput(
-                attrs={"class": "mt-3 h-4 w-4 rounded border-slate-300 text-slate-900"}
-            ),
-            "cloud_sync_token": forms.TextInput(
-                attrs={"class": "mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"}
-            ),
-            "sync_dashboard_url": forms.URLInput(
-                attrs={"class": "mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"}
-            ),
-            "auto_sync_enabled": forms.CheckboxInput(
-                attrs={"class": "mt-3 h-4 w-4 rounded border-slate-300 text-slate-900"}
-            ),
-            "auto_sync_interval_minutes": forms.NumberInput(
-                attrs={"class": "mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm", "min": "5"}
             ),
             "thermal_paper_width": forms.Select(
                 attrs={"class": "mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"}

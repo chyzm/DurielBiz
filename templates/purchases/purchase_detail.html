@@ -7,6 +7,7 @@
         <div class="rounded-2xl bg-white p-6 shadow-sm lg:col-span-2">
             <h3 class="text-2xl font-semibold">{{ purchase.invoice_no }} — {{ purchase.branch.name|default:"All Branches" }}</h3>
             <p class="mt-1 text-sm text-slate-500">{{ purchase.supplier.name }} · {{ purchase.received_at|date:"d M Y, H:i" }}</p>
+            {% if purchase.is_archived %}<p class="mt-2 inline-block rounded-full bg-amber-100 px-3 py-1 text-xs text-amber-800">Archived purchase</p>{% endif %}
             {% if purchase.branch %}<p class="mt-1 text-sm text-slate-500">Branch: {{ purchase.branch.name }}</p>{% endif %}
 
             <div class="mt-6 overflow-x-auto">
@@ -40,13 +41,20 @@
                     {{ purchase.notes }}
                 </div>
             {% endif %}
+            {% if corrections or historical_items %}
+                <div class="mt-8 border-t border-slate-200 pt-5">
+                    <h4 class="font-semibold text-slate-900">Correction history</h4>
+                    {% for event in corrections %}<p class="mt-2 text-sm text-slate-600">{{ event.get_action_display }} · {{ event.created_at|date:"d M Y, H:i" }}{% if event.actor %} · {{ event.actor }}{% endif %}</p>{% endfor %}
+                    {% for item in historical_items %}<p class="mt-1 text-sm text-slate-500">Prior line: {{ item.product.name }} × {{ item.quantity }} at ₦{{ item.cost_price }}{% if item.expiry_date %} · expiry {{ item.expiry_date }}{% endif %}</p>{% endfor %}
+                </div>
+            {% endif %}
         </div>
 
         <div class="rounded-2xl bg-white p-6 shadow-sm">
             <h4 class="text-lg font-semibold">Actions</h4>
             <div class="mt-4 space-y-3 text-sm">
-                <a href="{% url 'purchases:update' purchase.pk %}" class="block rounded-xl bg-slate-900 px-4 py-3 text-center text-white">Edit Purchase</a>
-                <a href="{% url 'purchases:delete' purchase.pk %}" class="block rounded-xl border border-rose-300 px-4 py-3 text-center text-rose-700">Delete Purchase</a>
+                {% if not purchase.is_archived %}<a href="{% url 'purchases:update' purchase.pk %}" class="block rounded-xl bg-slate-900 px-4 py-3 text-center text-white">Edit Purchase</a>
+                <a href="{% url 'purchases:delete' purchase.pk %}" class="block rounded-xl border border-rose-300 px-4 py-3 text-center text-rose-700">Delete Purchase</a>{% endif %}
                 <a href="{% url 'purchases:list' %}" class="block rounded-xl border border-slate-300 px-4 py-3 text-center">Back to Purchases</a>
             </div>
         </div>

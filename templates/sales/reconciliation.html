@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% block title %}Payment Reconciliation | DurielBiz POS{% endblock %}
+
+{% block content %}
+<section class="mx-auto max-w-6xl space-y-6">
+    <div class="rounded-2xl bg-white p-6 shadow-sm">
+        <h1 class="text-xl font-semibold text-slate-900">Payment reconciliation</h1>
+        <p class="mt-1 text-sm text-slate-600">Compare recorded payments and settled refunds with your counted cash, card, and transfer totals. Each tender is reconciled once.</p>
+        {% if error %}<div class="mt-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{{ error }}</div>{% endif %}
+        <form method="post" class="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {% csrf_token %}
+            <label class="text-sm">Start date<input required type="date" name="start_date" value="{{ today }}" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2"></label>
+            <label class="text-sm">End date<input required type="date" name="end_date" value="{{ today }}" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2"></label>
+            {% if request.user.role == 'admin' %}
+            <label class="text-sm">Branch<select name="branch" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2"><option value="">General stock / no branch</option>{% for branch in branches %}<option value="{{ branch.pk }}">{{ branch.name }}</option>{% endfor %}</select></label>
+            {% endif %}
+            <label class="text-sm">Counted cash<input required type="number" min="0" step="0.01" name="counted_cash" value="0.00" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2"></label>
+            <label class="text-sm">Counted card<input required type="number" min="0" step="0.01" name="counted_card" value="0.00" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2"></label>
+            <label class="text-sm">Counted transfer<input required type="number" min="0" step="0.01" name="counted_transfer" value="0.00" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2"></label>
+            <label class="text-sm">Legacy mixed (unallocated)<input required type="number" min="0" step="0.01" name="counted_mixed" value="0.00" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2"></label>
+            <label class="text-sm sm:col-span-2">Notes<input type="text" maxlength="255" name="notes" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2"></label>
+            <div class="flex items-end"><button class="rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-medium text-white">Save reconciliation</button></div>
+        </form>
+    </div>
+
+    <div class="rounded-2xl bg-white p-6 shadow-sm">
+        <h2 class="text-lg font-semibold">Saved reconciliations</h2>
+        <div class="mt-4 overflow-x-auto">
+            <table class="min-w-full text-sm">
+                <thead><tr class="border-b text-left text-slate-500"><th class="py-3 pr-4">Period</th><th class="py-3 pr-4">Branch</th><th class="py-3 pr-4">Tender</th><th class="py-3 pr-4">Expected</th><th class="py-3 pr-4">Counted</th><th class="py-3 pr-4">Difference</th><th class="py-3">Recorded by</th></tr></thead>
+                <tbody>
+                {% for reconciliation in records %}
+                    {% for line in reconciliation.lines.all %}
+                    <tr class="border-b border-slate-100"><td class="py-3 pr-4">{{ reconciliation.start_date }} – {{ reconciliation.end_date }}</td><td class="py-3 pr-4">{{ reconciliation.branch.name|default:"General stock" }}</td><td class="py-3 pr-4">{{ line.get_payment_method_display }}</td><td class="py-3 pr-4">₦{{ line.expected_amount }}</td><td class="py-3 pr-4">₦{{ line.counted_amount }}</td><td class="py-3 pr-4">₦{{ line.difference }}</td><td class="py-3">{{ reconciliation.recorded_by }}</td></tr>
+                    {% endfor %}
+                {% empty %}<tr><td colspan="7" class="py-8 text-center text-slate-500">No reconciliations saved yet.</td></tr>{% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</section>
+{% endblock %}

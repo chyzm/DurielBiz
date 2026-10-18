@@ -2,7 +2,7 @@ import os
 from unittest import mock
 
 from django.core.cache import cache
-from django.test import TestCase, override_settings
+from django.test import TestCase
 
 from accounts.models import ActivityLog, User
 
@@ -136,51 +136,32 @@ class PageRenderSmokeTests(TestCase):
         self.assertEqual(response.status_code, 200)
 
 
-class LoginCloudDetectionTests(TestCase):
-    """Verifies the Username/Email label switch and the local dev preview toggle."""
+class LoginDeploymentModeTests(TestCase):
+    """The login form asks for an email on the hosted deployment and for a username in the
+    packaged desktop app, which has no mail path for the emailed reset code."""
 
-    def test_local_host_shows_username(self):
-        response = self.client.get("/accounts/login/", HTTP_HOST="127.0.0.1:9000")
-        self.assertContains(response, ">Username<")
-        self.assertNotContains(response, ">Email<")
-
-    def test_cloud_host_shows_email(self):
-        response = self.client.get("/accounts/login/", HTTP_HOST="durieltech.pythonanywhere.com")
+    def test_hosted_deployment_asks_for_email(self):
+        with mock.patch.dict(os.environ, {"DURIELBIZ_DESKTOP": "0"}):
+            response = self.client.get("/accounts/login/", HTTP_HOST="durieltech.pythonanywhere.com")
         self.assertContains(response, ">Email<")
         self.assertNotContains(response, ">Username<")
 
-    def test_localhost_cloud_next_shows_email(self):
-        response = self.client.get("/accounts/login/?next=/cloud/purchases/", HTTP_HOST="127.0.0.1:9000")
-        self.assertContains(response, ">Email<")
-        self.assertNotContains(response, ">Username<")
-
-    @override_settings(DEBUG=True)
-    def test_preview_toggle_switches_label_with_debug_on(self):
-        response = self.client.get("/accounts/login/?mode=cloud", HTTP_HOST="127.0.0.1:9000")
-        self.assertContains(response, ">Email<")
-        response = self.client.get("/accounts/login/?mode=local", HTTP_HOST="127.0.0.1:9000")
-        self.assertContains(response, ">Username<")
-
-    @override_settings(DEBUG=False)
-    def test_preview_toggle_switches_label_with_debug_off(self):
-        # Regression test: this used to be silently inert whenever DEBUG was False
-        # (e.g. a local .env with "Debug=false"), even on plain localhost dev runs.
-        response = self.client.get("/accounts/login/?mode=cloud", HTTP_HOST="127.0.0.1:9000")
-        self.assertContains(response, ">Email<")
-        response = self.client.get("/accounts/login/?mode=local", HTTP_HOST="127.0.0.1:9000")
-        self.assertContains(response, ">Username<")
-
-    def test_preview_toggle_is_inert_for_real_desktop_app(self):
+    def test_desktop_app_asks_for_username(self):
         with mock.patch.dict(os.environ, {"DURIELBIZ_DESKTOP": "1"}):
-            response = self.client.get("/accounts/login/?mode=cloud", HTTP_HOST="127.0.0.1:9000")
+            response = self.client.get("/accounts/login/", HTTP_HOST="127.0.0.1:9000")
         self.assertContains(response, ">Username<")
         self.assertNotContains(response, ">Email<")
 
-    def test_cloud_next_is_inert_for_real_desktop_app(self):
+    def test_deployment_mode_ignores_host_and_query_string(self):
+        # The desktop flag alone decides this. Host and query string used to drive a
+        # local-vs-cloud preview toggle; that dashboard is gone and so is the toggle.
         with mock.patch.dict(os.environ, {"DURIELBIZ_DESKTOP": "1"}):
-            response = self.client.get("/accounts/login/?next=/cloud/purchases/", HTTP_HOST="127.0.0.1:9000")
+            response = self.client.get("/accounts/login/?next=/purchases/", HTTP_HOST="durieltech.pythonanywhere.com")
         self.assertContains(response, ">Username<")
-        self.assertNotContains(response, ">Email<")
+
+        with mock.patch.dict(os.environ, {"DURIELBIZ_DESKTOP": "0"}):
+            response = self.client.get("/accounts/login/?mode=local", HTTP_HOST="127.0.0.1:9000")
+        self.assertContains(response, ">Email<")
 
 
 class CookieSecurityRegressionTests(TestCase):

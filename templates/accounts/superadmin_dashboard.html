@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+
+{% block title %}Superadmin | DurielBiz POS{% endblock %}
+
+{% block content %}
+<main class="space-y-6">
+  <header class="flex flex-wrap items-end justify-between gap-4">
+    <div>
+      <p class="text-sm font-semibold text-indigo-600">Platform management</p>
+      <h1 class="mt-1 text-2xl font-semibold text-slate-900">Superadmin dashboard</h1>
+      <p class="mt-1 text-sm text-slate-600">Manage tenant subscriptions and review activity across businesses.</p>
+    </div>
+    <a href="{% url 'accounts:business-setup' %}" class="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-700">Set up a business</a>
+  </header>
+
+  <section class="grid gap-4 sm:grid-cols-3">
+    <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><p class="text-sm text-slate-500">Businesses</p><p class="mt-2 text-2xl font-bold text-slate-900">{{ business_count }}</p></div>
+    <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><p class="text-sm text-slate-500">Active businesses</p><p class="mt-2 text-2xl font-bold text-emerald-700">{{ active_business_count }}</p></div>
+    <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><p class="text-sm text-slate-500">Expired subscriptions</p><p class="mt-2 text-2xl font-bold text-rose-700">{{ expired_business_count }}</p></div>
+  </section>
+
+  <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+    <div class="border-b border-slate-200 px-5 py-4"><h2 class="font-semibold text-slate-900">Businesses</h2></div>
+    <div class="overflow-x-auto">
+      <table class="min-w-full divide-y divide-slate-200 text-left text-sm">
+        <thead class="bg-slate-50 text-xs uppercase tracking-wide text-slate-500"><tr><th class="px-5 py-3">Business</th><th class="px-5 py-3">Users</th><th class="px-5 py-3">Subscription</th><th class="px-5 py-3">Expires</th><th class="px-5 py-3">Status</th><th class="px-5 py-3">Actions</th></tr></thead>
+        <tbody class="divide-y divide-slate-100">
+          {% for business in businesses %}
+            <tr class="align-top">
+              <td class="px-5 py-4"><p class="font-semibold text-slate-900">{{ business.name }}</p><p class="mt-1 text-xs text-slate-500">{{ business.slug }}</p></td>
+              <td class="px-5 py-4 text-slate-700">{{ business.user_count }}</td>
+              <td class="px-5 py-4 text-slate-700">{{ business.get_subscription_plan_display }}</td>
+              <td class="px-5 py-4 text-slate-700">{% if business.subscription_expires_at %}{{ business.subscription_expires_at|date:"d M Y, H:i" }}{% else %}Not set{% endif %}</td>
+              <td class="px-5 py-4">
+                {% if not business.is_active %}<span class="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">Deactivated</span>
+                {% elif business.subscription_expired %}<span class="rounded-full bg-rose-100 px-2.5 py-1 text-xs font-semibold text-rose-700">Expired</span>
+                {% else %}<span class="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700">Active</span>{% endif %}
+              </td>
+              <td class="min-w-64 px-5 py-4">
+                <div class="flex flex-wrap gap-2">
+                  <a href="{% url 'accounts:superadmin-business-activity' business.pk %}" class="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">View activity</a>
+                  <form method="post" action="{% url 'accounts:superadmin-business-action' business.pk %}">{% csrf_token %}<input type="hidden" name="action" value="renew_month"><button class="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">Renew 1 month</button></form>
+                  <form method="post" action="{% url 'accounts:superadmin-business-action' business.pk %}">{% csrf_token %}<input type="hidden" name="action" value="renew_year"><button class="rounded-lg border border-indigo-200 px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-50">Renew 1 year</button></form>
+                  {% if business.is_active %}<form method="post" action="{% url 'accounts:superadmin-business-action' business.pk %}">{% csrf_token %}<input type="hidden" name="action" value="deactivate"><button class="rounded-lg border border-rose-200 px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-50">Deactivate</button></form>
+                  {% else %}<form method="post" action="{% url 'accounts:superadmin-business-action' business.pk %}">{% csrf_token %}<input type="hidden" name="action" value="activate"><button class="rounded-lg border border-emerald-200 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-50">Activate</button></form>{% endif %}
+                </div>
+              </td>
+            </tr>
+          {% empty %}<tr><td colspan="6" class="px-5 py-8 text-center text-slate-500">No businesses have been set up.</td></tr>{% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+    <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-5 py-4">
+      <div><h2 class="font-semibold text-slate-900">Superadmin activity</h2><p class="mt-1 text-xs text-slate-500">Platform actions and superadmin sign-ins only.</p></div>
+      <form method="get" class="flex items-center gap-2"><label for="business-filter" class="text-sm text-slate-600">Business</label><select id="business-filter" name="business" class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"><option value="">All businesses</option>{% for business in activity_businesses %}<option value="{{ business.pk }}" {% if selected_business_id == business.pk|stringformat:"s" %}selected{% endif %}>{{ business.name }}</option>{% endfor %}</select><button class="rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white">Filter</button></form>
+    </div>
+    <div class="divide-y divide-slate-100">
+      {% for activity in activity_page %}
+        <article class="flex flex-wrap justify-between gap-3 px-5 py-4 text-sm">
+          <div><p class="font-medium text-slate-900">{{ activity.description }}</p><p class="mt-1 text-xs text-slate-500">{{ activity.business.name|default:"Platform" }} · {{ activity.action }}{% if activity.user %} · {{ activity.user.username }}{% endif %}</p></div>
+          <time class="text-xs text-slate-500">{{ activity.created_at|date:"d M Y, H:i" }}</time>
+        </article>
+      {% empty %}<p class="px-5 py-8 text-center text-sm text-slate-500">No superadmin activity found.</p>{% endfor %}
+    </div>
+    {% include "includes/pagination.html" with page_obj=activity_page page_param="activity_page" %}
+  </section>
+</main>
+{% endblock %}

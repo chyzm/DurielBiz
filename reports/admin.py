@@ -15,8 +15,5 @@ class BusinessSettingsAdmin(admin.ModelAdmin):
         "business_name",
         "default_branch",
         "phone",
-        "cloud_sync_enabled",
-        "auto_sync_enabled",
-        "last_cloud_sync_at",
         "updated_at",
     )

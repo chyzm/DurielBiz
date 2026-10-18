@@ -1,4 +1,5 @@
 import json
+from decimal import Decimal
 
 from django import forms
 from django.core.exceptions import ValidationError
@@ -56,6 +57,9 @@ class CheckoutForm(forms.Form):
             attrs={"class": "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm", "placeholder": "0.00"}
         ),
     )
+    cash_amount = forms.DecimalField(min_value=0, decimal_places=2, max_digits=12, required=False, initial=Decimal("0.00"), widget=forms.NumberInput(attrs={"class": "mt-1 w-full rounded-xl border border-slate-300 px-3 py-2", "step": "0.01"}))
+    card_amount = forms.DecimalField(min_value=0, decimal_places=2, max_digits=12, required=False, initial=Decimal("0.00"), widget=forms.NumberInput(attrs={"class": "mt-1 w-full rounded-xl border border-slate-300 px-3 py-2", "step": "0.01"}))
+    transfer_amount = forms.DecimalField(min_value=0, decimal_places=2, max_digits=12, required=False, initial=Decimal("0.00"), widget=forms.NumberInput(attrs={"class": "mt-1 w-full rounded-xl border border-slate-300 px-3 py-2", "step": "0.01"}))
     redeemed_points = forms.IntegerField(
         min_value=0,
         required=False,
@@ -93,9 +97,52 @@ class CheckoutForm(forms.Form):
             items = json.loads(value)
         except json.JSONDecodeError as exc:
             raise ValidationError("Cart payload is invalid.") from exc
-        if not items:
+        if not isinstance(items, list) or not items:
             raise ValidationError("Add at least one product to the cart.")
+        if len(items) > 100:
+            raise ValidationError("A sale cannot contain more than 100 cart lines.")
+        seen_products = set()
         for item in items:
-            if int(item.get("quantity", 0)) <= 0:
+            if not isinstance(item, dict):
+                raise ValidationError("Cart items are invalid.")
+            try:
+                product_id = int(item.get("product_id"))
+                quantity = int(item.get("quantity", 0))
+            except (TypeError, ValueError, OverflowError) as exc:
+                raise ValidationError("Cart items are invalid.") from exc
+            if (
+                product_id <= 0
+                or str(product_id) != str(item.get("product_id"))
+                or quantity <= 0
+                or str(quantity) != str(item.get("quantity"))
+            ):
                 raise ValidationError("Cart quantities must be greater than zero.")
+            if product_id in seen_products:
+                raise ValidationError("Each product may only appear once in the cart.")
+            seen_products.add(product_id)
+            # Never accept an amount supplied by the browser as an authoritative price.
+            item.pop("unit_price", None)
         return items
+
+    def clean(self):
+        cleaned = super().clean()
+        if cleaned.get("payment_method") == Sale.PaymentMethod.MIXED:
+            splits = [cleaned.get("cash_amount") or Decimal("0"),
+                      cleaned.get("card_amount") or Decimal("0"),
+                      cleaned.get("transfer_amount") or Decimal("0")]
+            if sum(amount > 0 for amount in splits) < 2:
+                self.add_error("payment_method", "Mixed payment needs at least two non-zero tender amounts.")
+            elif sum(splits) != cleaned.get("paid_amount"):
+                self.add_error("paid_amount", "Paid amount must equal the total of the cash, card, and transfer amounts.")
+        return cleaned
+
+    def payment_tenders(self):
+        if self.cleaned_data.get("payment_method") != Sale.PaymentMethod.MIXED:
+            return None
+        return [
+            {"payment_method": method, "tendered_amount": self.cleaned_data[field]}
+            for field, method in (("cash_amount", Sale.PaymentMethod.CASH),
+                                  ("card_amount", Sale.PaymentMethod.CARD),
+                                  ("transfer_amount", Sale.PaymentMethod.TRANSFER))
+            if self.cleaned_data.get(field)
+        ]

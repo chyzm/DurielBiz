@@ -18,6 +18,12 @@ class StaffUserCreationForm(UserCreationForm):
         model = User
         fields = ("username", "first_name", "last_name", "email", "phone_number", "role", "branch")
 
+    def clean_email(self):
+        email = (self.cleaned_data.get("email") or "").strip().lower()
+        if email and User.objects.filter(email__iexact=email).exists():
+            raise forms.ValidationError("That email address is already used by another user.")
+        return email
+
     def clean(self):
         cleaned_data = super().clean()
         role = cleaned_data.get("role")
@@ -30,7 +36,7 @@ class StaffUserCreationForm(UserCreationForm):
 class StaffUserUpdateForm(forms.ModelForm):
     class Meta:
         model = User
-        fields = ("first_name", "last_name", "email", "phone_number", "role", "branch", "is_active", "is_staff")
+        fields = ("first_name", "last_name", "email", "phone_number", "role", "branch", "is_active")
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -45,6 +51,13 @@ class StaffUserUpdateForm(forms.ModelForm):
         if role != User.Role.ADMIN and branch is None:
             self.add_error("branch", "Assign a branch to this user.")
         return cleaned_data
+
+    def clean_email(self):
+        email = (self.cleaned_data.get("email") or "").strip().lower()
+        duplicates = User.objects.filter(email__iexact=email).exclude(pk=self.instance.pk)
+        if email and duplicates.exists():
+            raise forms.ValidationError("That email address is already used by another user.")
+        return email
 
 
 class EmailOrUsernameAuthenticationForm(AuthenticationForm):
@@ -65,7 +78,10 @@ class EmailOrUsernameAuthenticationForm(AuthenticationForm):
         password = self.cleaned_data.get("password")
 
         if self.is_cloud_login and username and password:
-            linked_user = User.objects.filter(email__iexact=username).first()
+            matches = list(User.objects.filter(email__iexact=username, is_active=True)[:2])
+            if len(matches) > 1:
+                raise self.get_invalid_login_error()
+            linked_user = matches[0] if matches else None
             normalized_username = linked_user.username if linked_user else username
             self.user_cache = authenticate(self.request, username=normalized_username, password=password)
             if self.user_cache is None:
@@ -132,41 +148,3 @@ class OTPPasswordResetForm(forms.Form):
         if password1:
             password_validation.validate_password(password1, self.user)
         return password2
-
-
-class CreateCloudBusinessForm(forms.Form):
-    business_name = forms.CharField(
-        max_length=255,
-        widget=forms.TextInput(attrs={"class": INPUT_CLASS}),
-    )
-    business_slug = forms.SlugField(
-        max_length=80,
-        widget=forms.TextInput(attrs={"class": INPUT_CLASS}),
-    )
-    username = forms.CharField(
-        max_length=150,
-        widget=forms.TextInput(attrs={"class": INPUT_CLASS}),
-    )
-    email = forms.EmailField(
-        widget=forms.EmailInput(attrs={"class": INPUT_CLASS}),
-    )
-
-    def clean_business_slug(self):
-        from cloudsync.models import Business
-
-        slug = self.cleaned_data["business_slug"].strip().lower()
-        if Business.objects.filter(slug=slug).exists():
-            raise forms.ValidationError("This business slug is already in use.")
-        return slug
-
-    def clean_username(self):
-        username = self.cleaned_data["username"].strip()
-        if User.objects.filter(username=username).exists():
-            raise forms.ValidationError("This username is already taken.")
-        return username
-
-    def clean_email(self):
-        email = self.cleaned_data["email"].strip()
-        if User.objects.filter(email__iexact=email).exists():
-            raise forms.ValidationError("A user with this email already exists.")
-        return email

@@ -68,6 +68,7 @@ def update_manual_adjustment(*, log, action, quantity, reason, reference="", act
         product.quantity = log.before_quantity
         product.save(update_fields=["quantity", "updated_at"])
 
+    log.delete()
     updated_log = apply_inventory_adjustment(
         product=product,
         action=action,
@@ -77,7 +78,6 @@ def update_manual_adjustment(*, log, action, quantity, reason, reference="", act
         actor=actor,
         branch=log.branch,
     )
-    log.delete()
     return updated_log
 
 

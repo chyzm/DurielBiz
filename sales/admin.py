@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Customer, Sale, SaleItem
+from .models import Customer, Sale, SaleFinancialEntry, SaleItem
 
 
 class SaleItemInline(admin.TabularInline):
@@ -22,3 +22,20 @@ class SaleAdmin(admin.ModelAdmin):
 class CustomerAdmin(admin.ModelAdmin):
     list_display = ("name", "phone", "loyalty_points", "total_spent", "updated_at")
     search_fields = ("name", "phone", "email")
+
+
+@admin.register(SaleFinancialEntry)
+class SaleFinancialEntryAdmin(admin.ModelAdmin):
+    list_display = ("sale", "kind", "status", "payment_method", "amount", "recorded_by", "created_at")
+    list_filter = ("kind", "status", "payment_method", "created_at")
+    search_fields = ("sale__id", "reference", "reason")
+    readonly_fields = tuple(field.name for field in SaleFinancialEntry._meta.fields)
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False

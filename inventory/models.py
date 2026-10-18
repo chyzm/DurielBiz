@@ -1,8 +1,9 @@
 from django.conf import settings
 from django.db import models
+from accounts.tenancy import TenantOwnedModel
 
 
-class InventoryLog(models.Model):
+class InventoryLog(TenantOwnedModel):
     class Source(models.TextChoices):
         MANUAL = "manual", "Manual"
         PURCHASE = "purchase", "Purchase"

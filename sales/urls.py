@@ -9,8 +9,10 @@ from .views import (
     pos_terminal,
     receipt_detail,
     receipt_search,
+    reconciliation_view,
     sales_history,
     sales_history_export_csv,
+    settle_refund_view,
     void_sale_view,
 )
 
@@ -19,13 +21,15 @@ app_name = "sales"
 urlpatterns = [
     path("customers/", customer_list, name="customer-list"),
     path("customers/lookup/", customer_lookup_api, name="customer-lookup"),
-    path("customers/<int:pk>/", customer_detail, name="customer-detail"),
-    path("customers/<int:pk>/edit/", customer_update, name="customer-update"),
+    path("customers/<signed_int:pk>/", customer_detail, name="customer-detail"),
+    path("customers/<signed_int:pk>/edit/", customer_update, name="customer-update"),
     path("history/", sales_history, name="history"),
     path("history/export/", sales_history_export_csv, name="history-export"),
+    path("reconciliation/", reconciliation_view, name="reconciliation"),
     path("pos/", pos_terminal, name="pos"),
     path("pos/checkout-preview/", checkout_preview, name="checkout-preview"),
     path("receipts/search/", receipt_search, name="receipt-search"),
-    path("receipt/<int:pk>/", receipt_detail, name="receipt"),
-    path("receipt/<int:pk>/void/", void_sale_view, name="void"),
+    path("receipt/<signed_int:pk>/", receipt_detail, name="receipt"),
+    path("receipt/<signed_int:pk>/void/", void_sale_view, name="void"),
+    path("refund/<signed_int:entry_id>/settle/", settle_refund_view, name="refund-settle"),
 ]

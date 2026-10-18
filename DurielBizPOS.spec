@@ -1,7 +1,7 @@
 # -*- mode: python ; coding: utf-8 -*-
 from PyInstaller.utils.hooks import collect_data_files
 
-datas = [('accounts', 'accounts'), ('cloudsync', 'cloudsync'), ('inventory', 'inventory'), ('invoicing', 'invoicing'), ('licensing', 'licensing'), ('notifications', 'notifications'), ('pos_system', 'pos_system'), ('products', 'products'), ('purchases', 'purchases'), ('reports', 'reports'), ('sales', 'sales'), ('suppliers', 'suppliers'), ('templates', 'templates'), ('static', 'static'), ('manage.py', '.'), ('.env', '.')]
+datas = [('accounts', 'accounts'), ('inventory', 'inventory'), ('licensing', 'licensing'), ('notifications', 'notifications'), ('pos_system', 'pos_system'), ('products', 'products'), ('purchases', 'purchases'), ('reports', 'reports'), ('sales', 'sales'), ('suppliers', 'suppliers'), ('syncing', 'syncing'), ('templates', 'templates'), ('static', 'static'), ('manage.py', '.'), ('.env', '.')]
 datas += collect_data_files('tzdata')
 
 

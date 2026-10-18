@@ -11,7 +11,7 @@
         <form method="post" class="grid gap-5 md:grid-cols-2">
             {% csrf_token %}
             {% for field in form %}
-                <div class="{% if field.name == 'address' or field.name == 'sync_dashboard_url' or field.name == 'cloud_sync_token' %}md:col-span-2{% endif %}">
+                <div class="{% if field.name == 'address' %}md:col-span-2{% endif %}">
                     {% if field.field.widget.input_type == 'checkbox' %}
                         <label class="flex items-center gap-3 text-sm font-medium text-slate-700">
                             {{ field }}
@@ -30,31 +30,5 @@
                 <button class="rounded-xl bg-slate-900 px-4 py-2 text-sm text-white">Save Settings</button>
             </div>
         </form>
-        <div class="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-            <h4 class="text-sm font-semibold text-slate-900">Cloud Sync</h4>
-            <p class="mt-1 text-sm text-slate-600">Use your PythonAnywhere cloud dashboard ingest URL and sync token here. Manual sync is available immediately, and automatic sync now runs server-side in the desktop app.</p>
-            <p class="mt-2 text-xs text-slate-500">
-                Last cloud sync:
-                {% if business_settings.last_cloud_sync_at %}
-                    {{ business_settings.last_cloud_sync_at|date:"d M Y, H:i" }}
-                {% else %}
-                    Never
-                {% endif %}
-            </p>
-            {% if business_settings.auto_sync_enabled %}
-                <p class="mt-2 text-xs text-slate-500">Automatic sync interval: every {{ business_settings.auto_sync_interval_minutes }} minute{{ business_settings.auto_sync_interval_minutes|pluralize }}.</p>
-            {% endif %}
-            <div class="mt-4 flex flex-wrap gap-3">
-                <form method="post" action="{% url 'reports:sync-now' %}">
-                    {% csrf_token %}
-                    <button class="rounded-xl border border-slate-300 px-4 py-2 text-sm">Sync Now</button>
-                </form>
-            </div>
-            <p class="mt-3 text-xs text-slate-500">
-                Need a cloud dashboard account? Contact DurielTech at
-                <a href="tel:07031016787" class="font-medium text-slate-700 hover:underline">07031016787</a> or
-                <a href="mailto:info@durieltech.com.ng" class="font-medium text-slate-700 hover:underline">info@durieltech.com.ng</a>.
-            </p>
-        </div>
     </section>
 {% endblock %}

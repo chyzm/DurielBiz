@@ -8,7 +8,7 @@ from inventory.models import InventoryLog
 from products.models import BranchStock, Category, Product
 from reports.models import Branch, BusinessSettings
 
-from .models import Customer, Sale
+from .models import Customer, Sale, SaleFinancialEntry
 from .services import compute_sale_preview, create_sale, void_sale
 
 
@@ -42,6 +42,9 @@ class VoidSaleTests(TestCase):
         customer = Customer.objects.get(phone="08011112222")
         self.assertEqual(customer.loyalty_points, self.sale.loyalty_points_awarded)
         self.assertEqual(customer.total_spent, self.sale.total)
+        payment = self.sale.financial_entries.get(kind=SaleFinancialEntry.Kind.PAYMENT)
+        self.assertEqual(payment.amount, self.sale.total)
+        self.assertEqual(payment.status, SaleFinancialEntry.Status.SETTLED)
 
     def test_void_sale_restores_stock_and_reverses_loyalty(self):
         customer = Customer.objects.get(phone="08011112222")
@@ -64,6 +67,9 @@ class VoidSaleTests(TestCase):
         self.assertEqual(self.sale.voided_by, self.admin)
         self.assertEqual(self.sale.void_reason, "Customer returned item")
         self.assertIsNotNone(self.sale.voided_at)
+        refund = self.sale.financial_entries.get(kind=SaleFinancialEntry.Kind.REFUND)
+        self.assertEqual(refund.status, SaleFinancialEntry.Status.PENDING)
+        self.assertEqual(refund.amount, sale_total)
 
         refund_logs = InventoryLog.objects.filter(source=InventoryLog.Source.REFUND, reference=self.sale.receipt_number)
         self.assertEqual(refund_logs.count(), 1)
@@ -169,6 +175,7 @@ class VatCalculationTests(TestCase):
         settings_obj.vat_rate_percent = Decimal("10.00")
         settings_obj.save()
 
+        self.cashier.role = User.Role.MANAGER
         sale = create_sale(
             cashier=self.cashier,
             items=[{"product_id": self.product.pk, "quantity": 2}],
@@ -179,6 +186,38 @@ class VatCalculationTests(TestCase):
         # subtotal 200 - discount 20 = 180 taxable; VAT 10% = 18.00; total = 200 - 20 + 18 = 198.00
         self.assertEqual(sale.tax, Decimal("18.00"))
         self.assertEqual(sale.total, Decimal("198.00"))
+
+    def test_client_submitted_price_is_ignored(self):
+        sale = create_sale(
+            cashier=self.cashier,
+            items=[{"product_id": self.product.pk, "quantity": 1, "unit_price": "0.01"}],
+            payment_method=Sale.PaymentMethod.CASH,
+            paid_amount=Decimal("100.00"),
+        )
+        item = sale.items.get()
+        self.assertEqual(item.unit_price, self.product.selling_price)
+        self.assertEqual(sale.total, self.product.selling_price)
+
+    def test_cashier_cannot_apply_discount(self):
+        with self.assertRaises(ValidationError):
+            create_sale(
+                cashier=self.cashier,
+                items=[{"product_id": self.product.pk, "quantity": 1}],
+                payment_method=Sale.PaymentMethod.CASH,
+                paid_amount=Decimal("90.00"),
+                discount=Decimal("10.00"),
+            )
+
+    def test_discount_cannot_exceed_subtotal(self):
+        self.cashier.role = User.Role.MANAGER
+        with self.assertRaises(ValidationError):
+            create_sale(
+                cashier=self.cashier,
+                items=[{"product_id": self.product.pk, "quantity": 1}],
+                payment_method=Sale.PaymentMethod.CASH,
+                paid_amount=Decimal("1.00"),
+                discount=Decimal("101.00"),
+            )
 
     def test_no_vat_when_disabled(self):
         settings_obj = BusinessSettings.get_solo()

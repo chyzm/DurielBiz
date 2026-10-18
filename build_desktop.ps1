@@ -19,9 +19,7 @@ $commonArgs = @(
   "--clean",
   "--onefile",
   "--add-data", "accounts;accounts",
-  "--add-data", "cloudsync;cloudsync",
   "--add-data", "inventory;inventory",
-  "--add-data", "invoicing;invoicing",
   "--add-data", "licensing;licensing",
   "--add-data", "notifications;notifications",
   "--add-data", "pos_system;pos_system",
@@ -30,6 +28,7 @@ $commonArgs = @(
   "--add-data", "reports;reports",
   "--add-data", "sales;sales",
   "--add-data", "suppliers;suppliers",
+  "--add-data", "syncing;syncing",
   "--add-data", "templates;templates",
   "--add-data", "static;static",
   "--add-data", "manage.py;."
@@ -44,33 +43,3 @@ $commonArgs = @(
 
 & $pyInstallerCommand "--name" "DurielBizPOS" "--windowed" @commonArgs
 & $pyInstallerCommand "--name" "DurielBizPOSAdmin" "--console" @commonArgs
-
-$serviceArgs = @(
-  "--noconfirm",
-  "--clean",
-  "--onedir",
-  "--console",
-  "--add-data", "accounts;accounts",
-  "--add-data", "cloudsync;cloudsync",
-  "--add-data", "inventory;inventory",
-  "--add-data", "invoicing;invoicing",
-  "--add-data", "licensing;licensing",
-  "--add-data", "notifications;notifications",
-  "--add-data", "pos_system;pos_system",
-  "--add-data", "products;products",
-  "--add-data", "purchases;purchases",
-  "--add-data", "reports;reports",
-  "--add-data", "sales;sales",
-  "--add-data", "suppliers;suppliers",
-  "--add-data", "templates;templates",
-  "--add-data", "static;static",
-  "--add-data", "manage.py;."
-) + $envDataArgs + @(
-  "--collect-data", "tzdata",
-  "--hidden-import", "django.core.management.commands.migrate",
-  "--hidden-import", "win32timezone",
-  "--hidden-import", "whitenoise.middleware",
-  "desktop_sync_service.py"
-)
-
-& $pyInstallerCommand "--name" "DurielBizPOSSyncService" @serviceArgs

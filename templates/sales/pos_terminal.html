@@ -107,12 +107,12 @@
                             data-price="{{ product.selling_price }}"
                             data-stock="{{ product.display_stock|default:product.quantity }}"
                             data-barcode="{{ product.barcode|default:'' }}"
-                            data-category="{{ product.category.name }}"
+                            data-category="{{ product.category.name|default:'Uncategorized' }}"
                         >
                             <div class="flex items-start justify-between gap-3">
                                 <div>
                                     <p class="font-semibold text-slate-900">{{ product.name }}</p>
-                                    <p class="mt-1 text-xs text-slate-500">{{ product.category.name }}</p>
+                                    <p class="mt-1 text-xs text-slate-500">{{ product.category.name|default:"Uncategorized" }}</p>
                                 </div>
                                 <span class="rounded-full bg-white px-2.5 py-1 text-xs font-medium text-slate-600 shadow-sm">{{ product.display_stock|default:product.quantity }} left</span>
                             </div>
@@ -197,14 +197,24 @@
                         <label class="text-sm font-medium text-slate-700">Paid Amount</label>
                         {{ form.paid_amount }}
                     </div>
+                    <div id="mixedTenderFields" class="hidden sm:col-span-2 grid gap-3 sm:grid-cols-3 rounded-xl border border-indigo-100 bg-indigo-50 p-3">
+                        <div><label class="text-xs font-medium text-slate-700">Cash tender</label>{{ form.cash_amount }}</div>
+                        <div><label class="text-xs font-medium text-slate-700">Card tender</label>{{ form.card_amount }}</div>
+                        <div><label class="text-xs font-medium text-slate-700">Transfer tender</label>{{ form.transfer_amount }}</div>
+                        <p class="sm:col-span-3 text-xs text-slate-600">Enter each tendered amount. Any change is assigned to cash.</p>
+                    </div>
                     <div>
                         <label class="text-sm font-medium text-slate-700">Redeem Points</label>
                         {{ form.redeemed_points }}
                     </div>
-                    <div>
-                        <label class="text-sm font-medium text-slate-700">Discount</label>
-                        {{ form.discount }}
-                    </div>
+                    {% if can_adjust_sales %}
+                        <div>
+                            <label class="text-sm font-medium text-slate-700">Discount</label>
+                            {{ form.discount }}
+                        </div>
+                    {% else %}
+                        <input type="hidden" name="discount" id="id_discount" value="0.00">
+                    {% endif %}
                     <div class="rounded-2xl bg-slate-50 px-4 py-3">
                         <p class="text-xs uppercase tracking-wide text-slate-500">Change Preview</p>
                         <p id="changeValue" class="mt-2 text-lg font-semibold text-slate-900">₦0.00</p>
@@ -277,10 +287,17 @@
         const customerNameInput = document.getElementById('id_customer_name');
         const customerPhoneInput = document.getElementById('id_customer_phone');
         const paymentMethodInput = document.getElementById('id_payment_method');
+        const mixedTenderFields = document.getElementById('mixedTenderFields');
         const paidAmountInput = document.getElementById('id_paid_amount');
+        const cashAmountInput = document.getElementById('id_cash_amount');
+        const cardAmountInput = document.getElementById('id_card_amount');
+        const transferAmountInput = document.getElementById('id_transfer_amount');
         const redeemedPointsInput = document.getElementById('id_redeemed_points');
         const discountInput = document.getElementById('id_discount');
         const noteInput = document.getElementById('id_note');
+        const showMixedTenders = () => mixedTenderFields.classList.toggle('hidden', paymentMethodInput.value !== 'mixed');
+        paymentMethodInput.addEventListener('change', showMixedTenders);
+        showMixedTenders();
         const activeLaneTitle = document.getElementById('activeLaneTitle');
         const loyaltyPanel = document.getElementById('loyaltyPanel');
         const isAdmin = {{ is_admin_user|yesno:"true,false" }};
@@ -774,6 +791,9 @@
                         customer_phone: lane.customer_phone || '',
                         payment_method: lane.payment_method || 'cash',
                         paid_amount: lane.paid_amount || '0.00',
+                        cash_amount: cashAmountInput.value || '0.00',
+                        card_amount: cardAmountInput.value || '0.00',
+                        transfer_amount: transferAmountInput.value || '0.00',
                         redeemed_points: String(lane.redeemed_points || 0),
                         discount: lane.discount || '0.00',
                         note: lane.note || '',

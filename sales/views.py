@@ -1,10 +1,12 @@
 import csv
 import json
-from datetime import datetime
+from datetime import date
+from decimal import Decimal, InvalidOperation
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
+from django.db import transaction
 from django.db.models import Q
 from django.db.models import Prefetch
 from django.http import HttpResponse, JsonResponse
@@ -23,13 +25,22 @@ from reports.models import Branch
 from reports.models import BusinessSettings
 
 from .forms import CheckoutForm, CustomerForm
-from .models import Customer, Sale
-from .services import compute_sale_preview, create_sale, void_sale
+from .models import (Customer, Sale, SaleFinancialEntry, SalesReconciliation,
+                     SalesReconciliationEntry, SalesReconciliationLine)
+from .services import compute_sale_preview, create_sale, settle_sale_refund, void_sale
+
+RECONCILABLE_METHODS = (
+    Sale.PaymentMethod.CASH,
+    Sale.PaymentMethod.CARD,
+    Sale.PaymentMethod.TRANSFER,
+    Sale.PaymentMethod.MIXED,
+)
 
 
 def filtered_sales_queryset(request):
     status_filter = request.GET.get("status", "completed").strip().lower()
     sales = Sale.objects.select_related("cashier", "customer", "branch").prefetch_related("items__product").order_by("-created_at")
+    sales = scope_queryset_to_user_branch(sales, request.user)
     if status_filter == "voided":
         sales = sales.filter(status=Sale.Status.VOIDED)
     elif status_filter == "all":
@@ -43,16 +54,27 @@ def filtered_sales_queryset(request):
     branch_code = request.GET.get("branch", "").strip()
     today = timezone.localdate().isoformat()
     branches = Branch.objects.filter(is_active=True).order_by("name")
+    if request.user.role != User.Role.ADMIN:
+        user_branch = get_user_branch(request.user)
+        branches = branches.filter(pk=user_branch.pk) if user_branch else branches.none()
 
     if not start_date:
         start_date = today
     if not end_date:
         end_date = today
 
-    if start_date:
-        sales = sales.filter(created_at__date__gte=datetime.strptime(start_date, "%Y-%m-%d").date())
-    if end_date:
-        sales = sales.filter(created_at__date__lte=datetime.strptime(end_date, "%Y-%m-%d").date())
+    try:
+        parsed_start = date.fromisoformat(start_date)
+        parsed_end = date.fromisoformat(end_date)
+    except ValueError:
+        messages.warning(request, "The date filter was invalid; showing today's sales.")
+        parsed_start = parsed_end = timezone.localdate()
+        start_date = end_date = parsed_start.isoformat()
+    if parsed_start > parsed_end:
+        messages.warning(request, "The start date cannot be after the end date; showing today's sales.")
+        parsed_start = parsed_end = timezone.localdate()
+        start_date = end_date = parsed_start.isoformat()
+    sales = sales.filter(created_at__date__gte=parsed_start, created_at__date__lte=parsed_end)
     if branch_code:
         sales = sales.filter(branch__code=branch_code)
 
@@ -66,7 +88,7 @@ def filtered_sales_queryset(request):
 
 
 @login_required
-@role_required(User.Role.ADMIN, User.Role.CASHIER)
+@role_required(User.Role.ADMIN, User.Role.CASHIER, User.Role.MANAGER)
 def pos_terminal(request):
     business_settings = BusinessSettings.get_solo()
     default_branch = get_user_branch(request.user) or business_settings.default_branch
@@ -109,6 +131,7 @@ def pos_terminal(request):
                 lane_name=form.cleaned_data["lane_name"] or "checkout_a",
                 redeemed_points=form.cleaned_data["redeemed_points"] or 0,
                 discount=form.cleaned_data["discount"] or 0,
+                tenders=form.payment_tenders(),
             )
         except Product.DoesNotExist:
             form.add_error(None, "One of the selected products no longer exists.")
@@ -125,7 +148,7 @@ def pos_terminal(request):
             "id": product.pk,
             "name": product.name,
             "barcode": product.barcode or "",
-            "category": product.category.name,
+            "category": product.category.name if product.category else "",
             "price": float(product.selling_price),
             "stock": branch_quantity(product, default_branch),
         }
@@ -147,6 +170,7 @@ def pos_terminal(request):
             "active_lane": request.GET.get("lane", "checkout_a"),
             "completed_lane": request.GET.get("completed_lane", ""),
             "is_admin_user": request.user.role == User.Role.ADMIN,
+            "can_adjust_sales": request.user.role in {User.Role.ADMIN, User.Role.MANAGER},
             "loyalty_value_per_point": float(business_settings.loyalty_cash_value_per_point),
             "vat_enabled": business_settings.vat_enabled,
             "vat_rate_percent": float(business_settings.vat_rate_percent),
@@ -156,7 +180,7 @@ def pos_terminal(request):
 
 
 @login_required
-@role_required(User.Role.ADMIN, User.Role.CASHIER)
+@role_required(User.Role.ADMIN, User.Role.CASHIER, User.Role.MANAGER)
 def checkout_preview(request):
     """Renders a receipt preview from the current cart without saving anything —
     the sale is only actually created when the cashier confirms via Print."""
@@ -224,10 +248,13 @@ def receipt_search(request):
 
 
 @login_required
-@role_required(User.Role.ADMIN)
+@role_required(User.Role.ADMIN, User.Role.MANAGER)
 def void_sale_view(request, pk):
     sale = get_object_or_404(
-        Sale.objects.select_related("cashier", "customer", "branch").prefetch_related("items__product"),
+        scope_queryset_to_user_branch(
+            Sale.objects.select_related("cashier", "customer", "branch").prefetch_related("items__product"),
+            request.user,
+        ),
         pk=pk,
     )
     if sale.status != Sale.Status.COMPLETED:
@@ -248,7 +275,27 @@ def void_sale_view(request, pk):
 
 
 @login_required
-@role_required(User.Role.ADMIN)
+@role_required(User.Role.ADMIN, User.Role.MANAGER)
+def settle_refund_view(request, entry_id):
+    if request.method != "POST":
+        return HttpResponse(status=405)
+    entries = scope_queryset_to_user_branch(
+        SaleFinancialEntry.objects.select_related("sale", "sale__branch"),
+        request.user,
+        field_name="sale__branch",
+    )
+    entry = get_object_or_404(entries, pk=entry_id)
+    try:
+        settle_sale_refund(entry=entry, actor=request.user, reference=request.POST.get("reference", ""))
+    except ValidationError as exc:
+        messages.error(request, exc.messages[0])
+    else:
+        messages.success(request, f"Refund for {entry.sale.receipt_number} recorded as paid.")
+    return redirect("sales:receipt", pk=entry.sale_id)
+
+
+@login_required
+@role_required(User.Role.ADMIN, User.Role.MANAGER)
 def sales_history(request):
     sales, context = filtered_sales_queryset(request)
     sales_page = paginate_queryset(request, sales, per_page=20)
@@ -264,7 +311,7 @@ def sales_history(request):
 
 
 @login_required
-@role_required(User.Role.ADMIN)
+@role_required(User.Role.ADMIN, User.Role.MANAGER)
 def sales_history_export_csv(request):
     sales, context = filtered_sales_queryset(request)
     branch_label = context["selected_branch"] or "all-branches"
@@ -361,10 +408,77 @@ def sales_history_export_csv(request):
 
 
 @login_required
-@role_required(User.Role.ADMIN)
+@role_required(User.Role.ADMIN, User.Role.MANAGER)
+def reconciliation_view(request):
+    branches = Branch.objects.filter(is_active=True).order_by("name")
+    assigned_branch = get_user_branch(request.user)
+    if assigned_branch:
+        branches = branches.filter(pk=assigned_branch.pk)
+    records = SalesReconciliation.objects.select_related("branch", "recorded_by").prefetch_related("lines")
+    records = scope_queryset_to_user_branch(records, request.user)
+    error = ""
+    if request.method == "POST":
+        try:
+            start_date = date.fromisoformat(request.POST.get("start_date", ""))
+            end_date = date.fromisoformat(request.POST.get("end_date", ""))
+            if start_date > end_date:
+                raise ValueError("Start date must be on or before end date.")
+            branch_id = request.POST.get("branch", "").strip()
+            if assigned_branch:
+                branch = assigned_branch
+            elif branch_id:
+                branch = branches.get(pk=branch_id)
+            else:
+                branch = None
+            counts = {}
+            for method in RECONCILABLE_METHODS:
+                amount = Decimal(request.POST.get(f"counted_{method}", ""))
+                if not amount.is_finite() or amount < 0 or amount.quantize(Decimal("0.01")) != amount:
+                    raise ValueError("Counted amounts must be non-negative values with at most two decimal places.")
+                counts[method] = amount
+            eligible = SaleFinancialEntry.objects.select_for_update().filter(
+                created_at__date__gte=start_date, created_at__date__lte=end_date,
+                kind__in=[SaleFinancialEntry.Kind.PAYMENT, SaleFinancialEntry.Kind.REFUND],
+            ).filter(Q(kind=SaleFinancialEntry.Kind.PAYMENT, status=SaleFinancialEntry.Status.SETTLED) |
+                     Q(kind=SaleFinancialEntry.Kind.REFUND, status=SaleFinancialEntry.Status.REFUNDED))
+            eligible = eligible.filter(sale__branch=branch) if branch else eligible.filter(sale__branch__isnull=True)
+            eligible = eligible.exclude(pk__in=SalesReconciliationEntry.objects.values("financial_entry_id"))
+            with transaction.atomic():
+                reconciliation = SalesReconciliation.objects.create(
+                    start_date=start_date, end_date=end_date, branch=branch, recorded_by=request.user,
+                    notes=request.POST.get("notes", "").strip()[:255],
+                )
+                entries = list(eligible)
+                for method in RECONCILABLE_METHODS:
+                    matching = [entry for entry in entries if entry.payment_method == method]
+                    expected = sum((entry.amount if entry.kind == SaleFinancialEntry.Kind.PAYMENT else -entry.amount
+                                    for entry in matching), Decimal("0.00"))
+                    line = SalesReconciliationLine.objects.create(
+                        business_id=request.user.business_id, reconciliation=reconciliation,
+                        payment_method=method, expected_amount=expected, counted_amount=counts[method],
+                    )
+                    for entry in matching:
+                        SalesReconciliationEntry.objects.create(
+                            business_id=request.user.business_id, line=line, financial_entry=entry,
+                        )
+            messages.success(request, "Sales reconciliation saved. Its tender rows are now marked reconciled.")
+            return redirect("sales:reconciliation")
+        except (ValueError, InvalidOperation, Branch.DoesNotExist, Branch.MultipleObjectsReturned):
+            error = "Enter valid dates, a branch you can access, and valid counted amounts."
+    return render(request, "sales/reconciliation.html", {
+        "branches": branches, "records": records, "error": error,
+        "today": timezone.localdate().isoformat(),
+    })
+
+
+@login_required
+@role_required(User.Role.ADMIN, User.Role.MANAGER)
 def customer_list(request):
     search = request.GET.get("q", "").strip()
     customers = Customer.objects.order_by("-updated_at")
+    user_branch = get_user_branch(request.user)
+    if user_branch is not None:
+        customers = customers.filter(sales__branch=user_branch).distinct()
     if search:
         customers = customers.filter(Q(name__icontains=search) | Q(phone__icontains=search))
     return render(
@@ -375,10 +489,17 @@ def customer_list(request):
 
 
 @login_required
-@role_required(User.Role.ADMIN)
+@role_required(User.Role.ADMIN, User.Role.MANAGER)
 def customer_detail(request, pk):
-    customer = get_object_or_404(Customer, pk=pk)
-    sales = paginate_queryset(request, customer.sales.select_related("cashier").order_by("-created_at"), per_page=10, page_param="sales_page")
+    customers = Customer.objects.all()
+    user_branch = get_user_branch(request.user)
+    if user_branch is not None:
+        customers = customers.filter(sales__branch=user_branch).distinct()
+    customer = get_object_or_404(customers, pk=pk)
+    customer_sales = customer.sales.select_related("cashier", "branch")
+    if user_branch is not None:
+        customer_sales = customer_sales.filter(branch=user_branch)
+    sales = paginate_queryset(request, customer_sales.order_by("-created_at"), per_page=10, page_param="sales_page")
     return render(request, "sales/customer_detail.html", {"customer": customer, "sales": sales})
 
 
@@ -403,10 +524,14 @@ def customer_update(request, pk):
 
 
 @login_required
-@role_required(User.Role.ADMIN, User.Role.CASHIER)
+@role_required(User.Role.ADMIN, User.Role.CASHIER, User.Role.MANAGER)
 def customer_lookup_api(request):
     phone = request.GET.get("phone", "").strip()
-    customer = Customer.objects.filter(phone=phone).first()
+    customers = Customer.objects.filter(phone=phone)
+    user_branch = get_user_branch(request.user)
+    if user_branch is not None:
+        customers = customers.filter(sales__branch=user_branch).distinct()
+    customer = customers.first()
     if not customer:
         return JsonResponse({"found": False})
     settings_obj = BusinessSettings.get_solo()

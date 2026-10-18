@@ -15,5 +15,17 @@ services:
     ports:
       - "8000:8000"
     env_file: .env
+    environment:
+      DURIELBIZ_PRODUCTION: "1"
     volumes:
       - ./data:/app/data
+    restart: unless-stopped
+  subscription-reminders:
+    build: .
+    command: python manage.py run_subscription_reminder_scheduler --hour 8
+    env_file: .env
+    environment:
+      DURIELBIZ_PRODUCTION: "1"
+    depends_on:
+      - web
+    restart: unless-stopped

@@ -26,7 +26,7 @@
         <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
                 <h3 class="text-lg font-semibold">
-                    Product Catalog — {% if request.user.role == 'admin' %}All Branches{% else %}{{ request.user.branch.name }}{% endif %}
+                    Product Catalog — {{ selected_branch_name }}
                 </h3>
                 <p class="text-sm text-slate-500">Search, filter, and review stock without opening Django admin.</p>
             </div>
@@ -47,6 +47,16 @@
                             </option>
                         {% endfor %}
                     </select>
+                    {% if request.user.role == 'admin' %}
+                        <select name="branch" class="rounded-xl border border-slate-300 px-4 py-2 text-sm">
+                            <option value="">All branches</option>
+                            {% for branch in branches %}
+                                <option value="{{ branch.pk }}" {% if branch.pk|stringformat:"s" == selected_branch_id %}selected{% endif %}>
+                                    {{ branch.name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    {% endif %}
                     <button class="rounded-xl bg-slate-900 px-4 py-2 text-sm text-white">Filter</button>
                 </form>
                 <a href="{% url 'products:create' %}" class="rounded-xl border border-slate-300 px-4 py-2 text-center text-sm">Add Product</a>
@@ -74,11 +84,11 @@
                                 <a href="{% url 'products:detail' product.pk %}" class="font-medium hover:underline">{{ product.name }}</a>
                                 <p class="text-xs text-slate-500">Cost: ₦{{ product.cost_price }}</p>
                             </td>
-                            <td class="py-4 pr-4">{{ product.category.name }}</td>
+                            <td class="py-4 pr-4">{{ product.category.name|default:"Uncategorized" }}</td>
                             <td class="py-4 pr-4">{{ product.barcode|default:"—" }}</td>
                             <td class="py-4 pr-4">
-                                <span class="rounded-full px-2 py-1 text-xs {% if product.is_low_stock %}bg-amber-100 text-amber-700{% else %}bg-emerald-100 text-emerald-700{% endif %}">
-                                    {{ product.quantity }}
+                                <span class="rounded-full px-2 py-1 text-xs {% if product.branch_quantity <= product.reorder_level %}bg-amber-100 text-amber-700{% else %}bg-emerald-100 text-emerald-700{% endif %}">
+                                    {{ product.branch_quantity }}
                                 </span>
                             </td>
                             <td class="py-4 pr-4">₦{{ product.selling_price }}</td>

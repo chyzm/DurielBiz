@@ -10,7 +10,7 @@
                     <h3 class="text-2xl font-semibold">
                         {{ product.name }} — {% if request.user.role == 'admin' %}All Branches{% else %}{{ request.user.branch.name }}{% endif %}
                     </h3>
-                    <p class="mt-1 text-sm text-slate-500">{{ product.category.name }} · {{ product.barcode|default:"No barcode" }}</p>
+                    <p class="mt-1 text-sm text-slate-500">{{ product.category.name|default:"Uncategorized" }} · {{ product.barcode|default:"No barcode" }}</p>
                 </div>
                 <span class="rounded-full px-3 py-1 text-xs {% if product.is_active %}bg-emerald-100 text-emerald-700{% else %}bg-slate-200 text-slate-700{% endif %}">
                     {% if product.is_active %}Active{% else %}Inactive{% endif %}

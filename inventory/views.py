@@ -22,7 +22,7 @@ from .services import apply_inventory_adjustment, delete_manual_adjustment, upda
 
 
 @login_required
-@role_required(User.Role.ADMIN, User.Role.INVENTORY)
+@role_required(User.Role.ADMIN, User.Role.INVENTORY, User.Role.MANAGER)
 def inventory_overview(request):
     branches = active_branches_for_user(request.user)
     if is_admin_user(request.user):
@@ -59,7 +59,7 @@ def inventory_overview(request):
 
 
 @login_required
-@role_required(User.Role.ADMIN, User.Role.INVENTORY)
+@role_required(User.Role.ADMIN, User.Role.INVENTORY, User.Role.MANAGER)
 def inventory_export_csv(request):
     if is_admin_user(request.user):
         branch_code = request.GET.get("branch", "").strip()
@@ -104,7 +104,7 @@ def inventory_export_csv(request):
             [
                 product.name,
                 product.barcode or "",
-                product.category.name,
+                product.category.name if product.category else "",
                 product.supplier.name if product.supplier else "",
                 selected_branch.name if selected_branch else "All Branches",
                 current_stock,
@@ -151,7 +151,7 @@ def inventory_adjustment(request):
 
 
 @login_required
-@role_required(User.Role.ADMIN, User.Role.INVENTORY)
+@role_required(User.Role.ADMIN, User.Role.INVENTORY, User.Role.MANAGER)
 def inventory_detail(request, pk):
     log = get_object_or_404(
         scope_queryset_to_user_branch(InventoryLog.objects.select_related("product", "created_by", "branch"), request.user),

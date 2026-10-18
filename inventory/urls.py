@@ -8,7 +8,7 @@ urlpatterns = [
     path("", inventory_overview, name="overview"),
     path("export.csv", inventory_export_csv, name="export-csv"),
     path("adjust/", inventory_adjustment, name="adjust"),
-    path("logs/<int:pk>/", inventory_detail, name="detail"),
-    path("logs/<int:pk>/edit/", inventory_update, name="update"),
-    path("logs/<int:pk>/delete/", inventory_delete, name="delete"),
+    path("logs/<signed_int:pk>/", inventory_detail, name="detail"),
+    path("logs/<signed_int:pk>/edit/", inventory_update, name="update"),
+    path("logs/<signed_int:pk>/delete/", inventory_delete, name="delete"),
 ]

@@ -1,7 +1,8 @@
-from django import forms
+﻿from django import forms
 
 from accounts.permissions import active_branches_for_user, get_user_branch, is_admin_user
 from reports.models import Branch, BusinessSettings
+from suppliers.models import Supplier
 from .models import Category, Product
 
 
@@ -41,6 +42,10 @@ class ProductForm(forms.ModelForm):
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
+        # Rebuild tenant-scoped choices in the request context. ModelForm field
+        # querysets can otherwise retain the empty queryset made at import time.
+        self.fields["category"].queryset = Category.objects.order_by("name")
+        self.fields["supplier"].queryset = Supplier.objects.order_by("name")
         self.include_opening_fields = include_opening_fields
         if include_branch_field is None:
             include_branch_field = include_opening_fields

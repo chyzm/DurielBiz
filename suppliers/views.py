@@ -15,7 +15,7 @@ from .models import Supplier
 
 
 @login_required
-@role_required(User.Role.ADMIN, User.Role.INVENTORY)
+@role_required(User.Role.ADMIN, User.Role.INVENTORY, User.Role.MANAGER)
 def supplier_list(request):
     user_branch = get_user_branch(request.user)
     if user_branch is not None:
@@ -56,7 +56,7 @@ def supplier_create(request):
 
 
 @login_required
-@role_required(User.Role.ADMIN, User.Role.INVENTORY)
+@role_required(User.Role.ADMIN, User.Role.INVENTORY, User.Role.MANAGER)
 def supplier_detail(request, pk):
     user_branch = get_user_branch(request.user)
     if user_branch is not None:

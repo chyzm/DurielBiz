@@ -1,7 +1,7 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
-from django.db.models import Count
+from django.db.models import Count, Prefetch, Q
 from django.shortcuts import get_object_or_404, redirect, render
 
 from accounts.activity import log_activity
@@ -12,15 +12,17 @@ from pos_system.pagination import paginate_queryset
 from reports.models import Branch, BusinessSettings
 
 from .forms import PurchaseReceiveForm
-from .models import Purchase
+from .models import Purchase, PurchaseItem
 from .services import delete_purchase, receive_purchase, update_purchase
 
 
 @login_required
-@role_required(User.Role.ADMIN, User.Role.INVENTORY)
+@role_required(User.Role.ADMIN, User.Role.INVENTORY, User.Role.MANAGER)
 def purchase_list(request):
     branches = active_branches_for_user(request.user)
-    purchases = Purchase.objects.select_related("supplier", "created_by", "branch").prefetch_related("items", "items__product")
+    purchases = Purchase.objects.filter(is_archived=False).select_related("supplier", "created_by", "branch").annotate(
+        current_item_count=Count("items", filter=Q(items__is_current=True))
+    ).prefetch_related(Prefetch("items", queryset=PurchaseItem.objects.filter(is_current=True).select_related("product"), to_attr="current_items"))
     purchases = scope_queryset_to_user_branch(purchases, request.user)
     if is_admin_user(request.user):
         branch_code = request.GET.get("branch", "").strip()
@@ -36,7 +38,7 @@ def purchase_list(request):
         "purchases": purchases_page,
         "purchase_count": purchases.count(),
         "supplier_count": purchases.values("supplier").distinct().count(),
-        "item_count": purchases.aggregate(total=Count("items"))["total"] or 0,
+        "item_count": purchases.aggregate(total=Count("items", filter=Q(items__is_current=True)))["total"] or 0,
         "branches": branches,
         "selected_branch": branch_code,
         "selected_branch_name": selected_branch.name if selected_branch else "All Branches",
@@ -84,7 +86,7 @@ def purchase_create(request):
 
 
 @login_required
-@role_required(User.Role.ADMIN, User.Role.INVENTORY)
+@role_required(User.Role.ADMIN, User.Role.INVENTORY, User.Role.MANAGER)
 def purchase_detail(request, pk):
     purchase = get_object_or_404(
         scope_queryset_to_user_branch(
@@ -93,15 +95,19 @@ def purchase_detail(request, pk):
         ),
         pk=pk,
     )
-    items_page = paginate_queryset(request, purchase.items.select_related("product").all(), per_page=10, page_param="items_page")
-    return render(request, "purchases/purchase_detail.html", {"purchase": purchase, "items": items_page})
+    items_page = paginate_queryset(request, purchase.items.select_related("product").filter(is_current=True), per_page=10, page_param="items_page")
+    return render(request, "purchases/purchase_detail.html", {
+        "purchase": purchase, "items": items_page,
+        "corrections": purchase.corrections.select_related("actor").all(),
+        "historical_items": purchase.items.filter(is_current=False).select_related("product").order_by("-pk"),
+    })
 
 
 @login_required
 @role_required(User.Role.ADMIN, User.Role.INVENTORY)
 def purchase_update(request, pk):
-    purchase = get_object_or_404(scope_queryset_to_user_branch(Purchase.objects.prefetch_related("items"), request.user), pk=pk)
-    first_item = purchase.items.select_related("product").first()
+    purchase = get_object_or_404(scope_queryset_to_user_branch(Purchase.objects.filter(is_archived=False).prefetch_related("items"), request.user), pk=pk)
+    first_item = purchase.items.filter(is_current=True).select_related("product").first()
     initial = {
         "branch": purchase.branch,
         "supplier": purchase.supplier,
@@ -158,12 +164,12 @@ def purchase_update(request, pk):
 @role_required(User.Role.ADMIN, User.Role.INVENTORY)
 def purchase_delete(request, pk):
     purchase = get_object_or_404(
-        scope_queryset_to_user_branch(Purchase.objects.prefetch_related("items", "items__product"), request.user),
+        scope_queryset_to_user_branch(Purchase.objects.filter(is_archived=False).prefetch_related("items", "items__product"), request.user),
         pk=pk,
     )
     if request.method == "POST":
         try:
-            delete_purchase(purchase=purchase)
+            delete_purchase(purchase=purchase, actor=request.user)
         except ValidationError as exc:
             messages.error(request, exc.messages[0])
             return redirect("purchases:detail", pk=pk)

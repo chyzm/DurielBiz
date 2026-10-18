@@ -12,12 +12,10 @@ from pathlib import Path
 APP_NAME = "DurielBizPOS"
 BROWSER_HOST = "127.0.0.1"
 DEFAULT_BIND_HOST = "127.0.0.1"
-DEFAULT_PORT = 9000
+DEFAULT_PORT = 8080
 PROJECT_ITEMS = [
     "accounts",
-    "cloudsync",
     "inventory",
-    "invoicing",
     "licensing",
     "notifications",
     "pos_system",
@@ -26,6 +24,7 @@ PROJECT_ITEMS = [
     "reports",
     "sales",
     "suppliers",
+    "syncing",
     "templates",
     "static",
     "manage.py",
@@ -254,12 +253,6 @@ def server_command(project_root: Path) -> list[str]:
     return [sys.executable, __file__, "--serve"]
 
 
-def autosync_command(project_root: Path) -> list[str]:
-    if getattr(sys, "frozen", False):
-        return [sys.executable, "--manage", "run_autosync"]
-    return [sys.executable, __file__, "--manage", "run_autosync"]
-
-
 def launch_server(project_root: Path) -> subprocess.Popen:
     log_file = (project_root / "launcher.log").open("a", encoding="utf-8")
     return subprocess.Popen(
@@ -271,15 +264,51 @@ def launch_server(project_root: Path) -> subprocess.Popen:
     )
 
 
-def launch_autosync_worker(project_root: Path) -> subprocess.Popen:
-    log_file = (project_root / "launcher.log").open("a", encoding="utf-8")
-    return subprocess.Popen(
-        autosync_command(project_root),
+def launch_sync_service(project_root: Path) -> None:
+    service_env = server_runtime_env(project_root)
+    env_file = project_root / ".env"
+    if env_file.exists():
+        for raw_line in env_file.read_text(encoding="utf-8").splitlines():
+            line = raw_line.strip()
+            if line and not line.startswith("#") and "=" in line:
+                key, value = line.split("=", 1)
+                value = value.strip().strip("\"'")
+                service_env.setdefault(key.strip(), value)
+    required_sync_settings = (
+        "DURIELBIZ_SYNC_URL", "DURIELBIZ_SYNC_TOKEN",
+        "DURIELBIZ_SYNC_DEVICE_ID", "DURIELBIZ_SYNC_BUSINESS_SLUG",
+    )
+    if not all(service_env.get(name) for name in required_sync_settings):
+        return
+    if getattr(sys, "frozen", False):
+        command = [sys.executable, "--manage", "sync_desktop", "--loop"]
+    else:
+        command = [sys.executable, __file__, "--manage", "sync_desktop", "--loop"]
+    log_file = (project_root / "sync_service.log").open("a", encoding="utf-8")
+    flags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+    subprocess.Popen(
+        command,
         cwd=project_root,
-        env=server_runtime_env(project_root),
+        env=service_env,
         stdout=log_file,
         stderr=log_file,
+        creationflags=flags,
     )
+
+
+def sync_is_configured(project_root: Path) -> bool:
+    service_env = server_runtime_env(project_root)
+    env_file = project_root / ".env"
+    if env_file.exists():
+        for raw_line in env_file.read_text(encoding="utf-8").splitlines():
+            line = raw_line.strip()
+            if line and not line.startswith("#") and "=" in line:
+                key, value = line.split("=", 1)
+                service_env.setdefault(key.strip(), value.strip().strip("\"'"))
+    return all(service_env.get(name) for name in (
+        "DURIELBIZ_SYNC_URL", "DURIELBIZ_SYNC_TOKEN",
+        "DURIELBIZ_SYNC_DEVICE_ID", "DURIELBIZ_SYNC_BUSINESS_SLUG",
+    ))
 
 
 def execute_django_command(project_root: Path, command_args: list[str]) -> int:
@@ -342,23 +371,20 @@ def main() -> int:
         return 1
 
     if is_server_running():
+        launch_sync_service(project_root)
         open_browser_once()
         return 0
 
+    # Complete first-pairing cloud bootstrap before the POS accepts local work.
+    # Subsequent sync runs in the background after the server is available.
+    if sync_is_configured(project_root) and run_management_command(project_root, ["sync_desktop"]) != 0:
+        return 1
+
     server = launch_server(project_root)
-    autosync_worker = None
     if wait_for_server():
-        autosync_worker = launch_autosync_worker(project_root)
+        launch_sync_service(project_root)
         open_browser_once()
-        try:
-            return server.wait()
-        finally:
-            if autosync_worker and autosync_worker.poll() is None:
-                autosync_worker.terminate()
-                try:
-                    autosync_worker.wait(timeout=5)
-                except subprocess.TimeoutExpired:
-                    autosync_worker.kill()
+        return server.wait()
 
     server.poll()
     return 1

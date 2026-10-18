@@ -8,6 +8,7 @@
             <div>
                 <h3 class="text-lg font-semibold">Sales History</h3>
                 <p class="text-sm text-slate-500">Admin-only completed sales filtered by date and branch.</p>
+                <a href="{% url 'sales:reconciliation' %}" class="mt-2 inline-flex text-sm font-medium text-indigo-700 hover:underline">Open payment reconciliation</a>
             </div>
             <form method="get" class="flex flex-col gap-3 sm:flex-row">
                 <input type="date" name="start_date" value="{{ start_date }}" class="rounded-xl border border-slate-300 px-4 py-2 text-sm">
@@ -76,7 +77,7 @@
                             <td class="py-4 pr-4">₦{{ sale.total }}</td>
                             <td class="py-4 space-x-3">
                                 <a href="{% url 'sales:receipt' sale.pk %}" class="text-slate-700 hover:underline">Reprint</a>
-                                {% if sale.status == 'completed' %}
+                                {% if sale.status == 'completed' and request.user.role == 'admin' or sale.status == 'completed' and request.user.role == 'manager' %}
                                     <a href="{% url 'sales:void' sale.pk %}" class="text-rose-700 hover:underline">Void</a>
                                 {% endif %}
                             </td>

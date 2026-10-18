@@ -1,5 +1,6 @@
 from django.db.models import F, IntegerField, OuterRef, Subquery, Value
 from django.db.models.functions import Coalesce
+from django.core.exceptions import ValidationError
 
 from .models import BranchStock, Product
 
@@ -29,7 +30,12 @@ def branch_quantity(product, branch):
 def apply_global_delta(product, delta):
     if delta == 0:
         return
-    product.quantity = max(product.quantity + delta, 0)
+    updated_quantity = product.quantity + delta
+    if updated_quantity < 0:
+        raise ValidationError(
+            f"Aggregate stock for {product.name} is inconsistent with branch stock. Reconcile inventory before continuing."
+        )
+    product.quantity = updated_quantity
     product.save(update_fields=["quantity", "updated_at"])
 
 

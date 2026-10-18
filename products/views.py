@@ -10,7 +10,7 @@ from django.utils import timezone
 from accounts.activity import log_activity
 from accounts.models import ActivityLog
 from accounts.models import User
-from accounts.permissions import get_user_branch, role_required
+from accounts.permissions import get_user_branch, is_admin_user, role_required
 from inventory.models import InventoryLog
 from inventory.services import apply_inventory_adjustment
 from pos_system.pagination import paginate_queryset
@@ -22,36 +22,42 @@ from .stock import get_branch_stock, product_queryset_for_branch
 
 
 @login_required
-@role_required(User.Role.ADMIN, User.Role.INVENTORY)
+@role_required(User.Role.ADMIN, User.Role.INVENTORY, User.Role.MANAGER)
 def product_list(request):
     search = request.GET.get("q", "").strip()
     category_slug = request.GET.get("category", "").strip()
-    threshold = timezone.localdate() + timedelta(days=56)
     user_branch = get_user_branch(request.user)
+    branches = Branch.objects.filter(is_active=True).order_by("name")
+    selected_branch = user_branch
+    if is_admin_user(request.user):
+        branch_id = request.GET.get("branch", "").strip()
+        if branch_id:
+            selected_branch = branches.filter(pk=branch_id).first()
 
+    threshold = timezone.localdate() + timedelta(days=56)
     products = product_queryset_for_branch(
-        user_branch,
+        selected_branch,
         Product.objects.select_related("category", "supplier"),
     ).order_by("name")
-    if user_branch is not None:
-        products = products.filter(branch_stocks__branch=user_branch).distinct()
+    if selected_branch is not None:
+        products = products.filter(branch_stocks__branch=selected_branch).distinct()
     if search:
         products = products.filter(Q(name__icontains=search) | Q(barcode__icontains=search))
     if category_slug:
         products = products.filter(category__slug=category_slug)
     products_page = paginate_queryset(request, products, per_page=15)
 
-    if user_branch is not None:
+    if selected_branch is not None:
         categories = (
             Category.objects.annotate(
-                product_count=Count("products", filter=Q(products__branch_stocks__branch=user_branch), distinct=True)
+                product_count=Count("products", filter=Q(products__branch_stocks__branch=selected_branch), distinct=True)
             )
             .filter(product_count__gt=0)
             .order_by("name")
         )
         all_products = product_queryset_for_branch(
-            user_branch,
-            Product.objects.filter(branch_stocks__branch=user_branch).distinct(),
+            selected_branch,
+            Product.objects.filter(branch_stocks__branch=selected_branch).distinct(),
         )
     else:
         categories = Category.objects.annotate(product_count=Count("products")).order_by("name")
@@ -62,11 +68,14 @@ def product_list(request):
         "categories": categories,
         "search": search,
         "selected_category": category_slug,
+        "branches": branches if is_admin_user(request.user) else (),
+        "selected_branch_id": str(selected_branch.pk) if selected_branch else "",
+        "selected_branch_name": selected_branch.name if selected_branch else "All Branches",
         "total_products": all_products.count(),
         "active_products": all_products.filter(is_active=True).count(),
         "low_stock_count": (
             all_products.filter(is_active=True, branch_quantity__lte=F("reorder_level")).count()
-            if user_branch is not None
+            if selected_branch is not None
             else all_products.filter(is_active=True, quantity__lte=F("reorder_level")).count()
         ),
         "expiring_count": all_products.filter(
@@ -113,7 +122,7 @@ def product_create(request):
 
 
 @login_required
-@role_required(User.Role.ADMIN, User.Role.INVENTORY)
+@role_required(User.Role.ADMIN, User.Role.INVENTORY, User.Role.MANAGER)
 def product_detail(request, pk):
     user_branch = get_user_branch(request.user)
     product_queryset = Product.objects.select_related("category", "supplier")
@@ -204,7 +213,7 @@ def product_delete(request, pk):
 
 
 @login_required
-@role_required(User.Role.ADMIN, User.Role.INVENTORY)
+@role_required(User.Role.ADMIN, User.Role.INVENTORY, User.Role.MANAGER)
 def category_list(request):
     user_branch = get_user_branch(request.user)
     if user_branch is not None:
@@ -244,7 +253,7 @@ def category_create(request):
 
 
 @login_required
-@role_required(User.Role.ADMIN, User.Role.INVENTORY)
+@role_required(User.Role.ADMIN, User.Role.INVENTORY, User.Role.MANAGER)
 def category_detail(request, pk):
     user_branch = get_user_branch(request.user)
     if user_branch is not None:

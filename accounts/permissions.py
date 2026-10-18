@@ -8,9 +8,6 @@ from reports.models import Branch
 
 
 def get_role_home_url(user):
-    if getattr(user, "is_authenticated", False) and getattr(user, "business_memberships", None):
-        if user.business_memberships.filter(is_active=True).exists():
-            return "cloudsync:dashboard"
     if user.role == User.Role.INVENTORY:
         return "inventory:overview"
     return "reports:dashboard"
@@ -51,6 +48,11 @@ def role_required(*allowed_roles):
         def _wrapped_view(request, *args, **kwargs):
             if not request.user.is_authenticated:
                 return redirect("accounts:login")
+            if not getattr(request.user, "business_id", None):
+                if request.user.is_superuser:
+                    return redirect("accounts:business-setup")
+                messages.error(request, "Your account is not assigned to a business.")
+                return redirect("accounts:logout")
             if request.user.role not in allowed_roles:
                 messages.error(request, "You do not have permission to access that page.")
                 return redirect(get_role_home_url(request.user))

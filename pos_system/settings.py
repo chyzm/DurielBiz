@@ -84,23 +84,29 @@ load_env_file(BASE_DIR / ".env")
 SECRET_KEY = env_str("SECRET_KEY", "django-insecure-change-me")
 debug_env = env("DEBUG")
 if debug_env is None:
-    DEBUG = os.getenv("DURIELBIZ_DESKTOP") != "1"
+    # Fail closed for cloud deployments. Desktop installations can retain the
+    # developer-friendly default because they run only on the local machine.
+    DEBUG = os.getenv("DURIELBIZ_DESKTOP") == "1"
 else:
     DEBUG = debug_env.lower() in {"1", "true", "yes", "on"}
     
-ALLOWED_HOSTS = ["127.0.0.1", 
-                 "localhost", 
-                 "DurielTech.pythonanywhere.com", 
-                 "https://durieltech.com.ng", 
-                 "http://www.durieltech.com.ng", 
-                 "www.durieltech.com.ng"]
+ALLOWED_HOSTS = [
+    "127.0.0.1",
+    "localhost",
+    "durieltech.pythonanywhere.com",
+    "durieltech.com.ng",
+    "www.durieltech.com.ng",
+]
 
 extra_allowed_hosts = env_list("DURIELBIZ_ALLOWED_HOSTS")
 if extra_allowed_hosts:
+    if any("://" in host for host in extra_allowed_hosts):
+        raise ImproperlyConfigured("DURIELBIZ_ALLOWED_HOSTS must contain hostnames, without schemes.")
     ALLOWED_HOSTS = list(dict.fromkeys([*ALLOWED_HOSTS, *extra_allowed_hosts]))
 CSRF_TRUSTED_ORIGINS = env_list("DURIELBIZ_CSRF_TRUSTED_ORIGINS")
 
 IS_DESKTOP = os.getenv("DURIELBIZ_DESKTOP") == "1"
+IS_PRODUCTION = env_bool("DURIELBIZ_PRODUCTION", False)
 # Deliberately NOT keyed off DEBUG: DEBUG is routinely False for local dev/testing too
 # (see .env.example, and this project's own desktop default), which would otherwise mark
 # session/CSRF cookies Secure-only on a plain http://127.0.0.1 connection — browsers then
@@ -118,14 +124,10 @@ SECURE_HSTS_INCLUDE_SUBDOMAINS = SECURE_HSTS_SECONDS > 0
 SECURE_HSTS_PRELOAD = SECURE_HSTS_SECONDS > 0
 X_FRAME_OPTIONS = "DENY"
 
-if not DEBUG and SECRET_KEY == "django-insecure-change-me":
-    import warnings
-
-    warnings.warn(
-        "DURIELBIZ: SECRET_KEY is using the insecure default. Set SECRET_KEY in your .env file before deploying.",
-        RuntimeWarning,
-        stacklevel=1,
-    )
+if IS_PRODUCTION and (not SECRET_KEY or SECRET_KEY in {"django-insecure-change-me", "change-me"}):
+    raise ImproperlyConfigured("Set a unique SECRET_KEY before starting a production deployment.")
+if IS_PRODUCTION and DEBUG:
+    raise ImproperlyConfigured("DEBUG must be disabled in production.")
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -142,9 +144,8 @@ INSTALLED_APPS = [
     "sales",
     "reports",
     "notifications",
-    "cloudsync",
-    "invoicing",
     "licensing",
+    "syncing.apps.SyncingConfig",
 ]
 
 MIDDLEWARE = [
@@ -154,10 +155,11 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "accounts.middleware.TenantContextMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "licensing.middleware.LicenseGateMiddleware",
-    "invoicing.middleware.InvoicingIdleTimeoutMiddleware",
+    "accounts.middleware.BusinessSubscriptionMiddleware",
 ]
 
 # Desktop-only trial/licensing (see licensing/). Inert unless DURIELBIZ_DESKTOP=1 and
@@ -187,12 +189,35 @@ TEMPLATES = [
 WSGI_APPLICATION = "pos_system.wsgi.application"
 ASGI_APPLICATION = "pos_system.asgi.application"
 
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": Path(env_str("DURIELBIZ_DATA_DIR", str(BASE_DIR))) / "db.sqlite3",
+DATA_DIR = Path(env_str("DURIELBIZ_DATA_DIR", str(BASE_DIR)))
+if not DATA_DIR.is_absolute():
+    DATA_DIR = BASE_DIR / DATA_DIR
+DATA_DIR.mkdir(parents=True, exist_ok=True)
+
+DATABASE_URL = env_str("DATABASE_URL").strip()
+if DATABASE_URL and not IS_DESKTOP:
+    import dj_database_url
+
+    DATABASES = {
+        "default": dj_database_url.parse(DATABASE_URL, conn_max_age=600),
     }
-}
+    if IS_PRODUCTION and DATABASES["default"]["ENGINE"] != "django.db.backends.mysql":
+        raise ImproperlyConfigured("Production DATABASE_URL must point to MySQL.")
+else:
+    if IS_PRODUCTION and not IS_DESKTOP:
+        raise ImproperlyConfigured("DATABASE_URL is required for cloud production; SQLite is desktop-only.")
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": DATA_DIR / "db.sqlite3",
+        }
+    }
+
+if IS_PRODUCTION and not IS_DESKTOP:
+    if not any(origin.startswith("https://") for origin in CSRF_TRUSTED_ORIGINS):
+        raise ImproperlyConfigured("Configure an HTTPS DURIELBIZ_CSRF_TRUSTED_ORIGINS value for production.")
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+    SECURE_SSL_REDIRECT = True
 
 if "test" in sys.argv:
     CACHES = {
@@ -244,8 +269,6 @@ EMAIL_USE_TLS = env_bool("EMAIL_USE_TLS", True)
 DEFAULT_FROM_EMAIL = env_str("DEFAULT_FROM_EMAIL", EMAIL_HOST_USER or "no-reply@durieltech.com.ng")
 ADMIN_NOTIFICATION_EMAIL = env_str("ADMIN_NOTIFICATION_EMAIL", DEFAULT_FROM_EMAIL)
 DURIELBIZ_SITE_URL = env_str("DURIELBIZ_SITE_URL", "https://DurielTech.pythonanywhere.com")
-INVOICING_TRIAL_HOURS = env_int("INVOICING_TRIAL_HOURS", 48)
-INVOICING_ALLOW_LOCAL = env_bool("INVOICING_ALLOW_LOCAL", DEBUG and os.getenv("DURIELBIZ_DESKTOP") != "1")
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 AUTH_USER_MODEL = "accounts.User"

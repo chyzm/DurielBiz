@@ -1,8 +1,9 @@
 from django.db import models
+from accounts.tenancy import TenantOwnedModel
 
 
-class Supplier(models.Model):
-    name = models.CharField(max_length=255, unique=True)
+class Supplier(TenantOwnedModel):
+    name = models.CharField(max_length=255)
     phone = models.CharField(max_length=20, blank=True)
     email = models.EmailField(blank=True)
     address = models.TextField(blank=True)
@@ -11,6 +12,7 @@ class Supplier(models.Model):
 
     class Meta:
         ordering = ["name"]
+        constraints = [models.UniqueConstraint(fields=["business", "name"], name="uniq_supplier_name_business")]
 
     def __str__(self) -> str:
         return self.name
