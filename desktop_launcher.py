@@ -18,7 +18,6 @@ DEFAULT_PORT = 8080
 PROJECT_ITEMS = [
     "accounts",
     "inventory",
-    "licensing",
     "notifications",
     "pos_system",
     "products",
@@ -38,10 +37,7 @@ def bind_host() -> str:
 
 
 def bind_port() -> int:
-    try:
-        return int(os.getenv("DURIELBIZ_PORT", str(DEFAULT_PORT)))
-    except ValueError:
-        return DEFAULT_PORT
+    return DEFAULT_PORT
 
 
 def browser_url() -> str:

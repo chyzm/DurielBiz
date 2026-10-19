@@ -24,7 +24,7 @@ Cloud Business Settings creates and refreshes each business's referral key. The 
 - Toast-based expiry notifications
 - Admin-only sales history by date
 - Desktop packaging entrypoint with PyInstaller support
-- 14-day desktop trial with single-master-key, machine-locked activation
+- Cloud-managed desktop subscription enforcement
 
 ## Email and passwords
 
@@ -284,7 +284,7 @@ After first login:
 
 Use this checklist before selling or deploying to a client:
 
-1. Confirm `LICENSE_MASTER_KEY_HASH` is set in `.env` before building, if this client's build should enforce the trial/license
+1. Configure the desktop build `.env` with the cloud sync endpoint
 2. Build fresh desktop binaries with `build_desktop.ps1`
 3. Rebuild the installer with `build_installer.ps1`
 4. Test the installer on a clean Windows machine
@@ -301,11 +301,10 @@ Use this checklist before selling or deploying to a client:
    - add stock
    - make sale, review the order, then confirm & print
    - view dashboard
-9. Once the client is ready to pay, open their activation screen and enter your saved activation key (see [Licensing](#licensing-trial--activation))
-10. Deliver the client handoff items:
+8. Deliver the client handoff items:
     - installer
     - admin login
-    - confirmation the app is activated (or that the trial is running)
+    - confirmation the desktop is paired to the cloud subscription
     - backup path
     - support contact
 
@@ -317,7 +316,7 @@ Provide these to the buyer at delivery:
 - Admin tool: `dist\DurielBizPOSAdmin.exe`
 - Local data path: `%LOCALAPPDATA%\DurielBizPOS\db.sqlite3`
 - Local runtime log: `%LOCALAPPDATA%\DurielBizPOS\runtime\launcher.log`
-- Activation done on-site if the client has already paid (see [Licensing](#licensing-trial--activation)) — otherwise they get a 14-day trial automatically
+- Cloud business pairing and subscription status confirmation
 - Support contact:
   - `07031016787`
   - `info@durieltech.com.ng`
@@ -381,7 +380,7 @@ pip install pyinstaller
 ```
 
 4. Create a minimal desktop build .env with a unique SECRET_KEY and DURIELBIZ_SYNC_URL set to the hosted sync endpoint, for example https://pos.example.com/api/sync/. Leave the per-device token, device ID, and business slug empty; the installer pairs each installation separately. Make sure the cloud deployment has applied migrations. Do not bundle the cloud server's DATABASE_URL, email credentials, or admin credentials.
-5. Set LICENSE_MASTER_KEY_HASH in the build .env if you want the desktop trial and activation flow enabled. The build script bundles .env when it is present, so review its contents before creating a distributable.
+5. The build script bundles .env when it is present, so review its contents before creating a distributable.
 6. Build the desktop executables and installer:
 
 ```powershell
@@ -397,52 +396,14 @@ The installer is created at dist\installer\DurielBizPOS-Setup.exe. If the instal
 2. Enter the referral key from that business's cloud Business Settings when prompted. The installer stores it temporarily in the current Windows user's local app-data folder.
 3. After installation, the app starts, applies migrations, redeems the key over HTTPS, creates a device-specific credential, downloads the cloud business data, and opens the login page at http://127.0.0.1:8080/. If it does not start automatically, launch **DurielBiz POS** from the Start Menu or desktop shortcut. Internet is required for first pairing and the initial download.
 4. Use the same business account login and password as on the cloud. Business users, their roles, active status, branch assignments, and password hashes are included in sync, so cloud-created accounts can sign in on the paired desktop. Passwords are transferred as Django password hashes over HTTPS, never as plaintext. User accounts created or changed on a paired desktop also sync back to cloud.
-5. If licensing is enabled, enter the separate activation key on the activation screen. The first-run trial works without internet after pairing.
+5. The cloud subscription controls desktop access. The desktop refreshes its subscription status during background sync and stops accepting requests at the cached expiry time if it is offline.
 6. Back up the business database regularly. By default it is %LOCALAPPDATA%\DurielBizPOS\db.sqlite3; app files are under C:\Program Files\DurielBizPOS, and the working Django runtime is under %LOCALAPPDATA%\DurielBizPOS\runtime. Replacing/upgrading the app does not remove the database. The installer uninstaller does remove the app's local data.
 
-The desktop server binds to 127.0.0.1:8080 by default, so it is reachable only from the client computer itself. To let other devices access it on the same private network, follow [Remote viewing](#remote-viewing) and configure the host binding, allowed hosts, and Windows Firewall.
+The desktop server always binds to port 8080. It binds to 127.0.0.1 by default, so it is reachable only from the client computer itself. To let other devices access it on the same private network, follow [Remote viewing](#remote-viewing) and configure the host binding, allowed hosts, and Windows Firewall.
 
 ### If Python is already installed on the client
 
 For a source-based local server instead of the packaged installer, use [Cloud-paired desktop install — Run from source on Windows](#option-1-run-from-source-on-windows). That option requires Python and the project dependencies on the client computer.
-
-## Licensing (trial & activation)
-
-The desktop build includes a 14-day trial and a single-master-key activation system, implemented in the `licensing` app. It only ever applies to the packaged desktop app — the hosted deployment and local development (`manage.py runserver`) are never gated.
-
-### How it works
-
-- **Trial**: the first time the app runs on a machine, it silently starts a 14-day trial. The countdown is stored in two places — a signed file in the app's data directory and a signed value in the Windows registry (`HKEY_CURRENT_USER\Software\DurielTech\DurielBizPOS`). Whichever of the two records the *earlier* start date wins, so deleting or editing just one of them does not reset or extend the trial.
-- **One activation key, known only to you**: there is a single master activation key. You type the same key into any client's activation screen when they've paid. The app never stores or ships the plaintext key — only a SHA-256 hash of it (`LICENSE_MASTER_KEY_HASH` in `.env`), so the key itself can't be recovered from a shipped build.
-- **Machine lock happens at the moment of activation**: when the correct key is entered, the app records *that machine's* current hardware fingerprint (from its Windows `MachineGuid`) as the activated fingerprint. Every subsequent request re-derives the current machine's fingerprint and compares it to what was recorded — so if someone copies an already-activated install (files and/or data folder) to a different PC, that copy's fingerprint won't match and it will not show as licensed there.
-- **Lockout**: once the trial runs out and the machine isn't activated, every page redirects to `/licensing/activate/`, which shows the machine's ID (for your support records) and a field for the activation key. Nothing else in the app is reachable until it's activated.
-- **Enforcement switch**: the whole system is inert unless both are true: `DURIELBIZ_DESKTOP=1` (set automatically by `desktop_launcher.py`) and `LICENSE_MASTER_KEY_HASH` is set in `.env`. Leave `LICENSE_MASTER_KEY_HASH` blank to ship a build with no trial/licensing enforcement at all.
-
-### Vendor workflow
-
-1. Generate the master key **once**, on your own machine:
-
-```powershell
-python manage.py generate_master_key
-```
-
-This prints the plaintext **activation key** and its **hash**. Save the plaintext key somewhere offline and secret (password manager, etc.) — this is the one key you'll type into every client's activation screen when they pay. Paste only the **hash** into `LICENSE_MASTER_KEY_HASH` in `.env` before building the distributable; it's safe to ship since a hash can't be reversed back into the key.
-
-2. When a client is ready to pay (or you're setting them up), open their activation screen (`/licensing/activate/`, shown automatically once the trial ends, or reachable anytime) and type in your saved activation key. That machine is now activated — no fingerprint exchange, no per-client key generation, no internet connection needed.
-
-### Client-facing behavior
-
-- The activation page shows the trial countdown while it's still running.
-- On expiry, the app locks to `/licensing/activate/` with the machine's ID displayed (informational, for support) and an "Activation key" field.
-- Activation is a one-time action per machine; the recorded fingerprint is re-checked on every request, not just cached as a flag.
-
-### Security notes
-
-- The activation key is never shipped in plaintext — only its SHA-256 hash lives in the built app, so extracting the build doesn't reveal the key.
-- Because the same key activates any machine you type it into, its secrecy is what protects against unlimited activations — treat it like a master password. If it ever leaks, rotate it: generate a new one, update `LICENSE_MASTER_KEY_HASH`, and rebuild.
-- What *is* strongly protected: an already-activated install cannot be copied to a second machine and remain licensed there, because the fingerprint check is re-derived locally every time, not carried in a portable token.
-- The dual-stored trial start date is a reasonable deterrent against casually deleting the app's data folder to "restart" the trial, not a guarantee against a determined, technically skilled attacker patching the app itself. There is no purely offline desktop licensing scheme that fully defeats that threat.
-- Relevant files: `licensing/fingerprint.py`, `licensing/state.py`, `licensing/services.py`, `licensing/middleware.py`, `licensing/management/commands/generate_master_key.py`.
 
 ## Cloud-paired desktop install
 
@@ -603,7 +564,7 @@ ipconfig
 ```
 
 3. Note the IPv4 address for the active network adapter, for example `192.168.1.25`.
-4. Open Windows Defender Firewall and allow inbound TCP port `9000` on the Private network profile.
+4. Open Windows Defender Firewall and allow inbound TCP port `8080` on the Private network profile.
 5. Start the app from PowerShell with LAN binding enabled:
 
 ```powershell
@@ -616,7 +577,7 @@ $env:DURIELBIZ_ALLOWED_HOSTS="127.0.0.1,localhost,192.168.1.25"
 7. On a phone or another PC on the same Wi‑Fi, open:
 
 ```text
-http://192.168.1.25:9000/
+http://192.168.1.25:8080/
 ```
 
 8. Log in with an existing app user.

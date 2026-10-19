@@ -45,7 +45,12 @@ def pair_api(request):
     matched = BusinessSettings._base_manager.select_related("business").filter(
         sync_referral_key_hash=referral_hash
     ).first()
-    if matched is None or not matched.business.is_active:
+    if (
+        matched is None
+        or not matched.business.is_active
+        or matched.business.subscription_expires_at is None
+        or matched.business.subscription_expired
+    ):
         return JsonResponse({"error": "Invalid or expired business pairing key."}, status=401)
 
     device_id = uuid.uuid4()
@@ -95,6 +100,15 @@ def sync_api(request):
     device = _device_from_request(request)
     if device is None:
         return JsonResponse({"error": "Invalid or inactive sync device."}, status=401)
+    business = device.business
+    subscription = {
+        "slug": business.slug,
+        "is_active": business.is_active,
+        "subscription_plan": business.subscription_plan,
+        "subscription_expires_at": business.subscription_expires_at.isoformat() if business.subscription_expires_at else None,
+    }
+    if not business.is_active or business.subscription_expires_at is None or business.subscription_expired:
+        return JsonResponse({"error": "subscription_inactive", "business": subscription}, status=403)
     try:
         request_data = json.loads(request.body or b"{}")
         if not isinstance(request_data, dict):
@@ -169,6 +183,7 @@ def sync_api(request):
                     "snapshot": snapshot, "changes": [], "cursor": cursor,
                     "next_model_index": model_index if has_more else None,
                     "next_pk": after_pk if has_more else None,
+                    "business": subscription,
                 })
 
             outgoing = list(
@@ -185,7 +200,7 @@ def sync_api(request):
                 "occurred_at": change.occurred_at.isoformat(),
             } for change in outgoing]
             cursor = outgoing[-1].pk if outgoing else after
-            return JsonResponse({"snapshot": None, "changes": serialized, "cursor": cursor})
+            return JsonResponse({"snapshot": None, "changes": serialized, "cursor": cursor, "business": subscription})
     except SyncConflict as exc:
         return JsonResponse({"error": str(exc)}, status=409)
     finally:

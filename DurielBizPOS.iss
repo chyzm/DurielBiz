@@ -56,14 +56,11 @@ var
 
 procedure InitializeWizard;
 begin
-  if not FileExists(ExpandConstant('{localappdata}\DurielBizPOS\sync_credentials.json')) then
-  begin
-    PairingPage := CreateInputQueryPage(wpSelectDir,
-      'Link this desktop to a cloud business',
-      'Enter the referral key from that business''s Cloud Business Settings.',
-      'The key links this installation to the correct business and is exchanged for a private device credential.');
-    PairingPage.Add('Business referral key:', True);
-  end;
+  PairingPage := CreateInputQueryPage(wpSelectDir,
+    'Link this desktop to a cloud business',
+    'Enter the referral key from that business''s Cloud Business Settings.',
+    'The key links this installation to the correct business and is exchanged for a private device credential.');
+  PairingPage.Add('Business referral key:', True);
 end;
 
 function NextButtonClick(CurPageID: Integer): Boolean;

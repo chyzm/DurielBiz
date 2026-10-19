@@ -8,6 +8,7 @@ from urllib.parse import urlparse
 
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
+from django.utils.dateparse import parse_datetime
 
 from accounts.models import Business
 from accounts.tenancy import reset_current_business_id, set_current_business_id
@@ -68,6 +69,17 @@ class Command(BaseCommand):
         business = Business._base_manager.filter(slug=slug).first()
         if business is None:
             raise CommandError("The paired business does not exist in this desktop database.")
+
+        def update_subscription(payload):
+            cloud_business = payload.get("business") if isinstance(payload, dict) else None
+            if not isinstance(cloud_business, dict):
+                return
+            expires_at = parse_datetime(cloud_business.get("subscription_expires_at") or "")
+            business.is_active = bool(cloud_business.get("is_active", False))
+            business.subscription_plan = cloud_business.get("subscription_plan", business.subscription_plan)
+            business.subscription_expires_at = expires_at
+            business.save(update_fields=["is_active", "subscription_plan", "subscription_expires_at"])
+
         checkpoint, _ = SyncCheckpoint.objects.get_or_create(device_id=device_id)
         bootstrap = bootstrap or not checkpoint.is_bootstrapped
         changes = []
@@ -93,9 +105,19 @@ class Command(BaseCommand):
             )
             try:
                 with urllib.request.urlopen(request, timeout=25) as response:
-                    return json.loads(response.read().decode("utf-8"))
+                    payload = json.loads(response.read().decode("utf-8"))
+                    update_subscription(payload)
+                    return payload
             except urllib.error.HTTPError as exc:
-                body = exc.read(1000).decode("utf-8", errors="replace")
+                response_body = exc.read(1000).decode("utf-8", errors="replace")
+                try:
+                    error_payload = json.loads(response_body)
+                except json.JSONDecodeError:
+                    error_payload = {}
+                if exc.code == 403 and error_payload.get("error") == "subscription_inactive":
+                    update_subscription(error_payload)
+                    raise CommandError("The cloud subscription is inactive or expired. Renew it to restore desktop access.") from exc
+                body = response_body
                 raise CommandError(f"Cloud sync rejected the batch ({exc.code}): {body}") from exc
             except (urllib.error.URLError, TimeoutError) as exc:
                 raise CommandError("Cloud is unavailable; local checkout remains available and sync will retry.") from exc

@@ -93,5 +93,5 @@ class CloudPasswordResetOTPTests(TestCase):
         self.assertRedirects(response, "/accounts/reset/done/", fetch_redirect_response=False)
 
     def test_local_desktop_host_cannot_access_otp_reset(self):
-        response = self.client.get("/accounts/password-reset/", HTTP_HOST="127.0.0.1:9000")
+        response = self.client.get("/accounts/password-reset/", HTTP_HOST="127.0.0.1:8080")
         self.assertRedirects(response, "/accounts/login/")

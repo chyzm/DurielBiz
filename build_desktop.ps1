@@ -4,11 +4,8 @@ if (-not (Test-Path $pyInstallerCommand)) {
   $pyInstallerCommand = "pyinstaller"
 }
 
-# Bundling .env embeds SECRET_KEY/LICENSE_MASTER_KEY_HASH into every copy of this build.
-# That's fine for LICENSE_MASTER_KEY_HASH (a one-way hash, safe to ship) but means every
-# client running this exact build shares the same SECRET_KEY — acceptable here since each
-# install's data is fully isolated locally, but generate a fresh .env per build if that
-# matters for your deployment.
+# Bundling .env embeds SECRET_KEY into every copy of this build. Generate a fresh
+# .env per build if each deployment needs an isolated secret key.
 $envDataArgs = @()
 if (Test-Path (Join-Path $PSScriptRoot ".env")) {
   $envDataArgs = @("--add-data", ".env;.")
@@ -20,7 +17,6 @@ $commonArgs = @(
   "--onefile",
   "--add-data", "accounts;accounts",
   "--add-data", "inventory;inventory",
-  "--add-data", "licensing;licensing",
   "--add-data", "notifications;notifications",
   "--add-data", "pos_system;pos_system",
   "--add-data", "products;products",

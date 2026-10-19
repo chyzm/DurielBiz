@@ -22,7 +22,6 @@ urlpatterns = [
     path("suppliers/", include("suppliers.urls")),
     path("notifications/", include("notifications.urls")),
     path("sales/", include("sales.urls")),
-    path("licensing/", include("licensing.urls")),
     re_path(r"^$", AccountLoginView.as_view(), name="root"),
     path("", include("reports.urls")),
 ]

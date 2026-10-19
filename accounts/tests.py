@@ -148,7 +148,7 @@ class LoginDeploymentModeTests(TestCase):
 
     def test_desktop_app_asks_for_username(self):
         with mock.patch.dict(os.environ, {"DURIELBIZ_DESKTOP": "1"}):
-            response = self.client.get("/accounts/login/", HTTP_HOST="127.0.0.1:9000")
+            response = self.client.get("/accounts/login/", HTTP_HOST="127.0.0.1:8080")
         self.assertContains(response, ">Username<")
         self.assertNotContains(response, ">Email<")
 
@@ -160,7 +160,7 @@ class LoginDeploymentModeTests(TestCase):
         self.assertContains(response, ">Username<")
 
         with mock.patch.dict(os.environ, {"DURIELBIZ_DESKTOP": "0"}):
-            response = self.client.get("/accounts/login/?mode=local", HTTP_HOST="127.0.0.1:9000")
+            response = self.client.get("/accounts/login/?mode=local", HTTP_HOST="127.0.0.1:8080")
         self.assertContains(response, ">Email<")
 
 
@@ -178,7 +178,7 @@ class CookieSecurityRegressionTests(TestCase):
         self.assertFalse(settings.CSRF_COOKIE_SECURE)
 
     def test_csrf_cookie_has_no_secure_attribute_over_plain_http(self):
-        response = self.client.get("/accounts/login/", HTTP_HOST="127.0.0.1:9000")
+        response = self.client.get("/accounts/login/", HTTP_HOST="127.0.0.1:8080")
         csrf_cookie = response.cookies.get("csrftoken")
         self.assertIsNotNone(csrf_cookie)
         self.assertEqual(csrf_cookie["secure"], "")

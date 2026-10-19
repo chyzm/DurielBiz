@@ -1,5 +1,8 @@
+import os
+
 from django.contrib import messages
 from django.contrib.auth import logout
+from django.http import HttpResponse
 from django.shortcuts import redirect
 from django.utils import timezone
 
@@ -29,6 +32,19 @@ class BusinessSubscriptionMiddleware:
         self.get_response = get_response
 
     def __call__(self, request):
+        if os.getenv("DURIELBIZ_DESKTOP") == "1":
+            from accounts.models import Business
+
+            slug = os.getenv("DURIELBIZ_SYNC_BUSINESS_SLUG", "").strip()
+            business = Business._base_manager.filter(slug=slug).first() if slug else None
+            if business is None:
+                return HttpResponse("This desktop is not paired with an active cloud subscription.", status=403)
+            if not business.is_active or business.subscription_expires_at is None or business.subscription_expired:
+                return HttpResponse(
+                    "The cloud subscription for this desktop is inactive or has expired. Contact DurielTech to renew it.",
+                    status=403,
+                )
+
         user = getattr(request, "user", None)
         if user and user.is_authenticated and not user.is_superuser and user.business_id:
             business = user.business

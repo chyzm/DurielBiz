@@ -609,12 +609,6 @@ def activity_log_list(request):
 
 @login_required
 def about_support(request):
-    license_status = None
-    if os.getenv("DURIELBIZ_DESKTOP") == "1" and settings.LICENSE_MASTER_KEY_HASH:
-        from licensing.services import get_license_status
-
-        license_status = get_license_status()
-
     business = getattr(request.user, "business", None)
 
     return render(
@@ -626,7 +620,6 @@ def about_support(request):
             "company_name": "DurielTech",
             "product_name": "DurielBiz POS",
             "app_version": "1.0.0",
-            "license_status": license_status,
             "business": business,
             "deployment_modes": [
                 "Works fully offline on this computer — sales keep going even without internet",
