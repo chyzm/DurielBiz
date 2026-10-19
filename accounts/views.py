@@ -1,9 +1,11 @@
 import logging
 import os
 from functools import wraps
+from typing import cast
 
 from django.conf import settings
 from django.contrib import messages
+from django.core.mail import send_mail
 from django.contrib.auth import views as auth_views
 from django.contrib.auth.decorators import login_required
 from django import forms
@@ -144,7 +146,7 @@ class CloudModeRequiredMixin:
         if not is_cloud_request(request):
             messages.info(request, self.fallback_message)
             return redirect(self.fallback_url)
-        return super().dispatch(request, *args, **kwargs)
+        return cast(View, super()).dispatch(request, *args, **kwargs)
 
 
 def superadmin_required(view_func):
@@ -278,7 +280,7 @@ class CloudPasswordResetConfirmView(CloudModeRequiredMixin, View):
             form.add_error("code", "That code is invalid or has expired.")
             form_valid = False
 
-        if form_valid:
+        if form_valid and user is not None and otp is not None:
             consume_otp(otp)
             user.set_password(form.cleaned_data["new_password1"])
             user.save(update_fields=["password"])
@@ -342,6 +344,22 @@ def business_setup(request):
             description=f"Created business {business.name} and its first administrator",
             ip_address=get_client_ip(request),
         )
+        try:
+            send_mail(
+                subject=f"Welcome to DurielBiz POS, {business.name}",
+                message=(
+                    f"Hello {admin_user.username},\n\n"
+                    f"Welcome to DurielBiz POS. Your business workspace for {business.name} is ready. "
+                    "You can sign in with the account email and password provided during setup.\n\n"
+                    "For help, contact info@durielbiz.com.ng.\n\n"
+                    "Regards,\nDurielTech"
+                ),
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[admin_user.email],
+                fail_silently=False,
+            )
+        except Exception:
+            logger.exception("Failed to send business welcome email to %s", admin_user.email)
         messages.success(request, f"Business {business.name} and its administrator were created.")
         return redirect("accounts:superadmin-dashboard")
     return render(request, "accounts/business_setup.html", {"form": form})
@@ -390,7 +408,10 @@ def superadmin_business_action(request, pk):
             business.reminder_7_days_sent_at = None
             business.reminder_1_day_sent_at = None
             business.is_active = True
-            description = f"Superadmin renewed business {business.name} for {business.get_subscription_plan_display()}"
+            plan_display = dict(Business.SubscriptionPlan.choices).get(
+                business.subscription_plan, business.subscription_plan
+            )
+            description = f"Superadmin renewed business {business.name} for {plan_display}"
         else:
             messages.error(request, "Choose a valid business action.")
             return redirect("accounts:superadmin-dashboard")

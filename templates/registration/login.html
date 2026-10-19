@@ -99,7 +99,7 @@
                     <img src="{% static 'img/logo-mark.svg' %}" alt="" class="h-10 w-10 rounded-xl shadow-lg" width="40" height="40">
                     <div>
                         <p class="text-sm font-medium text-indigo-300">DurielTech</p>
-                        <p class="text-lg font-semibold text-white">{% if is_cloud_login %}DurielBiz Cloud{% else %}DurielBiz POS{% endif %}</p>
+                        <p class="text-lg font-semibold text-white">{% if is_cloud_login %}DurielBiz POS{% else %}DurielBiz POS{% endif %}</p>
                     </div>
                 </a>
             </div>
@@ -156,23 +156,23 @@
 
             <div class="relative z-10 border-t border-white/10 px-10 py-6 text-xs text-slate-500 xl:px-14">
                 Support: <a href="tel:07031016787" class="text-slate-300 hover:text-white">07031016787</a> ·
-                <a href="mailto:support@durieltech.com.ng" class="text-slate-300 hover:text-white">support@durieltech.com.ng</a>
+                <a href="mailto:info@durielbiz.com.ng" class="text-slate-300 hover:text-white">info@durielbiz.com.ng</a>
             </div>
         </section>
 
         <!-- RIGHT: login card -->
-        <section class="relative flex items-center justify-center bg-slate-950 px-4 py-12 lg:bg-slate-50">
+        <section class="relative flex items-center justify-center bg-slate-950 px-4 py-6 lg:bg-slate-50 lg:py-4">
             <div class="pointer-events-none absolute inset-0 lg:hidden" style="background: radial-gradient(60% 50% at 50% 0%, rgba(79, 70, 229, 0.35), transparent 70%);"></div>
 
-            <div class="animate-fade-in-up card-depth relative w-full max-w-md rounded-2xl bg-white p-8">
-                <div class="mb-6 flex items-center gap-3">
+            <div class="animate-fade-in-up card-depth relative w-full max-w-md rounded-2xl bg-white p-6 sm:p-7">
+                <div class="mb-4 flex items-center gap-3">
                     <img src="{% static 'img/logo-mark.svg' %}" alt="" class="h-10 w-10 rounded-xl" width="40" height="40">
                     <div>
                         <p class="text-sm font-medium text-indigo-600">DurielTech</p>
-                        <h1 class="text-xl font-semibold text-slate-900">{% if is_cloud_login %}DurielBiz Cloud{% else %}DurielBiz POS{% endif %}</h1>
+                        <h1 class="text-xl font-semibold text-slate-900">{% if is_cloud_login %}DurielBiz POS{% else %}DurielBiz POS{% endif %}</h1>
                     </div>
                 </div>
-                <p class="-mt-3 mb-6 text-sm text-slate-500">
+                <p class="-mt-2 mb-4 text-sm text-slate-500">
                     {% if is_cloud_login %}
                         Sign in with your account email to open your hosted workspace.
                     {% else %}
@@ -188,7 +188,7 @@
                     </div>
                 {% endif %}
 
-                <form method="post" class="login-form space-y-4">
+                <form method="post" class="login-form space-y-3">
                     {% csrf_token %}
                     <div>
                         <label class="mb-1.5 block text-sm font-medium text-slate-700" for="{{ form.username.id_for_label }}">{{ form.username.label }}</label>
@@ -201,12 +201,12 @@
                     <button class="w-full rounded-lg bg-indigo-600 px-4 py-2.5 font-medium text-white transition hover:bg-indigo-700">Login</button>
                 </form>
                 {% if is_cloud_login %}
-                    <div class="mt-4 text-center text-sm">
+                    <div class="mt-3 text-center text-sm">
                         <a href="{% url 'accounts:password-reset' %}" class="font-medium text-slate-700 hover:underline">Forgot your password?</a>
                     </div>
                 {% endif %}
-                <div class="mt-6 border-t border-slate-100 pt-4 text-center text-xs text-slate-500 lg:hidden">
-                    <p>Support: <a href="tel:07031016787" class="font-medium text-slate-700 hover:underline">07031016787</a> · <a href="mailto:support@durieltech.com.ng" class="font-medium text-slate-700 hover:underline">support@durieltech.com.ng</a></p>
+                <div class="mt-4 border-t border-slate-100 pt-3 text-center text-xs text-slate-500">
+                    <p>Business sign-up and support: <a href="mailto:info@durielbiz.com.ng" class="font-medium text-slate-700 hover:underline">info@durielbiz.com.ng</a></p>
                 </div>
             </div>
         </section>
