@@ -51,7 +51,7 @@ def apply_change(event, business, *, using="default", record_cloud_event=False, 
     if payload.get("business_slug") != business.slug:
         raise SyncConflict("A sync change referenced a different business.")
     values = payload.get("values") or {}
-    if model._meta.label_lower == "accounts.user" and (values.get("is_superuser") or values.get("is_staff")):
+    if model._meta.label_lower == "accounts.user" and values.get("is_superuser"):
         raise SyncConflict("A business sync device cannot create or promote a Django superuser.")
     current = model._base_manager.using(using).filter(pk=pk).first()
     if current is not None and getattr(current, "business_id", None) != business.pk:

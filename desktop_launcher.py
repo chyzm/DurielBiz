@@ -1,4 +1,6 @@
 import os
+import json
+import ctypes
 import shutil
 import socket
 import subprocess
@@ -188,6 +190,15 @@ def runtime_env(project_root: Path, *, data_root: Path | None = None) -> dict[st
     env["DURIELBIZ_APP_DIR"] = str(project_root)
     env["DURIELBIZ_DESKTOP"] = "1"
     env["DURIELBIZ_DATA_DIR"] = str(data_root or data_dir())
+    credentials_path = (data_root or data_dir()) / "sync_credentials.json"
+    if credentials_path.exists():
+        try:
+            credentials = json.loads(credentials_path.read_text(encoding="utf-8"))
+            env["DURIELBIZ_SYNC_DEVICE_ID"] = str(credentials["device_id"])
+            env["DURIELBIZ_SYNC_TOKEN"] = str(credentials["token"])
+            env["DURIELBIZ_SYNC_BUSINESS_SLUG"] = str(credentials["business_slug"])
+        except (OSError, ValueError, KeyError, TypeError):
+            pass
     return env
 
 
@@ -357,6 +368,17 @@ def open_browser_once() -> None:
     webbrowser.open(browser_url(), new=1)
 
 
+def show_pairing_error() -> None:
+    message = (
+        "DurielBiz could not link this desktop to the cloud business. Check the referral key "
+        "and internet connection, then run the installer again. Details are in launcher.log."
+    )
+    if sys.platform == "win32" and getattr(sys, "frozen", False):
+        ctypes.windll.user32.MessageBoxW(None, message, APP_NAME, 0x10)
+    else:
+        print(message, file=sys.stderr)
+
+
 def main() -> int:
     if "--serve" in sys.argv:
         return serve_mode()
@@ -369,6 +391,12 @@ def main() -> int:
 
     if run_management_command(project_root, ["migrate", "--noinput"]) != 0:
         return 1
+
+    pairing_key_path = data_dir() / "referral-key.txt"
+    if pairing_key_path.exists():
+        if run_management_command(project_root, ["pair_desktop"]) != 0:
+            show_pairing_error()
+            return 1
 
     if is_server_running():
         launch_sync_service(project_root)

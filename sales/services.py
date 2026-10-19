@@ -2,7 +2,7 @@ from decimal import Decimal
 from types import SimpleNamespace
 
 from django.core.exceptions import ValidationError
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.utils import timezone
 
 from accounts.activity import log_activity
@@ -15,6 +15,11 @@ from products.stock import apply_global_delta, branch_quantity, get_branch_stock
 from reports.models import BusinessSettings
 
 from .models import Customer, Sale, SaleFinancialEntry, SaleItem
+
+
+class DuplicateCheckout(Exception):
+    def __init__(self, sale_id):
+        self.sale_id = sale_id
 
 
 def _normalize_cart(items):
@@ -163,7 +168,17 @@ def create_sale(
     discount=Decimal("0.00"),
     tax=None,
     tenders=None,
+    idempotency_key=None,
 ):
+    if idempotency_key:
+        previous_sale = Sale.objects.select_for_update().filter(
+            checkout_idempotency_key=idempotency_key
+        ).first()
+        if previous_sale:
+            if previous_sale.cashier_id != cashier.pk or previous_sale.business_id != cashier.business_id:
+                raise ValidationError("This checkout request key has already been used.")
+            return previous_sale
+
     customer = None
     business_settings = BusinessSettings.get_solo()
     sale_branch = get_user_branch(cashier) or business_settings.default_branch
@@ -224,21 +239,31 @@ def create_sale(
             raise ValidationError("Individual tenders are only accepted for a mixed payment.")
         normalized_tenders = [(payment_method, paid_amount)]
 
-    sale = Sale.objects.create(
-        cashier=cashier,
-        branch=sale_branch,
-        customer=customer,
-        customer_name=customer_name,
-        customer_phone=customer_phone,
-        redeemed_points=redeemed_points,
-        redeemed_amount=redeemed_amount,
-        payment_method=payment_method,
-        paid_amount=paid_amount,
-        status=Sale.Status.DRAFT,
-        note=note,
-        lane_name=lane_name,
-        discount=discount,
-    )
+    try:
+        with transaction.atomic():
+            sale = Sale.objects.create(
+                cashier=cashier,
+                branch=sale_branch,
+                customer=customer,
+                customer_name=customer_name,
+                customer_phone=customer_phone,
+                redeemed_points=redeemed_points,
+                redeemed_amount=redeemed_amount,
+                payment_method=payment_method,
+                paid_amount=paid_amount,
+                status=Sale.Status.DRAFT,
+                note=note,
+                lane_name=lane_name,
+                discount=discount,
+                checkout_idempotency_key=idempotency_key,
+            )
+    except IntegrityError:
+        if idempotency_key:
+            existing = Sale._base_manager.filter(checkout_idempotency_key=idempotency_key).first()
+            if existing and existing.cashier_id == cashier.pk and existing.business_id == cashier.business_id:
+                # Roll back this transaction before returning the committed sale.
+                raise DuplicateCheckout(existing.pk)
+        raise
 
     subtotal = Decimal("0.00")
 
@@ -350,6 +375,10 @@ def create_sale(
         metadata={
             "lane_name": lane_name,
             "total": str(total),
+            "payment_tenders": [
+                {"method": method, "tendered_amount": str(amount)}
+                for method, amount in normalized_tenders
+            ],
             "customer_phone": customer_phone,
             "redeemed_points": redeemed_points,
             "points_awarded": points_awarded,

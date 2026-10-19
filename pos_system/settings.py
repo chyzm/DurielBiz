@@ -166,6 +166,7 @@ MIDDLEWARE = [
 # a master key hash is configured, so cloud deployments and local dev are never gated.
 LICENSE_MASTER_KEY_HASH = env("LICENSE_MASTER_KEY_HASH", "")
 LICENSE_TRIAL_DAYS = env_int("LICENSE_TRIAL_DAYS", 14)
+DURIELBIZ_SYNC_URL = env_str("DURIELBIZ_SYNC_URL", "").strip()
 
 ROOT_URLCONF = "pos_system.urls"
 

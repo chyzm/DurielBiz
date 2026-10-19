@@ -1,4 +1,5 @@
 import json
+import uuid
 from decimal import Decimal
 
 from django import forms
@@ -31,6 +32,7 @@ class CustomerForm(forms.ModelForm):
 
 
 class CheckoutForm(forms.Form):
+    idempotency_key = forms.UUIDField(required=False, widget=forms.HiddenInput())
     customer_name = forms.CharField(
         max_length=255,
         required=False,
@@ -47,7 +49,17 @@ class CheckoutForm(forms.Form):
     )
     payment_method = forms.ChoiceField(
         choices=Sale.PaymentMethod.choices,
-        widget=forms.Select(attrs={"class": "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"}),
+        widget=forms.HiddenInput(),
+    )
+    payment_methods = forms.MultipleChoiceField(
+        choices=(
+            (Sale.PaymentMethod.CASH, "Cash"),
+            (Sale.PaymentMethod.CARD, "Card"),
+            (Sale.PaymentMethod.TRANSFER, "Transfer"),
+        ),
+        initial=[Sale.PaymentMethod.CASH],
+        required=False,
+        widget=forms.CheckboxSelectMultiple(attrs={"class": "accent-indigo-600"}),
     )
     paid_amount = forms.DecimalField(
         min_value=0,
@@ -91,6 +103,13 @@ class CheckoutForm(forms.Form):
     lane_name = forms.CharField(widget=forms.HiddenInput(), required=False)
     items_json = forms.CharField(widget=forms.HiddenInput())
 
+    def __init__(self, *args, **kwargs):
+        require_idempotency = kwargs.pop("require_idempotency", False)
+        super().__init__(*args, **kwargs)
+        self.fields["idempotency_key"].required = require_idempotency
+        if not self.is_bound and not self.initial.get("idempotency_key"):
+            self.initial["idempotency_key"] = uuid.uuid4()
+
     def clean_items_json(self):
         value = self.cleaned_data["items_json"]
         try:
@@ -126,23 +145,53 @@ class CheckoutForm(forms.Form):
 
     def clean(self):
         cleaned = super().clean()
-        if cleaned.get("payment_method") == Sale.PaymentMethod.MIXED:
-            splits = [cleaned.get("cash_amount") or Decimal("0"),
-                      cleaned.get("card_amount") or Decimal("0"),
-                      cleaned.get("transfer_amount") or Decimal("0")]
-            if sum(amount > 0 for amount in splits) < 2:
-                self.add_error("payment_method", "Mixed payment needs at least two non-zero tender amounts.")
-            elif sum(splits) != cleaned.get("paid_amount"):
-                self.add_error("paid_amount", "Paid amount must equal the total of the cash, card, and transfer amounts.")
+        methods = list(dict.fromkeys(cleaned.get("payment_methods") or []))
+        if not methods:
+            legacy_method = cleaned.get("payment_method")
+            if legacy_method in {Sale.PaymentMethod.CASH, Sale.PaymentMethod.CARD, Sale.PaymentMethod.TRANSFER}:
+                methods = [legacy_method]
+            elif legacy_method == Sale.PaymentMethod.MIXED:
+                methods = [
+                    method for method, field in (
+                        (Sale.PaymentMethod.CASH, "cash_amount"),
+                        (Sale.PaymentMethod.CARD, "card_amount"),
+                        (Sale.PaymentMethod.TRANSFER, "transfer_amount"),
+                    )
+                    if cleaned.get(field)
+                ]
+        if not methods:
+            self.add_error("payment_methods", "Choose at least one payment method.")
+            return cleaned
+
+        cleaned["payment_method"] = methods[0] if len(methods) == 1 else Sale.PaymentMethod.MIXED
+        if len(methods) > 1:
+            fields = {
+                Sale.PaymentMethod.CASH: "cash_amount",
+                Sale.PaymentMethod.CARD: "card_amount",
+                Sale.PaymentMethod.TRANSFER: "transfer_amount",
+            }
+            amounts = {
+                method: cleaned.get(fields[method]) or Decimal("0")
+                for method in fields
+            }
+            if any(amounts[method] for method in fields if method not in methods):
+                self.add_error("payment_methods", "Clear amounts for payment methods that are not selected.")
+            elif sum(amounts[method] > 0 for method in methods) != len(methods):
+                self.add_error("payment_methods", "Enter an amount for every selected payment method.")
+            elif sum((amounts[method] for method in methods), Decimal("0")) != cleaned.get("paid_amount"):
+                self.add_error("paid_amount", "Paid amount must equal the total of the selected payment amounts.")
         return cleaned
 
     def payment_tenders(self):
-        if self.cleaned_data.get("payment_method") != Sale.PaymentMethod.MIXED:
+        methods = self.cleaned_data.get("payment_methods") or []
+        if len(methods) < 2:
             return None
+        fields = {
+            Sale.PaymentMethod.CASH: "cash_amount",
+            Sale.PaymentMethod.CARD: "card_amount",
+            Sale.PaymentMethod.TRANSFER: "transfer_amount",
+        }
         return [
-            {"payment_method": method, "tendered_amount": self.cleaned_data[field]}
-            for field, method in (("cash_amount", Sale.PaymentMethod.CASH),
-                                  ("card_amount", Sale.PaymentMethod.CARD),
-                                  ("transfer_amount", Sale.PaymentMethod.TRANSFER))
-            if self.cleaned_data.get(field)
+            {"payment_method": method, "tendered_amount": self.cleaned_data[fields[method]]}
+            for method in methods
         ]

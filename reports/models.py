@@ -46,6 +46,8 @@ class BusinessSettings(TenantOwnedModel):
         choices=ThermalPaperWidth.choices,
         default=ThermalPaperWidth.MM80,
     )
+    sync_referral_key_hash = models.CharField(max_length=256, blank=True, default="")
+    sync_referral_key_updated_at = models.DateTimeField(null=True, blank=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:

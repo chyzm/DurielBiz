@@ -49,3 +49,42 @@ Filename: "{app}\{#MyAppExeName}"; Description: "Launch {#MyAppName}"; Flags: no
 [UninstallDelete]
 Type: filesandordirs; Name: "{commonappdata}\DurielBizPOS"
 Type: filesandordirs; Name: "{localappdata}\DurielBizPOS"
+
+[Code]
+var
+  PairingPage: TInputQueryWizardPage;
+
+procedure InitializeWizard;
+begin
+  if not FileExists(ExpandConstant('{localappdata}\DurielBizPOS\sync_credentials.json')) then
+  begin
+    PairingPage := CreateInputQueryPage(wpSelectDir,
+      'Link this desktop to a cloud business',
+      'Enter the referral key from that business''s Cloud Business Settings.',
+      'The key links this installation to the correct business and is exchanged for a private device credential.');
+    PairingPage.Add('Business referral key:', True);
+  end;
+end;
+
+function NextButtonClick(CurPageID: Integer): Boolean;
+begin
+  Result := True;
+  if (PairingPage <> nil) and (CurPageID = PairingPage.ID) then
+  begin
+    Result := Trim(PairingPage.Values[0]) <> '';
+    if not Result then
+      MsgBox('Enter the cloud business referral key to continue.', mbError, MB_OK);
+  end;
+end;
+
+procedure CurStepChanged(CurStep: TSetupStep);
+var
+  KeyPath: string;
+begin
+  if (CurStep = ssPostInstall) and (PairingPage <> nil) then
+  begin
+    KeyPath := ExpandConstant('{localappdata}\DurielBizPOS\referral-key.txt');
+    ForceDirectories(ExtractFileDir(KeyPath));
+    SaveStringToFile(KeyPath, Trim(PairingPage.Values[0]) + #13#10, False);
+  end;
+end;

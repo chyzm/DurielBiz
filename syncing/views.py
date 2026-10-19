@@ -1,7 +1,9 @@
+import hashlib
 import json
+import secrets
 import uuid
 
-from django.contrib.auth.hashers import check_password
+from django.contrib.auth.hashers import check_password, make_password
 from django.db import transaction
 from django.http import JsonResponse
 from django.utils import timezone
@@ -18,6 +20,53 @@ from .protocol import ordered_syncable_models, serialize_object
 MAX_BATCH = 1000
 MAX_BODY_BYTES = 5 * 1024 * 1024
 SNAPSHOT_PAGE_SIZE = 250
+
+
+@csrf_exempt
+@require_POST
+def pair_api(request):
+    """Redeem a cloud business referral key for a device-scoped sync credential."""
+    try:
+        if len(request.body) > 16 * 1024:
+            return JsonResponse({"error": "Request is too large."}, status=413)
+        data = json.loads(request.body or b"{}")
+        if not isinstance(data, dict):
+            raise ValueError
+        referral_key = str(data.get("referral_key", "")).strip()
+        device_name = str(data.get("device_name", "Desktop POS")).strip()[:120] or "Desktop POS"
+    except (json.JSONDecodeError, TypeError, ValueError):
+        return JsonResponse({"error": "Invalid pairing request."}, status=400)
+    if not referral_key or len(referral_key) > 200:
+        return JsonResponse({"error": "Invalid or expired business pairing key."}, status=401)
+
+    from reports.models import BusinessSettings
+
+    referral_hash = hashlib.sha256(referral_key.encode("utf-8")).hexdigest()
+    matched = BusinessSettings._base_manager.select_related("business").filter(
+        sync_referral_key_hash=referral_hash
+    ).first()
+    if matched is None or not matched.business.is_active:
+        return JsonResponse({"error": "Invalid or expired business pairing key."}, status=401)
+
+    device_id = uuid.uuid4()
+    secret = secrets.token_urlsafe(40)
+    SyncDevice.objects.create(
+        id=device_id,
+        business=matched.business,
+        name=device_name,
+        token_hash=make_password(secret),
+    )
+    return JsonResponse({
+        "device_id": str(device_id),
+        "sync_token": f"{device_id}:{secret}",
+        "business": {
+            "slug": matched.business.slug,
+            "name": matched.business.name,
+            "is_active": matched.business.is_active,
+            "subscription_plan": matched.business.subscription_plan,
+            "subscription_expires_at": matched.business.subscription_expires_at.isoformat() if matched.business.subscription_expires_at else None,
+        },
+    })
 
 
 def _device_from_request(request):

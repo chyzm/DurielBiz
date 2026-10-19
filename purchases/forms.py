@@ -11,12 +11,26 @@ class PurchaseReceiveForm(forms.Form):
     def __init__(self, *args, purchase=None, user=None, **kwargs):
         self.purchase = purchase
         super().__init__(*args, **kwargs)
-        branch_queryset = active_branches_for_user(user) if user else Branch.objects.filter(is_active=True).order_by("name")
+        business_id = getattr(user, "business_id", None)
+        if business_id:
+            # Bind choices to the authenticated user's business explicitly. This
+            # keeps dropdowns correct even when a form is constructed outside the
+            # request tenant-context middleware (for example in desktop workflows).
+            branch_queryset = Branch._base_manager.filter(
+                business_id=business_id, is_active=True
+            ).order_by("name")
+            self.fields["supplier"].queryset = Supplier._base_manager.filter(
+                business_id=business_id
+            ).order_by("name")
+            self.fields["product"].queryset = Product._base_manager.filter(
+                business_id=business_id, is_active=True
+            ).order_by("name")
+        else:
+            branch_queryset = active_branches_for_user(user) if user else Branch.objects.filter(is_active=True).order_by("name")
         user_branch = get_user_branch(user) if user else None
         self.fields["branch"].queryset = branch_queryset
         if user_branch and not is_admin_user(user):
             self.fields["branch"].disabled = True
-            self.fields["product"].queryset = Product.objects.filter(branch_stocks__branch=user_branch).order_by("name").distinct()
         if not self.is_bound and "initial" not in kwargs:
             self.fields["received_at"].initial = timezone.now().strftime("%Y-%m-%dT%H:%M")
             self.fields["branch"].initial = user_branch or BusinessSettings.get_solo().default_branch

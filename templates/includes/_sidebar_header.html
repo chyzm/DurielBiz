@@ -5,6 +5,9 @@
         <div>
             <h1 class="text-lg font-semibold leading-tight">DurielBiz POS</h1>
             <p class="mt-0.5 text-xs text-slate-400">Retail. Simplified.</p>
+            {% if business_settings.business_name and business_settings.business_name != "DurielBiz POS" %}
+                <p class="mt-1 max-w-40 truncate text-xs font-medium text-slate-200" title="{{ business_settings.business_name }}">{{ business_settings.business_name }}</p>
+            {% endif %}
         </div>
     </div>
     {% if show_close %}

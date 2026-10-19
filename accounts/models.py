@@ -59,17 +59,6 @@ class User(AbstractUser):
     class Meta:
         ordering = ["username"]
 
-    def save(self, *args, **kwargs):
-        self.email = (self.email or "").strip().lower()
-        self.email_normalized = self.email or None
-        update_fields = kwargs.get("update_fields")
-        if update_fields is not None and "email" in update_fields:
-            kwargs["update_fields"] = set(update_fields) | {"email_normalized"}
-        if self._state.adding and self.pk is None:
-            from syncing.ids import assign_desktop_pk
-            assign_desktop_pk(self, using=kwargs.get("using") or "default")
-        return super().save(*args, **kwargs)
-
     def clean(self):
         super().clean()
         if self.business_id and self.branch_id:
@@ -82,6 +71,14 @@ class User(AbstractUser):
                 raise ValidationError({"branch": "The selected branch belongs to another business."})
 
     def save(self, *args, **kwargs):
+        self.email = (self.email or "").strip().lower()
+        self.email_normalized = self.email or None
+        update_fields = kwargs.get("update_fields")
+        if update_fields is not None and "email" in update_fields:
+            kwargs["update_fields"] = set(update_fields) | {"email_normalized"}
+        if self._state.adding and self.pk is None:
+            from syncing.ids import assign_desktop_pk
+            assign_desktop_pk(self, using=kwargs.get("using") or "default")
         if self.business_id and self.branch_id:
             self.clean()
         return super().save(*args, **kwargs)

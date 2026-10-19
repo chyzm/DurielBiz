@@ -42,6 +42,7 @@ class Sale(TenantOwnedModel):
         on_delete=models.PROTECT,
         related_name="sales",
     )
+    checkout_idempotency_key = models.UUIDField(null=True, blank=True, unique=True, editable=False)
     branch = models.ForeignKey("reports.Branch", on_delete=models.SET_NULL, related_name="sales", null=True, blank=True)
     customer = models.ForeignKey(
         Customer,

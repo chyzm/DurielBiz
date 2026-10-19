@@ -2,12 +2,16 @@
 
 Built by `DurielTech`, an IT company delivering operational software for healthcare, retail, mobility, and business automation.
 
-Point of sale system built with Django. The packaged desktop app uses `127.0.0.1:8080`; the local cloud-mode development server uses Django's default `127.0.0.1:8000`.
+DurielBiz POS is a cloud-first point-of-sale system built with Django. The hosted cloud business is the primary business account and source for initial setup. A paired Windows desktop keeps a local SQLite copy so checkout can continue during internet outages, then synchronizes changes in both directions when connectivity returns.
+
+The desktop app runs a local Django server and opens in a browser at http://127.0.0.1:8080/. It can also be configured for access from other devices on the shop's private Wi-Fi/LAN. LAN access is not enabled by default.
+
+Cloud Business Settings creates and refreshes each business's referral key. The Windows installer requests it on a new installation and exchanges it for a device-specific sync credential. The key is stored only as a SHA-256 hash in the cloud and shown once when created. Refreshing it blocks new pairings with the previous key; already-paired devices keep working until revoked. See [Build and install on a client computer](#build-and-install-on-a-client-computer).
 
 ## Current scope
 
 - Public DurielTech landing page at `/`
-- Offline-first Django deployment with SQLite by default
+- Cloud-first hosted business with bidirectional sync to offline-capable desktop installs
 - Role-restricted workflow for admin, cashier, manager, and inventory officer
 - Product, category, supplier, inventory, purchase, and sales modules
 - POS terminal with dual checkout lanes
@@ -356,6 +360,52 @@ This is the current desktop strategy:
 - UI opens in the system browser
 - suitable for packaging as a lightweight Windows desktop install
 
+## Build and install on a client computer
+
+Use this workflow to prepare a Windows installer on your build computer and install it on the client's shop computer. The client computer does not need Python or a source checkout when you distribute the installer.
+
+### Build the installer
+
+On a Windows build computer:
+
+1. Install Python 3.12 or newer and Inno Setup 6.
+2. Open PowerShell in the project folder.
+3. Create a virtual environment, install the project dependencies, and PyInstaller:
+
+```powershell
+python -m venv env
+.\env\Scripts\activate
+python -m pip install --upgrade pip
+pip install -r requirements.txt
+pip install pyinstaller
+```
+
+4. Create a minimal desktop build .env with a unique SECRET_KEY and DURIELBIZ_SYNC_URL set to the hosted sync endpoint, for example https://pos.example.com/api/sync/. Leave the per-device token, device ID, and business slug empty; the installer pairs each installation separately. Make sure the cloud deployment has applied migrations. Do not bundle the cloud server's DATABASE_URL, email credentials, or admin credentials.
+5. Set LICENSE_MASTER_KEY_HASH in the build .env if you want the desktop trial and activation flow enabled. The build script bundles .env when it is present, so review its contents before creating a distributable.
+6. Build the desktop executables and installer:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\build_desktop.ps1
+powershell -ExecutionPolicy Bypass -File .\build_installer.ps1
+```
+
+The installer is created at dist\installer\DurielBizPOS-Setup.exe. If the installer is unsigned, Windows may display an “Unknown publisher” warning. A code-signing certificate is required to sign it.
+
+### Install and initialize on the client's computer
+
+1. Copy DurielBizPOS-Setup.exe to the client's Windows computer and run it. The installer requires administrator privileges.
+2. Enter the referral key from that business's cloud Business Settings when prompted. The installer stores it temporarily in the current Windows user's local app-data folder.
+3. After installation, the app starts, applies migrations, redeems the key over HTTPS, creates a device-specific credential, downloads the cloud business data, and opens the login page at http://127.0.0.1:8080/. If it does not start automatically, launch **DurielBiz POS** from the Start Menu or desktop shortcut. Internet is required for first pairing and the initial download.
+4. Use the same business account login and password as on the cloud. Business users, their roles, active status, branch assignments, and password hashes are included in sync, so cloud-created accounts can sign in on the paired desktop. Passwords are transferred as Django password hashes over HTTPS, never as plaintext. User accounts created or changed on a paired desktop also sync back to cloud.
+5. If licensing is enabled, enter the separate activation key on the activation screen. The first-run trial works without internet after pairing.
+6. Back up the business database regularly. By default it is %LOCALAPPDATA%\DurielBizPOS\db.sqlite3; app files are under C:\Program Files\DurielBizPOS, and the working Django runtime is under %LOCALAPPDATA%\DurielBizPOS\runtime. Replacing/upgrading the app does not remove the database. The installer uninstaller does remove the app's local data.
+
+The desktop server binds to 127.0.0.1:8080 by default, so it is reachable only from the client computer itself. To let other devices access it on the same private network, follow [Remote viewing](#remote-viewing) and configure the host binding, allowed hosts, and Windows Firewall.
+
+### If Python is already installed on the client
+
+For a source-based local server instead of the packaged installer, use [Cloud-paired desktop install — Run from source on Windows](#option-1-run-from-source-on-windows). That option requires Python and the project dependencies on the client computer.
+
 ## Licensing (trial & activation)
 
 The desktop build includes a 14-day trial and a single-master-key activation system, implemented in the `licensing` app. It only ever applies to the packaged desktop app — the hosted deployment and local development (`manage.py runserver`) are never gated.
@@ -394,16 +444,14 @@ This prints the plaintext **activation key** and its **hash**. Save the plaintex
 - The dual-stored trial start date is a reasonable deterrent against casually deleting the app's data folder to "restart" the trial, not a guarantee against a determined, technically skilled attacker patching the app itself. There is no purely offline desktop licensing scheme that fully defeats that threat.
 - Relevant files: `licensing/fingerprint.py`, `licensing/state.py`, `licensing/services.py`, `licensing/middleware.py`, `licensing/management/commands/generate_master_key.py`.
 
-## Offline desktop install
+## Cloud-paired desktop install
 
-Use this when the shop computer should run the POS without internet.
+Pair the desktop while it is online for initial setup and cloud data download. After pairing, it keeps a local database so checkout can continue during internet outages.
 
 ### Option 1: Run from source on Windows
 
-1. Install Python 3.12+ on the shop computer
-2. Copy the project folder to the computer
-3. Open PowerShell inside the project folder
-4. Create the environment:
+1. Install Python 3.12+ on the shop computer and copy the project folder to it.
+2. Open PowerShell inside the project folder and create the environment:
 
 ```powershell
 python -m venv env
@@ -411,22 +459,23 @@ python -m venv env
 pip install -r requirements.txt
 ```
 
-5. Prepare the local database:
+3. Configure the project .env with DURIELBIZ_SYNC_URL, create a referral key in the cloud business settings, and place the key in the desktop data folder:
 
 ```powershell
-python manage.py migrate
-python manage.py createsuperuser
+$env:DURIELBIZ_DATA_DIR = Join-Path $env:LOCALAPPDATA "DurielBizPOS"
+New-Item -ItemType Directory -Force $env:DURIELBIZ_DATA_DIR | Out-Null
+Set-Content -NoNewline -Path (Join-Path $env:DURIELBIZ_DATA_DIR "referral-key.txt") -Value "PASTE-REFERRAL-KEY"
 ```
 
-6. Start the POS locally:
+4. Start the desktop launcher:
 
 ```powershell
-python manage.py runserver 127.0.0.1:8000
+python desktop_launcher.py
 ```
 
-7. Open `http://127.0.0.1:8000/` in the browser
+The launcher migrates the local database, redeems the key, downloads the cloud business and user accounts, then opens the browser. It stores data under `%LOCALAPPDATA%\DurielBizPOS` by default.
 
-This keeps all data on that desktop in the local `db.sqlite3` file.
+The client needs internet for initial pairing. After that, the local SQLite copy supports offline checkout and later bidirectional sync.
 
 ### Option 2: Build a Windows executable
 
@@ -618,30 +667,22 @@ also catches up once when that container starts. The underlying
 `python manage.py send_subscription_reminders` command remains available for hosts
 that use their own daily scheduler. Each reminder is recorded once per subscription term.
 
-## Cloud and desktop synchronization
+## Cloud-first setup and desktop synchronization
 
-Synchronization uses an authenticated device credential and a change log for each business.
-The desktop launcher retries in the background every 60 seconds when sync is configured;
-POS checkout stays available while the network is down. New desktop records use device-local
-device-specific negative IDs so their keys do not collide with cloud-created records.
+The hosted business is the primary record. Each paired desktop has its own device credential and local SQLite copy. The first pairing downloads the cloud snapshot; after that, desktop and cloud changes sync both ways. The desktop retries about every 60 seconds and keeps checkout available during internet outages.
+
+### Pair a new desktop
 
 1. Apply migrations on the hosted deployment.
-2. Create a device credential on the cloud host:
+2. In cloud Business Settings, select **Create pairing key**. Copy the key shown once; refresh it if it is lost or exposed.
+3. Set DURIELBIZ_SYNC_URL in the desktop build .env to the HTTPS endpoint, such as https://pos.example.com/api/sync/, then build the Windows installer.
+4. Enter the cloud business pairing key in the installer. At first launch, the desktop redeems it for a device-scoped credential and imports the initial cloud snapshot.
+5. Users already present in that cloud business are included in the snapshot, along with their login names, roles, active status, branch assignments, and Django password hashes. They can sign in on the paired desktop using their cloud email or username and password. User creation, edits, deactivation, and password changes sync back to cloud as well.
+6. To refresh the pairing key, return to cloud Business Settings and create a new one. This affects future pairings only; to disconnect a paired desktop, deactivate its device under Django Admin → Sync devices.
 
-```powershell
-python manage.py create_sync_device acme-stores "Shop PC"
-```
+All tenant-owned business records and business-linked users are included. Global superadmin accounts are not copied to desktops. Password hashes are synchronized so the same credentials work on both sides; the plaintext password is never sent by the sync protocol. Sync traffic requires HTTPS except for localhost development.
 
-3. Copy the printed values into the desktop `.env`. Set `DURIELBIZ_SYNC_URL` to the full
-   HTTPS endpoint, such as `https://pos.example.com/api/sync/`.
-4. Start the desktop app. On its first successful connection, the cloud business snapshot
-   replaces that business's local records. Back up any desktop data you need before pairing.
-   Later syncs send desktop changes and apply cloud changes in both directions.
-5. Revoke a lost device by setting it inactive under Django Admin → Sync devices.
-
-The first sync treats cloud data as authoritative. If the same record changes independently
-while a desktop is offline, the latest change delivered to the receiving database wins. Sync
-credentials are per device; keep the printed token private.
+For older installations or manual provisioning, the management command `python manage.py create_sync_device <business-slug> "<device-name>"` remains available. It prints a device token once; keep it private. On first pairing, the cloud snapshot replaces any pre-existing local records for that business. Back up local data before pairing.
 
 ## Thermal printing
 
@@ -689,4 +730,3 @@ These are logical next implementation targets, not yet completed:
 - SQLite is the default development database for local offline use
 - Tailwind styling is currently template-driven
 - Django admin still exists for backend access, but the application now uses custom in-app screens for daily workflows
-

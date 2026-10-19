@@ -1,8 +1,11 @@
 import csv
+import hashlib
 import json
+import secrets
 from datetime import date, datetime, timedelta
 
 from django.contrib import messages
+from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -59,6 +62,23 @@ def dashboard(request):
 @role_required(User.Role.ADMIN)
 def business_settings_view(request):
     settings_obj = BusinessSettings.get_solo()
+    if (not settings.IS_DESKTOP and request.method == "POST"
+            and request.POST.get("action") == "refresh_sync_referral_key"):
+        key = secrets.token_urlsafe(24)
+        settings_obj.sync_referral_key_hash = hashlib.sha256(key.encode("utf-8")).hexdigest()
+        settings_obj.sync_referral_key_updated_at = timezone.now()
+        settings_obj.save(update_fields=["sync_referral_key_hash", "sync_referral_key_updated_at", "updated_at"])
+        log_activity(
+            user=request.user,
+            module=ActivityLog.Module.SETTINGS,
+            action="desktop_referral_key_refreshed",
+            description=f"{request.user.username} refreshed the desktop pairing key",
+            entity_type="business_settings",
+            entity_id=settings_obj.pk,
+        )
+        request.session["new_sync_referral_key"] = key
+        messages.success(request, "A new desktop pairing key was created. Existing paired devices are unchanged.")
+        return redirect("reports:business-settings")
     form = BusinessSettingsForm(request.POST or None, instance=settings_obj)
     if request.method == "POST" and form.is_valid():
         form.save()
@@ -72,7 +92,12 @@ def business_settings_view(request):
         )
         messages.success(request, "Business settings updated successfully.")
         return redirect("reports:business-settings")
-    return render(request, "reports/business_settings.html", {"form": form})
+    return render(request, "reports/business_settings.html", {
+        "form": form,
+        "show_sync_referral_key": not settings.IS_DESKTOP,
+        "new_sync_referral_key": request.session.pop("new_sync_referral_key", ""),
+        "sync_referral_key_updated_at": settings_obj.sync_referral_key_updated_at,
+    })
 
 
 @login_required

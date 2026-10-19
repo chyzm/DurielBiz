@@ -172,6 +172,7 @@
 
             <form id="checkoutForm" method="post" class="mt-5 space-y-4">
                 {% csrf_token %}
+                {{ form.idempotency_key }}
                 {% if form.non_field_errors %}
                     <div class="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
                         {{ form.non_field_errors }}
@@ -189,18 +190,23 @@
                         <label class="text-sm font-medium text-slate-700">Customer Phone</label>
                         {{ form.customer_phone }}
                     </div>
-                    <div>
-                        <label class="text-sm font-medium text-slate-700">Payment Method</label>
+                    <div class="sm:col-span-2">
+                        <label class="text-sm font-medium text-slate-700">Payment Methods</label>
+                        <div id="paymentMethodsFields" class="mt-2 flex flex-wrap gap-4 rounded-xl border border-slate-200 px-3 py-2 text-sm">
+                            {{ form.payment_methods }}
+                        </div>
+                        <p class="mt-1 text-xs text-slate-500">Select one method or combine cash, card, and transfer.</p>
                         {{ form.payment_method }}
+                        {% for error in form.payment_methods.errors %}<p class="mt-1 text-xs text-rose-600">{{ error }}</p>{% endfor %}
                     </div>
                     <div>
-                        <label class="text-sm font-medium text-slate-700">Paid Amount</label>
+                        <label id="paidAmountLabel" class="text-sm font-medium text-slate-700">Paid Amount</label>
                         {{ form.paid_amount }}
                     </div>
                     <div id="mixedTenderFields" class="hidden sm:col-span-2 grid gap-3 sm:grid-cols-3 rounded-xl border border-indigo-100 bg-indigo-50 p-3">
-                        <div><label class="text-xs font-medium text-slate-700">Cash tender</label>{{ form.cash_amount }}</div>
-                        <div><label class="text-xs font-medium text-slate-700">Card tender</label>{{ form.card_amount }}</div>
-                        <div><label class="text-xs font-medium text-slate-700">Transfer tender</label>{{ form.transfer_amount }}</div>
+                        <div id="cashTenderRow" class="hidden"><label class="text-xs font-medium text-slate-700">Cash amount</label>{{ form.cash_amount }}</div>
+                        <div id="cardTenderRow" class="hidden"><label class="text-xs font-medium text-slate-700">Card amount</label>{{ form.card_amount }}</div>
+                        <div id="transferTenderRow" class="hidden"><label class="text-xs font-medium text-slate-700">Transfer amount</label>{{ form.transfer_amount }}</div>
                         <p class="sm:col-span-3 text-xs text-slate-600">Enter each tendered amount. Any change is assigned to cash.</p>
                     </div>
                     <div>
@@ -287,17 +293,26 @@
         const customerNameInput = document.getElementById('id_customer_name');
         const customerPhoneInput = document.getElementById('id_customer_phone');
         const paymentMethodInput = document.getElementById('id_payment_method');
+        const paymentMethodCheckboxes = document.querySelectorAll('input[name="payment_methods"]');
         const mixedTenderFields = document.getElementById('mixedTenderFields');
+        const paidAmountLabel = document.getElementById('paidAmountLabel');
         const paidAmountInput = document.getElementById('id_paid_amount');
         const cashAmountInput = document.getElementById('id_cash_amount');
         const cardAmountInput = document.getElementById('id_card_amount');
         const transferAmountInput = document.getElementById('id_transfer_amount');
+        const tenderInputs = {
+            cash: cashAmountInput,
+            card: cardAmountInput,
+            transfer: transferAmountInput
+        };
+        const tenderRows = {
+            cash: document.getElementById('cashTenderRow'),
+            card: document.getElementById('cardTenderRow'),
+            transfer: document.getElementById('transferTenderRow')
+        };
         const redeemedPointsInput = document.getElementById('id_redeemed_points');
         const discountInput = document.getElementById('id_discount');
         const noteInput = document.getElementById('id_note');
-        const showMixedTenders = () => mixedTenderFields.classList.toggle('hidden', paymentMethodInput.value !== 'mixed');
-        paymentMethodInput.addEventListener('change', showMixedTenders);
-        showMixedTenders();
         const activeLaneTitle = document.getElementById('activeLaneTitle');
         const loyaltyPanel = document.getElementById('loyaltyPanel');
         const isAdmin = {{ is_admin_user|yesno:"true,false" }};
@@ -307,17 +322,61 @@
         const storageKey = 'durielbiz-pos-lanes';
         const laneTabs = document.querySelectorAll('.lane-tab');
         const defaultLanes = {
-            checkout_a: { label: 'Checkout A', cart: [], customer_name: '', customer_phone: '', payment_method: 'cash', paid_amount: '0.00', redeemed_points: 0, discount: '0.00', note: '', customer_points: 0, customer_found: false, preferred_redeem_points: 0 },
-            checkout_b: { label: 'Checkout B', cart: [], customer_name: '', customer_phone: '', payment_method: 'cash', paid_amount: '0.00', redeemed_points: 0, discount: '0.00', note: '', customer_points: 0, customer_found: false, preferred_redeem_points: 0 }
+            checkout_a: { label: 'Checkout A', cart: [], customer_name: '', customer_phone: '', payment_method: 'cash', payment_methods: ['cash'], paid_amount: '0.00', cash_amount: '0.00', card_amount: '0.00', transfer_amount: '0.00', redeemed_points: 0, discount: '0.00', note: '', customer_points: 0, customer_found: false, preferred_redeem_points: 0 },
+            checkout_b: { label: 'Checkout B', cart: [], customer_name: '', customer_phone: '', payment_method: 'cash', payment_methods: ['cash'], paid_amount: '0.00', cash_amount: '0.00', card_amount: '0.00', transfer_amount: '0.00', redeemed_points: 0, discount: '0.00', note: '', customer_points: 0, customer_found: false, preferred_redeem_points: 0 }
         };
         const storedLanes = JSON.parse(sessionStorage.getItem(storageKey) || 'null') || {};
         let lanes = {
             checkout_a: { ...defaultLanes.checkout_a, ...(storedLanes.checkout_a || {}) },
             checkout_b: { ...defaultLanes.checkout_b, ...(storedLanes.checkout_b || {}) }
         };
+        ['checkout_a', 'checkout_b'].forEach(laneName => {
+            const lane = lanes[laneName];
+            if (!Array.isArray(lane.payment_methods) || !lane.payment_methods.length) {
+                lane.payment_methods = lane.payment_method === 'mixed'
+                    ? ['cash', 'card', 'transfer'].filter(method => Number(lane[`${method}_amount`] || 0) > 0)
+                    : [lane.payment_method || 'cash'];
+            }
+        });
         let activeLane = '{{ active_lane|escapejs }}' || 'checkout_a';
         let visibleSuggestions = [];
         let highlightedSuggestionIndex = 0;
+
+        function selectedPaymentMethods() {
+            return Array.from(paymentMethodCheckboxes)
+                .filter(checkbox => checkbox.checked)
+                .map(checkbox => checkbox.value);
+        }
+
+        function applyPaymentSelection(previousMethods = lanes[activeLane].payment_methods || []) {
+            const methods = selectedPaymentMethods();
+            const wasSingleMethod = previousMethods.length === 1;
+            const isMixed = methods.length > 1;
+            paymentMethodInput.value = methods.length === 1 ? methods[0] : (isMixed ? 'mixed' : '');
+            mixedTenderFields.classList.toggle('hidden', !isMixed);
+            paidAmountInput.readOnly = isMixed;
+            paidAmountLabel.textContent = isMixed ? 'Total of payments' : 'Paid Amount';
+
+            Object.entries(tenderRows).forEach(([method, row]) => {
+                const selected = isMixed && methods.includes(method);
+                row.classList.toggle('hidden', !selected);
+                if (!methods.includes(method)) tenderInputs[method].value = '0.00';
+            });
+
+            if (isMixed && wasSingleMethod && methods.includes(previousMethods[0])) {
+                const priorTender = tenderInputs[previousMethods[0]];
+                if (Number(priorTender.value || 0) === 0) priorTender.value = paidAmountInput.value || '0.00';
+            }
+            if (isMixed) {
+                paidAmountInput.value = [cashAmountInput, cardAmountInput, transferAmountInput]
+                    .reduce((sum, tender) => sum + Number(tender.value || 0), 0).toFixed(2);
+            }
+
+            lanes[activeLane].payment_methods = methods;
+            lanes[activeLane].payment_method = paymentMethodInput.value || '';
+            saveCurrentLaneFields();
+            updateChangePreview();
+        }
 
         if ('{{ completed_lane|escapejs }}') {
             lanes['{{ completed_lane|escapejs }}'] = { ...defaultLanes['{{ completed_lane|escapejs }}'] };
@@ -356,10 +415,17 @@
             customerNameInput.value = lane.customer_name;
             customerPhoneInput.value = lane.customer_phone;
             paymentMethodInput.value = lane.payment_method;
+            paymentMethodCheckboxes.forEach(checkbox => {
+                checkbox.checked = lane.payment_methods.includes(checkbox.value);
+            });
             paidAmountInput.value = lane.paid_amount;
+            cashAmountInput.value = lane.cash_amount || '0.00';
+            cardAmountInput.value = lane.card_amount || '0.00';
+            transferAmountInput.value = lane.transfer_amount || '0.00';
             redeemedPointsInput.value = lane.redeemed_points;
             discountInput.value = lane.discount;
             noteInput.value = lane.note;
+            applyPaymentSelection(lane.payment_methods);
             laneTabs.forEach(tab => {
                 const selected = tab.dataset.lane === activeLane;
                 tab.classList.toggle('bg-slate-900', selected);
@@ -447,7 +513,11 @@
             redeemValue.textContent = currency(redeemAmount);
             if (vatValue) vatValue.textContent = currency(vat);
             totalValue.textContent = currency(total);
-            lanes[activeLane].paid_amount = total.toFixed(2);
+            const mixedTenderTotal = [cashAmountInput, cardAmountInput, transferAmountInput]
+                .reduce((sum, tender) => sum + Number(tender.value || 0), 0);
+            lanes[activeLane].paid_amount = paymentMethodInput.value === 'mixed'
+                ? mixedTenderTotal.toFixed(2)
+                : total.toFixed(2);
             paidAmountInput.value = lanes[activeLane].paid_amount;
             updateChangePreview(total);
             updateLoyaltyPanel();
@@ -478,7 +548,11 @@
             lanes[activeLane].customer_name = customerNameInput.value;
             lanes[activeLane].customer_phone = customerPhoneInput.value;
             lanes[activeLane].payment_method = paymentMethodInput.value;
+            lanes[activeLane].payment_methods = selectedPaymentMethods();
             lanes[activeLane].paid_amount = paidAmountInput.value;
+            lanes[activeLane].cash_amount = cashAmountInput.value;
+            lanes[activeLane].card_amount = cardAmountInput.value;
+            lanes[activeLane].transfer_amount = transferAmountInput.value;
             lanes[activeLane].redeemed_points = Number(redeemedPointsInput.value || 0);
             lanes[activeLane].discount = Number(discountInput.value || 0).toFixed(2);
             lanes[activeLane].note = noteInput.value;
@@ -655,14 +729,38 @@
             });
         });
 
-        [customerNameInput, customerPhoneInput, paymentMethodInput, noteInput].forEach(input => {
+        [customerNameInput, customerPhoneInput, noteInput].forEach(input => {
             input.addEventListener('input', saveCurrentLaneFields);
             input.addEventListener('change', saveCurrentLaneFields);
+        });
+
+        paymentMethodCheckboxes.forEach(checkbox => {
+            checkbox.addEventListener('change', () => {
+                const previousMethods = lanes[activeLane].payment_methods || [];
+                if (!selectedPaymentMethods().length) {
+                    paymentMethodCheckboxes.forEach(option => {
+                        option.checked = previousMethods.includes(option.value);
+                    });
+                    return;
+                }
+                applyPaymentSelection(previousMethods);
+            });
         });
 
         paidAmountInput.addEventListener('input', () => {
             saveCurrentLaneFields();
             updateChangePreview();
+        });
+
+        [cashAmountInput, cardAmountInput, transferAmountInput].forEach(input => {
+            input.addEventListener('input', () => {
+                if (paymentMethodInput.value === 'mixed') {
+                    paidAmountInput.value = [cashAmountInput, cardAmountInput, transferAmountInput]
+                        .reduce((sum, tender) => sum + Number(tender.value || 0), 0).toFixed(2);
+                }
+                saveCurrentLaneFields();
+                updateChangePreview();
+            });
         });
 
         customerPhoneInput.addEventListener('change', lookupCustomer);
@@ -799,8 +897,10 @@
                         note: lane.note || '',
                         lane_name: activeLane,
                         items_json: itemsInput.value,
+                        idempotency_key: checkoutForm.querySelector('input[name="idempotency_key"]').value,
                         csrfmiddlewaretoken: csrfToken
                     });
+                    (lane.payment_methods || ['cash']).forEach(method => params.append('payment_methods', method));
                     const response = await fetch("{% url 'sales:checkout-preview' %}", {
                         method: 'POST',
                         body: params,

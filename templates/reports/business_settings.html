@@ -30,5 +30,23 @@
                 <button class="rounded-xl bg-slate-900 px-4 py-2 text-sm text-white">Save Settings</button>
             </div>
         </form>
+        {% if show_sync_referral_key %}
+            <div class="mt-8 border-t border-slate-200 pt-6">
+                <h4 class="font-semibold text-slate-900">Desktop referral key</h4>
+                <p class="mt-1 text-sm text-slate-600">Create a key for pairing a desktop with this cloud business. The key is shown only once. Refreshing it affects new pairings; existing devices stay connected until revoked.</p>
+                {% if sync_referral_key_updated_at %}
+                    <p class="mt-2 text-xs text-slate-500">Last refreshed: {{ sync_referral_key_updated_at|date:"Y-m-d H:i" }}</p>
+                {% endif %}
+                {% if new_sync_referral_key %}
+                    <label class="mt-4 block text-sm font-medium text-slate-700">Copy this key now</label>
+                    <input readonly value="{{ new_sync_referral_key }}" class="mt-1 w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-2 font-mono text-sm" onclick="this.select()">
+                {% endif %}
+                <form method="post" class="mt-4">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="refresh_sync_referral_key">
+                    <button class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700">{% if sync_referral_key_updated_at %}Refresh referral key{% else %}Create referral key{% endif %}</button>
+                </form>
+            </div>
+        {% endif %}
     </section>
 {% endblock %}

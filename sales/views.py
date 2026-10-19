@@ -1,5 +1,6 @@
 import csv
 import json
+import logging
 from datetime import date
 from decimal import Decimal, InvalidOperation
 
@@ -10,6 +11,7 @@ from django.db import transaction
 from django.db.models import Q
 from django.db.models import Prefetch
 from django.http import HttpResponse, JsonResponse
+from django.views.decorators.cache import never_cache
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
@@ -19,6 +21,7 @@ from accounts.models import ActivityLog
 from accounts.models import User
 from accounts.permissions import get_user_branch, role_required, scope_queryset_to_user_branch
 from pos_system.pagination import paginate_queryset
+from pos_system.throttle import throttle
 from products.models import BranchStock, Product
 from products.stock import branch_quantity
 from reports.models import Branch
@@ -27,7 +30,7 @@ from reports.models import BusinessSettings
 from .forms import CheckoutForm, CustomerForm
 from .models import (Customer, Sale, SaleFinancialEntry, SalesReconciliation,
                      SalesReconciliationEntry, SalesReconciliationLine)
-from .services import compute_sale_preview, create_sale, settle_sale_refund, void_sale
+from .services import DuplicateCheckout, compute_sale_preview, create_sale, settle_sale_refund, void_sale
 
 RECONCILABLE_METHODS = (
     Sale.PaymentMethod.CASH,
@@ -35,11 +38,22 @@ RECONCILABLE_METHODS = (
     Sale.PaymentMethod.TRANSFER,
     Sale.PaymentMethod.MIXED,
 )
+logger = logging.getLogger(__name__)
 
 
 def filtered_sales_queryset(request):
     status_filter = request.GET.get("status", "completed").strip().lower()
-    sales = Sale.objects.select_related("cashier", "customer", "branch").prefetch_related("items__product").order_by("-created_at")
+    sales = Sale.objects.select_related("cashier", "customer", "branch").prefetch_related(
+        "items__product",
+        Prefetch(
+            "financial_entries",
+            queryset=SaleFinancialEntry.objects.filter(
+                kind=SaleFinancialEntry.Kind.PAYMENT,
+                status=SaleFinancialEntry.Status.SETTLED,
+            ),
+            to_attr="export_payment_entries",
+        ),
+    ).order_by("-created_at")
     sales = scope_queryset_to_user_branch(sales, request.user)
     if status_filter == "voided":
         sales = sales.filter(status=Sale.Status.VOIDED)
@@ -89,6 +103,7 @@ def filtered_sales_queryset(request):
 
 @login_required
 @role_required(User.Role.ADMIN, User.Role.CASHIER, User.Role.MANAGER)
+@never_cache
 def pos_terminal(request):
     business_settings = BusinessSettings.get_solo()
     default_branch = get_user_branch(request.user) or business_settings.default_branch
@@ -103,7 +118,11 @@ def pos_terminal(request):
         )
     all_products = list(products_queryset)
     products = all_products[:18]
-    form = CheckoutForm(request.POST or None, initial={"lane_name": request.GET.get("lane", "checkout_a")})
+    form = CheckoutForm(
+        request.POST or None,
+        initial={"lane_name": request.GET.get("lane", "checkout_a")},
+        require_idempotency=True,
+    )
     receipt_sale = None
     loyalty_customer = None
 
@@ -119,6 +138,12 @@ def pos_terminal(request):
         loyalty_customer = receipt_sale.customer
 
     if request.method == "POST" and form.is_valid():
+        if throttle(f"checkout:{request.user.business_id}:{request.user.pk}", limit=120, window_seconds=60):
+            logger.warning("Checkout rate limit exceeded", extra={
+                "cashier_id": request.user.pk,
+                "business_id": request.user.business_id,
+            })
+            return HttpResponse("Too many checkout attempts. Please wait a minute and try again.", status=429)
         try:
             sale = create_sale(
                 cashier=request.user,
@@ -132,12 +157,34 @@ def pos_terminal(request):
                 redeemed_points=form.cleaned_data["redeemed_points"] or 0,
                 discount=form.cleaned_data["discount"] or 0,
                 tenders=form.payment_tenders(),
+                idempotency_key=form.cleaned_data["idempotency_key"],
+            )
+        except DuplicateCheckout as duplicate:
+            sale = Sale.objects.get(pk=duplicate.sale_id, cashier=request.user)
+            messages.info(request, f"Sale {sale.receipt_number} was already completed.")
+            return redirect(
+                f"{reverse('sales:pos')}?receipt={sale.pk}&lane={sale.lane_name}&completed_lane={sale.lane_name}&autoprint=1"
             )
         except Product.DoesNotExist:
+            logger.warning("Checkout rejected because a product was unavailable", extra={
+                "cashier_id": request.user.pk,
+                "business_id": request.user.business_id,
+            })
             form.add_error(None, "One of the selected products no longer exists.")
         except ValidationError as exc:
+            logger.warning("Checkout rejected by validation", extra={
+                "cashier_id": request.user.pk,
+                "business_id": request.user.business_id,
+                "reason": exc.messages[0],
+            })
             form.add_error(None, exc.messages[0])
         else:
+            logger.info("Sale completed", extra={
+                "sale_id": sale.pk,
+                "cashier_id": request.user.pk,
+                "business_id": request.user.business_id,
+                "payment_method": sale.payment_method,
+            })
             messages.success(request, f"Sale {sale.receipt_number} completed successfully.")
             return redirect(
                 f"{reverse('sales:pos')}?receipt={sale.pk}&lane={sale.lane_name}&completed_lane={sale.lane_name}&autoprint=1"
@@ -181,6 +228,7 @@ def pos_terminal(request):
 
 @login_required
 @role_required(User.Role.ADMIN, User.Role.CASHIER, User.Role.MANAGER)
+@never_cache
 def checkout_preview(request):
     """Renders a receipt preview from the current cart without saving anything —
     the sale is only actually created when the cashier confirms via Print."""
@@ -312,6 +360,7 @@ def sales_history(request):
 
 @login_required
 @role_required(User.Role.ADMIN, User.Role.MANAGER)
+@never_cache
 def sales_history_export_csv(request):
     sales, context = filtered_sales_queryset(request)
     branch_label = context["selected_branch"] or "all-branches"
@@ -332,6 +381,10 @@ def sales_history_export_csv(request):
             "Branch",
             "Lane",
             "Payment Method",
+            "Payment Breakdown",
+            "Cash Tendered",
+            "Card Tendered",
+            "Transfer Tendered",
             "Product",
             "Quantity",
             "Unit Price",
@@ -348,6 +401,22 @@ def sales_history_export_csv(request):
     )
 
     for sale in sales:
+        payment_entries = getattr(sale, "export_payment_entries", [])
+        tender_totals = {
+            method: sum(
+                (entry.tendered_amount for entry in payment_entries if entry.payment_method == method),
+                Decimal("0.00"),
+            )
+            for method in (Sale.PaymentMethod.CASH, Sale.PaymentMethod.CARD, Sale.PaymentMethod.TRANSFER)
+        }
+        payment_breakdown = "; ".join(
+            f"{entry.get_payment_method_display()}: {entry.tendered_amount}"
+            for entry in payment_entries
+        )
+        if not payment_breakdown:
+            payment_breakdown = f"{sale.get_payment_method_display()}: {sale.paid_amount}"
+            if sale.payment_method in tender_totals:
+                tender_totals[sale.payment_method] = sale.paid_amount
         sale_items = list(sale.items.all())
         if not sale_items:
             writer.writerow(
@@ -361,6 +430,10 @@ def sales_history_export_csv(request):
                     sale.branch.name if sale.branch else "",
                     sale.lane_name,
                     sale.get_payment_method_display(),
+                    payment_breakdown,
+                    tender_totals[Sale.PaymentMethod.CASH],
+                    tender_totals[Sale.PaymentMethod.CARD],
+                    tender_totals[Sale.PaymentMethod.TRANSFER],
                     "",
                     "",
                     "",
@@ -389,6 +462,10 @@ def sales_history_export_csv(request):
                     sale.branch.name if sale.branch else "",
                     sale.lane_name,
                     sale.get_payment_method_display(),
+                    payment_breakdown,
+                    tender_totals[Sale.PaymentMethod.CASH],
+                    tender_totals[Sale.PaymentMethod.CARD],
+                    tender_totals[Sale.PaymentMethod.TRANSFER],
                     item.product.name,
                     item.quantity,
                     item.unit_price,

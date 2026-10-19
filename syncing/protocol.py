@@ -19,7 +19,7 @@ def syncable_models():
 def serialize_object(instance):
     values = {}
     for field in instance._meta.concrete_fields:
-        if field.primary_key or field.name == "business":
+        if field.primary_key or field.name == "business" or field.name.startswith("sync_referral_key"):
             continue
         values[field.attname] = getattr(instance, field.attname)
     return json.loads(json.dumps({"business_slug": instance.business.slug, "values": values}, cls=DjangoJSONEncoder))
