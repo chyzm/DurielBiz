@@ -10,12 +10,13 @@
     <link rel="stylesheet" href="{% static 'css/receipt-print.css' %}">
     <style>
         :root {
-            --receipt-width: {{ business_settings.thermal_paper_width|default:"80mm" }};
+            --receipt-paper-width: {{ business_settings.thermal_paper_width|default:"80mm" }};
+            --receipt-content-width: {% if business_settings.thermal_paper_width == "58mm" %}48mm{% else %}72mm{% endif %};
         }
 
         @page {
             size: {{ business_settings.thermal_paper_width|default:"80mm" }} auto;
-            margin: 4mm;
+            margin: 0;
         }
     </style>
 </head>

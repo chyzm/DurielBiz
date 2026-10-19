@@ -4,11 +4,24 @@
 
 {% block extra_head %}
     <style>
+        :root {
+            --receipt-paper-width: {{ business_settings.thermal_paper_width|default:"80mm" }};
+            --receipt-content-width: {% if business_settings.thermal_paper_width == "58mm" %}48mm{% else %}72mm{% endif %};
+        }
+
         .receipt-paper {
             width: 100%;
-            max-width: 80mm;
+            max-width: var(--receipt-content-width);
+            box-sizing: border-box;
             margin: 0 auto;
         }
+
+        .receipt-paper-narrow { font-size: 12px; }
+        .receipt-paper-narrow .text-sm { font-size: 12px; line-height: 1.35; }
+        .receipt-paper-narrow .text-xl { font-size: 17px; line-height: 1.25; }
+        .receipt-paper-narrow .flex.justify-between { gap: 4px; }
+        .receipt-paper-narrow .flex.justify-between > span:first-child { flex-shrink: 0; }
+        .receipt-paper-narrow .flex.justify-between > span:last-child { white-space: nowrap; text-align: right; }
 
         .suggestion-active {
             background: rgb(241 245 249);
@@ -16,19 +29,53 @@
 
         @page {
             size: {{ business_settings.thermal_paper_width|default:"80mm" }} auto;
-            margin: 4mm;
+            margin: 0;
         }
 
         @media print {
+            html,
+            body {
+                width: var(--receipt-paper-width);
+                min-width: 0;
+                margin: 0 !important;
+                padding: 0 !important;
+                background: white;
+            }
             body * { visibility: hidden; }
             #receiptModal, #receiptModal * { visibility: visible; }
-            #receiptModal { position: absolute; inset: 0; background: white; }
+            #receiptModal {
+                position: absolute;
+                inset: 0 auto auto 0;
+                display: block;
+                width: var(--receipt-paper-width);
+                min-height: 0;
+                margin: 0;
+                padding: 0;
+                background: white;
+            }
+            #receiptModal > div {
+                width: 100%;
+                max-width: none;
+                margin: 0;
+            }
             .receipt-paper {
-                max-width: {{ business_settings.thermal_paper_width|default:"80mm" }};
-                width: {{ business_settings.thermal_paper_width|default:"80mm" }};
+                max-width: var(--receipt-content-width);
+                width: var(--receipt-content-width);
                 border-radius: 0;
                 box-shadow: none;
-                padding: 0;
+                padding: 1mm !important;
+            }
+            .receipt-main.receipt-paper-narrow {
+                position: relative;
+                top: -30mm;
+                left: -5mm;
+                margin-bottom: -30mm;
+            }
+            #receiptModal button { display: none !important; }
+            #receiptModal .receipt-actions,
+            #receiptModal .receipt-actions * {
+                display: none !important;
+                visibility: hidden !important;
             }
         }
     </style>
@@ -264,7 +311,7 @@
         <div id="receiptModal" data-autoprint="{{ request.GET.autoprint|default:'' }}" class="fixed inset-0 z-40 flex items-center justify-center bg-slate-950/60 px-4">
             <div class="animate-fade-in-up w-full max-w-lg">
                 {% include "sales/_receipt_content.html" with sale=receipt_sale items=receipt_sale.items.all %}
-                <div class="mt-4 flex gap-3">
+                <div class="receipt-actions mt-4 flex gap-3">
                     <button id="closeReceiptModal" class="flex-1 rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm">Close</button>
                     <button onclick="window.print()" class="flex-1 rounded-xl bg-slate-900 px-4 py-2 text-sm text-white">Print</button>
                 </div>

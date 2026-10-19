@@ -1,21 +1,60 @@
 .receipt-paper {
     width: 100%;
-    max-width: var(--receipt-width, 80mm);
+    max-width: var(--receipt-content-width, 72mm);
+    box-sizing: border-box;
     margin: 0 auto;
 }
 
+.receipt-paper-narrow {
+    font-size: 12px;
+}
+
+.receipt-paper-narrow .text-sm {
+    font-size: 12px;
+    line-height: 1.35;
+}
+
+.receipt-paper-narrow .text-xl {
+    font-size: 17px;
+    line-height: 1.25;
+}
+
+.receipt-paper-narrow .flex.justify-between {
+    gap: 4px;
+}
+
+.receipt-paper-narrow .flex.justify-between > span:first-child {
+    flex-shrink: 0;
+}
+
+.receipt-paper-narrow .flex.justify-between > span:last-child {
+    white-space: nowrap;
+    text-align: right;
+}
+
 @media print {
+    html,
     body {
+        width: var(--receipt-paper-width, 80mm);
+        min-width: 0;
+        margin: 0 !important;
         background: white;
-        padding: 0;
+        padding: 0 !important;
     }
 
     .receipt-paper {
-        max-width: var(--receipt-width, 80mm);
-        width: var(--receipt-width, 80mm);
+        max-width: var(--receipt-content-width, 72mm);
+        width: var(--receipt-content-width, 72mm);
         border-radius: 0;
         box-shadow: none;
-        padding: 0;
+        padding: 1mm !important;
+    }
+
+    .receipt-main.receipt-paper-narrow {
+        position: relative;
+        top: -30mm;
+        left: -5mm;
+        margin-bottom: -30mm;
     }
 
     a,
