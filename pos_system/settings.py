@@ -94,8 +94,8 @@ ALLOWED_HOSTS = [
     "127.0.0.1",
     "localhost",
     "durieltech.pythonanywhere.com",
-    "durieltech.com.ng",
-    "www.durieltech.com.ng",
+    "durielbiz.com.ng",
+    "www.durielbiz.com.ng",
 ]
 
 extra_allowed_hosts = env_list("DURIELBIZ_ALLOWED_HOSTS")
@@ -196,7 +196,7 @@ if DATABASE_URL and not IS_DESKTOP:
     DATABASES = {
         "default": dj_database_url.parse(DATABASE_URL, conn_max_age=600),
     }
-    if IS_PRODUCTION and DATABASES["default"]["ENGINE"] != "django.db.backends.mysql":
+    if IS_PRODUCTION and DATABASES["default"].get("ENGINE") != "django.db.backends.mysql":
         raise ImproperlyConfigured("Production DATABASE_URL must point to MySQL.")
 else:
     if IS_PRODUCTION and not IS_DESKTOP:
