@@ -28,7 +28,7 @@ from .services import (
 
 
 @login_required
-@role_required(User.Role.ADMIN, User.Role.CASHIER, User.Role.MANAGER)
+@role_required(User.Role.ADMIN, User.Role.MANAGER)
 def dashboard(request):
     branches = active_branches_for_user(request.user)
     if request.user.role == User.Role.ADMIN:

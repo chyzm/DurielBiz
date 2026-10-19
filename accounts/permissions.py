@@ -10,6 +10,8 @@ from reports.models import Branch
 def get_role_home_url(user):
     if user.role == User.Role.INVENTORY:
         return "inventory:overview"
+    if user.role == User.Role.CASHIER:
+        return "sales:pos"
     return "reports:dashboard"
 
 

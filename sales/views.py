@@ -217,6 +217,7 @@ def pos_terminal(request):
             "active_lane": request.GET.get("lane", "checkout_a"),
             "completed_lane": request.GET.get("completed_lane", ""),
             "is_admin_user": request.user.role == User.Role.ADMIN,
+            "can_manage_cart": request.user.role in {User.Role.ADMIN, User.Role.MANAGER},
             "can_adjust_sales": request.user.role in {User.Role.ADMIN, User.Role.MANAGER},
             "loyalty_value_per_point": float(business_settings.loyalty_cash_value_per_point),
             "vat_enabled": business_settings.vat_enabled,

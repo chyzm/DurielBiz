@@ -183,7 +183,7 @@
                     <h3 class="text-lg font-semibold">Cart <span id="activeLaneTitle" class="text-slate-500">Checkout A</span></h3>
                     <p class="text-sm text-slate-500">Review items, customer details, and payment.</p>
                 </div>
-                {% if is_admin_user %}
+                {% if can_manage_cart %}
                     <button id="clearCartBtn" type="button" class="rounded-xl border border-rose-200 px-3 py-2 text-xs font-medium text-rose-700">Clear cart</button>
                 {% endif %}
             </div>
@@ -363,6 +363,7 @@
         const activeLaneTitle = document.getElementById('activeLaneTitle');
         const loyaltyPanel = document.getElementById('loyaltyPanel');
         const isAdmin = {{ is_admin_user|yesno:"true,false" }};
+        const canManageCart = {{ can_manage_cart|yesno:"true,false" }};
         const loyaltyValuePerPoint = Number('{{ loyalty_value_per_point|escapejs }}');
         const vatEnabled = {{ vat_enabled|yesno:"true,false" }};
         const vatRatePercent = Number('{{ vat_rate_percent|escapejs }}');
@@ -537,7 +538,7 @@
                                 <p class="font-medium text-slate-900">${item.name}</p>
                                 <p class="text-sm text-slate-500">${currency(item.price)} each</p>
                             </div>
-                            ${isAdmin ? `<button type="button" data-remove="${item.id}" class="rounded-lg px-2 py-1 text-xs font-medium text-rose-600 hover:bg-rose-50">Remove</button>` : ''}
+                            ${canManageCart ? `<button type="button" data-remove="${item.id}" class="rounded-lg px-2 py-1 text-xs font-medium text-rose-600 hover:bg-rose-50">Remove</button>` : ''}
                         </div>
                         <div class="mt-3 flex items-center justify-between">
                             <div class="flex items-center gap-2">
@@ -740,7 +741,7 @@
             const increaseId = Number(event.target.dataset.increase);
             const decreaseId = Number(event.target.dataset.decrease);
 
-            if (removeId && isAdmin) {
+            if (removeId && canManageCart) {
                 cart.delete(removeId);
             } else if (increaseId) {
                 addToCart(increaseId);
