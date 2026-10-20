@@ -25,6 +25,12 @@ class BranchForm(forms.ModelForm):
 
 
 class BusinessSettingsForm(forms.ModelForm):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Tenant-scoped querysets declared in Meta are created before a request
+        # establishes tenant context, so refresh this field queryset per request.
+        self.fields["default_branch"].queryset = Branch.objects.filter(is_active=True).order_by("name")
+
     class Meta:
         model = BusinessSettings
         fields = [
