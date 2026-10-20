@@ -19,3 +19,4 @@ dist/
 media/
 staticfiles/
 data/
+client-training/

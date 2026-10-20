@@ -6,7 +6,7 @@
     <style>
         :root {
             --receipt-paper-width: {{ business_settings.thermal_paper_width|default:"80mm" }};
-            --receipt-content-width: {% if business_settings.thermal_paper_width == "58mm" %}48mm{% else %}72mm{% endif %};
+            --receipt-content-width: {% if business_settings.thermal_paper_width == "58mm" %}56mm{% else %}72mm{% endif %};
         }
 
         .receipt-paper {
@@ -22,6 +22,22 @@
         .receipt-paper-narrow .flex.justify-between { gap: 4px; }
         .receipt-paper-narrow .flex.justify-between > span:first-child { flex-shrink: 0; }
         .receipt-paper-narrow .flex.justify-between > span:last-child { white-space: nowrap; text-align: right; }
+        .receipt-paper-narrow .receipt-item-row { display: flex; flex-wrap: wrap; gap: 2px 4px; }
+        .receipt-paper-narrow .receipt-item-name { min-width: 0; overflow-wrap: anywhere; flex: 1 1 25mm; }
+        .receipt-paper-narrow .receipt-item-total { flex: 0 0 auto; margin-left: auto; white-space: nowrap; }
+
+        #paymentMethodsFields > div {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 0.75rem;
+            width: 100%;
+        }
+
+        #paymentMethodsFields > div > div {
+            display: flex;
+            align-items: center;
+        }
 
         .suggestion-active {
             background: rgb(241 245 249);
@@ -39,6 +55,7 @@
                 min-width: 0;
                 margin: 0 !important;
                 padding: 0 !important;
+                overflow: visible;
                 background: white;
             }
             body * { visibility: hidden; }
@@ -64,12 +81,6 @@
                 border-radius: 0;
                 box-shadow: none;
                 padding: 1mm !important;
-            }
-            .receipt-main.receipt-paper-narrow {
-                position: relative;
-                top: -30mm;
-                left: -5mm;
-                margin-bottom: -30mm;
             }
             #receiptModal button { display: none !important; }
             #receiptModal .receipt-actions,

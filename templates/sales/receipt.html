@@ -11,7 +11,7 @@
     <style>
         :root {
             --receipt-paper-width: {{ business_settings.thermal_paper_width|default:"80mm" }};
-            --receipt-content-width: {% if business_settings.thermal_paper_width == "58mm" %}48mm{% else %}72mm{% endif %};
+            --receipt-content-width: {% if business_settings.thermal_paper_width == "58mm" %}56mm{% else %}72mm{% endif %};
         }
 
         @page {

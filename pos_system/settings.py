@@ -117,6 +117,8 @@ SERVED_OVER_HTTPS = any(origin.startswith("https://") for origin in CSRF_TRUSTED
 # The desktop app is served over plain http://127.0.0.1, so cookie/HSTS hardening
 # that assumes HTTPS is only applied to the cloud deployment.
 SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_AGE = 60 * 60 * 24  # Require a fresh login after 24 hours.
+SESSION_EXPIRE_AT_BROWSER_CLOSE = False
 SESSION_COOKIE_SECURE = SERVED_OVER_HTTPS and not IS_DESKTOP
 CSRF_COOKIE_SECURE = SERVED_OVER_HTTPS and not IS_DESKTOP
 SECURE_HSTS_SECONDS = 31536000 if (SERVED_OVER_HTTPS and not IS_DESKTOP) else 0

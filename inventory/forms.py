@@ -13,9 +13,12 @@ class InventoryAdjustmentForm(forms.Form):
         branch_queryset = active_branches_for_user(user) if user else Branch.objects.filter(is_active=True).order_by("name")
         user_branch = get_user_branch(user) if user else None
         self.fields["branch"].queryset = branch_queryset
+        # Build this queryset during the request, after tenant middleware has set
+        # the active business. A class-level queryset is evaluated without that
+        # context and can stay empty for the lifetime of the worker process.
+        self.fields["product"].queryset = Product.objects.order_by("name")
         if user_branch and not is_admin_user(user):
             self.fields["branch"].disabled = True
-            self.fields["product"].queryset = Product.objects.filter(branch_stocks__branch=user_branch).order_by("name").distinct()
         if not self.is_bound and "branch" not in self.initial:
             self.fields["branch"].initial = user_branch or BusinessSettings.get_solo().default_branch
 

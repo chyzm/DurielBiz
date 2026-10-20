@@ -18,9 +18,9 @@
     <div class="mt-4 border-t border-b border-dashed border-slate-300 py-4">
         {% for item in items %}
             <div class="mb-2 text-sm">
-                <div class="flex items-start justify-between gap-2">
-                    <span class="min-w-0 break-words">{{ item.product.name }}</span>
-                    <span class="shrink-0 whitespace-nowrap text-right font-medium">₦{{ item.line_total }}</span>
+                <div class="receipt-item-row flex items-start justify-between gap-2">
+                    <span class="receipt-item-name min-w-0 break-words">{{ item.product.name }}</span>
+                    <span class="receipt-item-total shrink-0 whitespace-nowrap text-right font-medium">₦{{ item.line_total }}</span>
                 </div>
                 <p class="mt-0.5 text-xs text-slate-500">{{ item.quantity }} × ₦{{ item.unit_price }}</p>
             </div>

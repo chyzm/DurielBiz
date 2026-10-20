@@ -24,12 +24,30 @@
 }
 
 .receipt-paper-narrow .flex.justify-between > span:first-child {
-    flex-shrink: 0;
+    min-width: 0;
 }
 
 .receipt-paper-narrow .flex.justify-between > span:last-child {
     white-space: nowrap;
     text-align: right;
+}
+
+.receipt-paper-narrow .receipt-item-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px 4px;
+}
+
+.receipt-paper-narrow .receipt-item-name {
+    min-width: 0;
+    overflow-wrap: anywhere;
+    flex: 1 1 25mm;
+}
+
+.receipt-paper-narrow .receipt-item-total {
+    flex: 0 0 auto;
+    margin-left: auto;
+    white-space: nowrap;
 }
 
 @media print {
@@ -50,12 +68,6 @@
         padding: 1mm !important;
     }
 
-    .receipt-main.receipt-paper-narrow {
-        position: relative;
-        top: -30mm;
-        left: -5mm;
-        margin-bottom: -30mm;
-    }
 
     a,
     button {
