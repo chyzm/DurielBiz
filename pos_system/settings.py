@@ -4,6 +4,9 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 from django.core.exceptions import ImproperlyConfigured
+import sentry_sdk
+from sentry_sdk.integrations.django import DjangoIntegration
+from sentry_sdk.integrations.logging import LoggingIntegration
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -80,6 +83,28 @@ def env_list(name: str, default=None):
 
 
 load_env_file(BASE_DIR / ".env")
+
+
+SENTRY_DSN = env_str("SENTRY_DSN").strip()
+
+if SENTRY_DSN:
+    sentry_sdk.init(
+        dsn=SENTRY_DSN,
+        integrations=[
+            DjangoIntegration(),
+            LoggingIntegration(
+                level=None,
+                event_level=None,
+            ),
+        ],
+        environment=env_str(
+            "SENTRY_ENVIRONMENT",
+            "production" if env_bool("DURIELBIZ_PRODUCTION", False) else "development",
+        ),
+        traces_sample_rate=0.1,
+        send_default_pii=False,
+        enable_logs=True,
+    )
 
 SECRET_KEY = env_str("SECRET_KEY", "django-insecure-change-me")
 debug_env = env("DEBUG")

@@ -64,14 +64,12 @@ class EmailOrUsernameAuthenticationForm(AuthenticationForm):
     def __init__(self, *args, is_cloud_login=False, **kwargs):
         self.is_cloud_login = is_cloud_login
         super().__init__(*args, **kwargs)
-        self.fields["username"].label = "Email" if is_cloud_login else "Username or email"
+        self.fields["username"].label = "Email/Username"
         self.fields["username"].widget.attrs["class"] = "mt-1 w-full rounded-lg border border-slate-300 px-4 py-2.5"
         self.fields["password"].widget.attrs["class"] = "mt-1 w-full rounded-lg border border-slate-300 px-4 py-2.5"
+        self.fields["username"].widget.attrs["placeholder"] = "Email/Username"
         if is_cloud_login:
-            self.fields["username"].widget.attrs["placeholder"] = "you@company.com"
             self.error_messages["invalid_login"] = "Please enter a correct email and password. Note that both fields may be case-sensitive."
-        else:
-            self.fields["username"].widget.attrs["placeholder"] = "Username or email"
 
     def clean(self):
         username = self.cleaned_data.get("username")

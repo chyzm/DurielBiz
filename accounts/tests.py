@@ -140,28 +140,26 @@ class LoginDeploymentModeTests(TestCase):
     """The login form asks for an email on the hosted deployment and for a username in the
     packaged desktop app, which has no mail path for the emailed reset code."""
 
-    def test_hosted_deployment_asks_for_email(self):
+    def test_hosted_deployment_asks_for_email_or_username(self):
         with mock.patch.dict(os.environ, {"DURIELBIZ_DESKTOP": "0"}):
             response = self.client.get("/accounts/login/", HTTP_HOST="durieltech.pythonanywhere.com")
-        self.assertContains(response, ">Email<")
-        self.assertNotContains(response, ">Username<")
+        self.assertContains(response, ">Email/Username<")
 
-    def test_desktop_app_asks_for_username(self):
+    def test_desktop_app_asks_for_email_or_username(self):
         with mock.patch.dict(os.environ, {"DURIELBIZ_DESKTOP": "1"}):
             response = self.client.get("/accounts/login/", HTTP_HOST="127.0.0.1:8080")
-        self.assertContains(response, ">Username<")
-        self.assertNotContains(response, ">Email<")
+        self.assertContains(response, ">Email/Username<")
 
     def test_deployment_mode_ignores_host_and_query_string(self):
         # The desktop flag alone decides this. Host and query string used to drive a
         # local-vs-cloud preview toggle; that dashboard is gone and so is the toggle.
         with mock.patch.dict(os.environ, {"DURIELBIZ_DESKTOP": "1"}):
             response = self.client.get("/accounts/login/?next=/purchases/", HTTP_HOST="durieltech.pythonanywhere.com")
-        self.assertContains(response, ">Username<")
+        self.assertContains(response, ">Email/Username<")
 
         with mock.patch.dict(os.environ, {"DURIELBIZ_DESKTOP": "0"}):
             response = self.client.get("/accounts/login/?mode=local", HTTP_HOST="127.0.0.1:8080")
-        self.assertContains(response, ">Email<")
+        self.assertContains(response, ">Email/Username<")
 
 
 class CookieSecurityRegressionTests(TestCase):
