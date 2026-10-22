@@ -170,3 +170,31 @@ class EmailOTP(models.Model):
 
     def __str__(self) -> str:
         return f"{self.email} - {self.get_purpose_display()}"
+
+
+class EmailOutbox(models.Model):
+    class Kind(models.TextChoices):
+        WELCOME = "welcome", "Business welcome"
+        PASSWORD_RESET = "password_reset", "Password recovery"
+
+    class Status(models.TextChoices):
+        PENDING = "pending", "Pending"
+        SENT = "sent", "Sent"
+
+    kind = models.CharField(max_length=30, choices=Kind.choices)
+    recipient = models.EmailField()
+    subject = models.CharField(max_length=255)
+    message = models.TextField()
+    otp = models.ForeignKey(EmailOTP, null=True, blank=True, on_delete=models.SET_NULL)
+    status = models.CharField(max_length=10, choices=Status.choices, default=Status.PENDING, db_index=True)
+    attempts = models.PositiveSmallIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    sent_at = models.DateTimeField(null=True, blank=True)
+    next_attempt_at = models.DateTimeField(default=timezone.now, db_index=True)
+    last_error = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ["created_at"]
+
+    def __str__(self) -> str:
+        return f"{self.get_kind_display()} to {self.recipient} ({self.get_status_display()})"

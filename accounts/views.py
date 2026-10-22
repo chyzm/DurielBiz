@@ -1,11 +1,8 @@
-import logging
 import os
 from functools import wraps
 from typing import cast
 
-from django.conf import settings
 from django.contrib import messages
-from django.core.mail import send_mail
 from django.contrib.auth import views as auth_views
 from django.contrib.auth.decorators import login_required
 from django import forms
@@ -13,6 +10,7 @@ from django.db import transaction
 from django.db.models import Count
 from django.db.models.deletion import ProtectedError
 from django.shortcuts import get_object_or_404, redirect, render
+from django.template.loader import render_to_string
 from django.urls import reverse_lazy
 from django.utils import timezone
 from django.utils.decorators import method_decorator
@@ -32,17 +30,14 @@ from .forms import (
     StyledPasswordChangeForm,
     StyledSetPasswordForm,
 )
-from .otp import consume_otp, create_otp, find_valid_otp, send_otp_email
+from .otp import OTP_VALIDITY_MINUTES, consume_otp, create_otp, find_valid_otp
 from .permissions import get_role_home_url, get_user_branch, role_required
 from .subscriptions import add_subscription_term
-from accounts.models import ActivityLog, Business, EmailOTP, SuperadminActivityLog, User
+from accounts.models import ActivityLog, Business, EmailOTP, EmailOutbox, SuperadminActivityLog, User
 from accounts.tenancy import reset_current_business_id, set_current_business_id
 from inventory.models import InventoryLog
 from purchases.models import Purchase
 from sales.models import Sale
-
-logger = logging.getLogger(__name__)
-
 
 class BusinessSetupForm(forms.Form):
     business_name = forms.CharField(max_length=255)
@@ -227,16 +222,16 @@ class CloudPasswordResetView(CloudModeRequiredMixin, View):
             user = matches[0] if len(matches) == 1 else None
             if user:
                 otp = create_otp(email, EmailOTP.Purpose.PASSWORD_RESET)
-                try:
-                    send_otp_email(
-                        otp,
-                        subject="Your DurielBiz password reset code",
-                        template_name="registration/password_reset_otp_email.txt",
-                    )
-                except Exception:
-                    otp.is_used = True
-                    otp.save(update_fields=["is_used"])
-                    logger.exception("Failed to send password reset OTP email to %s", email)
+                EmailOutbox.objects.create(
+                    kind=EmailOutbox.Kind.PASSWORD_RESET,
+                    recipient=otp.email,
+                    subject="Your DurielBiz password reset code",
+                    otp=otp,
+                    message=render_to_string(
+                        "registration/password_reset_otp_email.txt",
+                        {"code": otp.code, "valid_minutes": OTP_VALIDITY_MINUTES},
+                    ),
+                )
         return redirect("accounts:password-reset-done")
 
 
@@ -344,22 +339,18 @@ def business_setup(request):
             description=f"Created business {business.name} and its first administrator",
             ip_address=get_client_ip(request),
         )
-        try:
-            send_mail(
-                subject=f"Welcome to DurielBiz POS, {business.name}",
-                message=(
-                    f"Hello {admin_user.username},\n\n"
-                    f"Welcome to DurielBiz POS. Your business workspace for {business.name} is ready. "
-                    "You can sign in with the account email and password provided during setup.\n\n"
-                    "For help, contact info@durielbiz.com.ng.\n\n"
-                    "Regards,\nDurielTech"
-                ),
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=[admin_user.email],
-                fail_silently=False,
-            )
-        except Exception:
-            logger.exception("Failed to send business welcome email to %s", admin_user.email)
+        EmailOutbox.objects.create(
+            kind=EmailOutbox.Kind.WELCOME,
+            recipient=admin_user.email,
+            subject=f"Welcome to DurielBiz POS, {business.name}",
+            message=(
+                f"Hello {admin_user.username},\n\n"
+                f"Welcome to DurielBiz POS. Your business workspace for {business.name} is ready. "
+                "You can sign in with the account email and password provided during setup.\n\n"
+                "For help, contact info@durielbiz.com.ng.\n\n"
+                "Regards,\nDurielTech"
+            ),
+        )
         messages.success(request, f"Business {business.name} and its administrator were created.")
         return redirect("accounts:superadmin-dashboard")
     return render(request, "accounts/business_setup.html", {"form": form})
