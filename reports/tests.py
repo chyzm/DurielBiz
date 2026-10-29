@@ -2,7 +2,8 @@ from decimal import Decimal
 
 from django.test import TestCase
 
-from accounts.models import User
+from accounts.models import Business, User
+from accounts.tenancy import reset_current_business_id, set_current_business_id
 from products.models import BranchStock, Category, Product
 from reports.models import Branch
 from sales.models import Sale
@@ -11,10 +12,12 @@ from sales.services import create_sale
 
 class ReportViewTests(TestCase):
     def setUp(self):
-        self.admin = User.objects.create_user(username="admin_r", password="pass1234", role=User.Role.ADMIN, is_staff=True)
+        self.business = Business.objects.create(name="Report Tenant", slug="report-tenant")
+        self.tenant_token = set_current_business_id(self.business.pk)
+        self.admin = User.objects.create_user(username="admin_r", password="pass1234", role=User.Role.ADMIN, is_staff=True, business=self.business)
         self.branch = Branch.objects.create(name="Main", code="main")
         self.cashier = User.objects.create_user(
-            username="cashier_r", password="pass1234", role=User.Role.CASHIER, branch=self.branch
+            username="cashier_r", password="pass1234", role=User.Role.CASHIER, branch=self.branch, business=self.business
         )
         drinks = Category.objects.create(name="Drinks")
         snacks = Category.objects.create(name="Snacks")
@@ -33,6 +36,10 @@ class ReportViewTests(TestCase):
             payment_method=Sale.PaymentMethod.CASH,
             paid_amount=Decimal("600.00"),
         )
+
+    def tearDown(self):
+        reset_current_business_id(self.tenant_token)
+        super().tearDown()
 
     def test_category_report_shows_expected_totals(self):
         self.client.login(username="admin_r", password="pass1234")
@@ -54,6 +61,16 @@ class ReportViewTests(TestCase):
         self.assertEqual(rows[0]["profit"], Decimal("150.00"))
         self.assertEqual(rows[1]["product__name"], "Chips")
         self.assertEqual(rows[1]["profit"], Decimal("140.00"))
+
+    def test_completed_sale_appears_in_sales_history_for_sale_date(self):
+        sale_date = self.soda.sale_items.first().sale.created_at.date().isoformat()
+        self.client.force_login(self.admin)
+        response = self.client.get(
+            "/sales/history/",
+            {"start_date": sale_date, "end_date": sale_date, "status": "completed"},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "SALE-")
 
     def test_category_export_csv(self):
         self.client.login(username="admin_r", password="pass1234")

@@ -1,4 +1,4 @@
-from datetime import timedelta
+from datetime import datetime, time, timedelta
 from decimal import Decimal
 
 from django.db.models import Count, Sum
@@ -9,6 +9,13 @@ from notifications.services import expiring_products_queryset, low_stock_product
 from sales.models import Sale, SaleItem
 
 from .models import BusinessSettings
+
+
+def _date_bounds(day):
+    current_timezone = timezone.get_current_timezone()
+    start_at = timezone.make_aware(datetime.combine(day, time.min), current_timezone)
+    end_at = timezone.make_aware(datetime.combine(day, time.max), current_timezone)
+    return start_at, end_at
 
 
 def _percent_change(current, previous):
@@ -24,8 +31,10 @@ def dashboard_metrics(*, branch=None):
     if branch is not None:
         sales_filter["branch"] = branch
 
-    sales_today = Sale.objects.filter(created_at__date=today, **sales_filter)
-    sales_yesterday = Sale.objects.filter(created_at__date=yesterday, **sales_filter)
+    today_start, today_end = _date_bounds(today)
+    yesterday_start, yesterday_end = _date_bounds(yesterday)
+    sales_today = Sale.objects.filter(created_at__gte=today_start, created_at__lte=today_end, **sales_filter)
+    sales_yesterday = Sale.objects.filter(created_at__gte=yesterday_start, created_at__lte=yesterday_end, **sales_filter)
 
     revenue_today = sales_today.aggregate(total=Sum("total"))["total"] or Decimal("0.00")
     revenue_yesterday = sales_yesterday.aggregate(total=Sum("total"))["total"] or Decimal("0.00")
@@ -37,7 +46,11 @@ def dashboard_metrics(*, branch=None):
     )
     sales_count = sales_today.count()
 
-    top_products_queryset = SaleItem.objects.filter(sale__created_at__date=today, sale__status=Sale.Status.COMPLETED)
+    top_products_queryset = SaleItem.objects.filter(
+        sale__created_at__gte=today_start,
+        sale__created_at__lte=today_end,
+        sale__status=Sale.Status.COMPLETED,
+    )
     if branch is not None:
         top_products_queryset = top_products_queryset.filter(sale__branch=branch)
     top_products = (
@@ -53,7 +66,9 @@ def dashboard_metrics(*, branch=None):
         .order_by("-revenue")[:5]
     )
 
-    last_week_queryset = Sale.objects.filter(status=Sale.Status.COMPLETED, created_at__date__gte=today - timedelta(days=6))
+    last_week_start, _ = _date_bounds(today - timedelta(days=6))
+    _, today_end = _date_bounds(today)
+    last_week_queryset = Sale.objects.filter(status=Sale.Status.COMPLETED, created_at__gte=last_week_start, created_at__lte=today_end)
     if branch is not None:
         last_week_queryset = last_week_queryset.filter(branch=branch)
 
@@ -92,9 +107,11 @@ def category_sales_report(*, branch=None, start_date=None, end_date=None):
     if branch is not None:
         queryset = queryset.filter(sale__branch=branch)
     if start_date:
-        queryset = queryset.filter(sale__created_at__date__gte=start_date)
+        start_at, _ = _date_bounds(start_date)
+        queryset = queryset.filter(sale__created_at__gte=start_at)
     if end_date:
-        queryset = queryset.filter(sale__created_at__date__lte=end_date)
+        _, end_at = _date_bounds(end_date)
+        queryset = queryset.filter(sale__created_at__lte=end_at)
     return (
         queryset.values("product__category__name")
         .annotate(quantity_sold=Sum("quantity"), revenue=Sum("line_total"), profit=Sum("profit"))
@@ -107,9 +124,11 @@ def profit_by_product_report(*, branch=None, start_date=None, end_date=None):
     if branch is not None:
         queryset = queryset.filter(sale__branch=branch)
     if start_date:
-        queryset = queryset.filter(sale__created_at__date__gte=start_date)
+        start_at, _ = _date_bounds(start_date)
+        queryset = queryset.filter(sale__created_at__gte=start_at)
     if end_date:
-        queryset = queryset.filter(sale__created_at__date__lte=end_date)
+        _, end_at = _date_bounds(end_date)
+        queryset = queryset.filter(sale__created_at__lte=end_at)
     return (
         queryset.values("product__id", "product__name", "product__category__name")
         .annotate(quantity_sold=Sum("quantity"), revenue=Sum("line_total"), profit=Sum("profit"))

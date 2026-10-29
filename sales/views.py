@@ -1,7 +1,7 @@
 import csv
 import json
 import logging
-from datetime import date
+from datetime import date, datetime, time, timedelta
 from decimal import Decimal, InvalidOperation
 
 from django.contrib import messages
@@ -73,7 +73,7 @@ def filtered_sales_queryset(request):
         branches = branches.filter(pk=user_branch.pk) if user_branch else branches.none()
 
     if not start_date:
-        start_date = today
+        start_date = (timezone.localdate() - timedelta(days=29)).isoformat()
     if not end_date:
         end_date = today
 
@@ -81,14 +81,21 @@ def filtered_sales_queryset(request):
         parsed_start = date.fromisoformat(start_date)
         parsed_end = date.fromisoformat(end_date)
     except ValueError:
-        messages.warning(request, "The date filter was invalid; showing today's sales.")
-        parsed_start = parsed_end = timezone.localdate()
-        start_date = end_date = parsed_start.isoformat()
+        messages.warning(request, "The date filter was invalid; showing the default 30-day period.")
+        parsed_end = timezone.localdate()
+        parsed_start = parsed_end - timedelta(days=29)
+        start_date = parsed_start.isoformat()
+        end_date = parsed_end.isoformat()
     if parsed_start > parsed_end:
-        messages.warning(request, "The start date cannot be after the end date; showing today's sales.")
-        parsed_start = parsed_end = timezone.localdate()
-        start_date = end_date = parsed_start.isoformat()
-    sales = sales.filter(created_at__date__gte=parsed_start, created_at__date__lte=parsed_end)
+        messages.warning(request, "The start date cannot be after the end date; showing the default 30-day period.")
+        parsed_end = timezone.localdate()
+        parsed_start = parsed_end - timedelta(days=29)
+        start_date = parsed_start.isoformat()
+        end_date = parsed_end.isoformat()
+    current_timezone = timezone.get_current_timezone()
+    start_at = timezone.make_aware(datetime.combine(parsed_start, time.min), current_timezone)
+    end_at = timezone.make_aware(datetime.combine(parsed_end, time.max), current_timezone)
+    sales = sales.filter(created_at__gte=start_at, created_at__lte=end_at)
     if branch_code:
         sales = sales.filter(branch__code=branch_code)
 

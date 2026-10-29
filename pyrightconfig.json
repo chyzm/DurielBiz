@@ -1,8 +1,17 @@
 {
+  "typeCheckingMode": "off",
   "venvPath": ".",
   "venv": "env",
   "extraPaths": [
     ".",
     "env/Lib/site-packages"
+  ],
+  "exclude": [
+    "**/dist/**",
+    "**/build/**",
+    "**/env/**",
+    "**/.venv/**",
+    "**/migrations/**",
+    "**/.git/**"
   ]
 }

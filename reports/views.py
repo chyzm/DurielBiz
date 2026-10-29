@@ -2,7 +2,7 @@ import csv
 import hashlib
 import json
 import secrets
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 
 from django.contrib import messages
 from django.conf import settings
@@ -151,8 +151,8 @@ def branch_delete(request, pk):
     branch = get_object_or_404(Branch, pk=pk)
     if request.method == "POST":
         branch_name = branch.name
-        if BusinessSettings.get_solo().default_branch_id == branch.pk:
-            settings_obj = BusinessSettings.get_solo()
+        settings_obj = BusinessSettings.get_solo()
+        if settings_obj.default_branch_id == branch.pk:
             settings_obj.default_branch = None
             settings_obj.save(update_fields=["default_branch", "updated_at"])
         branch.delete()
