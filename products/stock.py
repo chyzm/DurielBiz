@@ -1,3 +1,4 @@
+from django.db import transaction
 from django.db.models import F, IntegerField, OuterRef, Subquery, Value
 from django.db.models.functions import Coalesce
 from django.core.exceptions import ValidationError
@@ -5,13 +6,16 @@ from django.core.exceptions import ValidationError
 from .models import BranchStock, Product
 
 
+@transaction.atomic
 def get_branch_stock(product, branch):
     if branch is None:
         return None
 
-    stock = BranchStock.objects.select_for_update().filter(product=product, branch=branch).first()
-    if stock is None:
-        stock = BranchStock.objects.create(product=product, branch=branch, quantity=0)
+    stock, _ = BranchStock.objects.select_for_update().get_or_create(
+        product=product,
+        branch=branch,
+        defaults={"quantity": 0},
+    )
     return stock
 
 

@@ -2,6 +2,7 @@ from django.contrib import messages
 from datetime import timedelta
 
 from django.contrib.auth.decorators import login_required
+from django.db import IntegrityError, transaction
 from django.db.models.deletion import ProtectedError
 from django.db.models import Count, F, Q
 from django.shortcuts import get_object_or_404, redirect, render
@@ -87,6 +88,7 @@ def product_list(request):
 
 @login_required
 @role_required(User.Role.ADMIN, User.Role.INVENTORY)
+@transaction.atomic
 def product_create(request):
     form = ProductForm(request.POST or None, include_opening_fields=True, user=request.user)
     if request.method == "POST" and form.is_valid():
@@ -235,10 +237,16 @@ def category_list(request):
 
 @login_required
 @role_required(User.Role.ADMIN, User.Role.INVENTORY)
+@transaction.atomic
 def category_create(request):
     form = CategoryForm(request.POST or None)
     if request.method == "POST" and form.is_valid():
-        category = form.save()
+        try:
+            with transaction.atomic():
+                category = form.save()
+        except IntegrityError:
+            form.add_error("name", "A category with this name already exists.")
+            return render(request, "products/category_form.html", {"form": form})
         log_activity(
             user=request.user,
             module=ActivityLog.Module.PRODUCTS,

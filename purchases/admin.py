@@ -1,9 +1,10 @@
 from django.contrib import admin
 
+from accounts.admin_mixins import TenantModelAdmin, TenantTabularInline
 from .models import Purchase, PurchaseItem
 
 
-class PurchaseItemInline(admin.TabularInline):
+class PurchaseItemInline(TenantTabularInline):
     model = PurchaseItem
     extra = 0
     can_delete = False
@@ -20,7 +21,7 @@ class PurchaseItemInline(admin.TabularInline):
 
 
 @admin.register(Purchase)
-class PurchaseAdmin(admin.ModelAdmin):
+class PurchaseAdmin(TenantModelAdmin):
     list_display = ("invoice_no", "supplier", "received_at", "created_by")
     search_fields = ("invoice_no", "supplier__name")
     readonly_fields = ("business", "branch", "supplier", "invoice_no", "received_at", "created_by", "notes", "is_archived")

@@ -675,7 +675,7 @@
             if (!term) return [];
             return [...products]
                 .map(product => ({ ...product, score: scoreProduct(product, term) }))
-                .filter(product => product.score >= 0 && product.stock > 0)
+                .filter(product => product.score >= 0)
                 .sort((left, right) => right.score - left.score || left.name.localeCompare(right.name))
                 .slice(0, 8);
         }

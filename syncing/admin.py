@@ -1,10 +1,11 @@
 from django.contrib import admin
 
+from accounts.admin_mixins import TenantModelAdmin
 from .models import SyncDevice
 
 
 @admin.register(SyncDevice)
-class SyncDeviceAdmin(admin.ModelAdmin):
+class SyncDeviceAdmin(TenantModelAdmin):
     list_display = ("name", "business", "is_active", "created_at", "last_seen_at")
     list_filter = ("is_active", "business")
     search_fields = ("name", "business__name", "business__slug")

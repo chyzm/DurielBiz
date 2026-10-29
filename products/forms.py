@@ -1,4 +1,5 @@
 ﻿from django import forms
+from django.core.exceptions import ValidationError
 
 from accounts.permissions import active_branches_for_user, get_user_branch, is_admin_user
 from reports.models import Branch, BusinessSettings
@@ -7,6 +8,17 @@ from .models import Category, Product
 
 
 class CategoryForm(forms.ModelForm):
+    def clean_name(self):
+        name = self.cleaned_data["name"].strip()
+        if not name:
+            raise ValidationError("Category name is required.")
+        queryset = Category.objects.filter(name__iexact=name)
+        if self.instance.pk:
+            queryset = queryset.exclude(pk=self.instance.pk)
+        if queryset.exists():
+            raise ValidationError("A category with this name already exists.")
+        return name
+
     class Meta:
         model = Category
         fields = ["name", "description"]
@@ -19,6 +31,23 @@ class CategoryForm(forms.ModelForm):
 
 
 class ProductForm(forms.ModelForm):
+    def clean_name(self):
+        name = self.cleaned_data["name"].strip()
+        if not name:
+            raise ValidationError("Product name is required.")
+        return name
+
+    def clean_barcode(self):
+        barcode = (self.cleaned_data.get("barcode") or "").strip()
+        if not barcode:
+            return None
+        queryset = Product.objects.filter(barcode=barcode)
+        if self.instance.pk:
+            queryset = queryset.exclude(pk=self.instance.pk)
+        if queryset.exists():
+            raise ValidationError("A product with this barcode already exists.")
+        return barcode
+
     opening_stock = forms.IntegerField(
         min_value=0,
         required=False,

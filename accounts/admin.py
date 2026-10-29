@@ -1,6 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 
+from .admin_mixins import TenantModelAdmin
 from .models import ActivityLog, Business, User
 
 
@@ -29,9 +30,9 @@ class CustomUserAdmin(UserAdmin):
 
 
 @admin.register(ActivityLog)
-class ActivityLogAdmin(admin.ModelAdmin):
+class ActivityLogAdmin(TenantModelAdmin):
     list_display = ("created_at", "user", "module", "action", "description")
-    list_filter = ("module", "created_at")
+    list_filter = ("business", "module", "created_at")
     search_fields = ("description", "action", "user__username")
 
 
