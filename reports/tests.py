@@ -72,6 +72,16 @@ class ReportViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "SALE-")
 
+    def test_dashboard_chart_has_seven_valid_labels(self):
+        self.client.force_login(self.admin)
+        response = self.client.get("/dashboard/")
+        self.assertEqual(response.status_code, 200)
+        chart = response.context["sales_chart"]
+        self.assertEqual(len(chart["labels"]), 7)
+        self.assertEqual(len(chart["values"]), 7)
+        self.assertTrue(all(isinstance(label, str) for label in chart["labels"]))
+        self.assertTrue(all(isinstance(value, float) for value in chart["values"]))
+
     def test_category_export_csv(self):
         self.client.login(username="admin_r", password="pass1234")
         response = self.client.get("/reports/category/export/")

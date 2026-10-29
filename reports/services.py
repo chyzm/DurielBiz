@@ -1,8 +1,7 @@
 from datetime import datetime, time, timedelta
 from decimal import Decimal
 
-from django.db.models import Count, Sum
-from django.db.models.functions import TruncDate
+from django.db.models import Sum
 from django.utils import timezone
 
 from notifications.services import expiring_products_queryset, low_stock_products_queryset
@@ -72,13 +71,17 @@ def dashboard_metrics(*, branch=None):
     if branch is not None:
         last_week_queryset = last_week_queryset.filter(branch=branch)
 
-    last_week = (
-        last_week_queryset
-        .annotate(day=TruncDate("created_at"))
-        .values("day")
-        .annotate(total=Sum("total"), count=Count("id"))
-        .order_by("day")
-    )
+    chart_totals = {today - timedelta(days=offset): Decimal("0.00") for offset in range(6, -1, -1)}
+    for sale in last_week_queryset.values_list("created_at", "total"):
+        created_at, total = sale
+        if timezone.is_aware(created_at):
+            sale_day = timezone.localtime(created_at).date()
+        else:
+            sale_day = created_at.date()
+        if sale_day in chart_totals:
+            chart_totals[sale_day] += total or Decimal("0.00")
+
+    chart_days = sorted(chart_totals)
 
     expiring_products = expiring_products_queryset()
     if branch is not None:
@@ -96,8 +99,8 @@ def dashboard_metrics(*, branch=None):
         "expiring_products": expiring_products,
         "selected_branch_name": branch.name if branch else "All Branches",
         "sales_chart": {
-            "labels": [item["day"].strftime("%d %b") for item in last_week],
-            "values": [float(item["total"] or 0) for item in last_week],
+            "labels": [day.strftime("%d %b") for day in chart_days],
+            "values": [float(chart_totals[day]) for day in chart_days],
         },
     }
 
