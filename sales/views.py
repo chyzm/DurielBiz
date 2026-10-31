@@ -8,7 +8,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import Exists, OuterRef, Q
 from django.db.models import Prefetch
 from django.http import HttpResponse, JsonResponse
 from django.views.decorators.cache import never_cache
@@ -116,7 +116,10 @@ def pos_terminal(request):
     default_branch = get_user_branch(request.user) or business_settings.default_branch
     products_queryset = Product.objects.filter(is_active=True).select_related("category").order_by("name")
     if default_branch:
-        products_queryset = products_queryset.filter(branch_stocks__branch=default_branch).distinct().prefetch_related(
+        # Exists() avoids the join + DISTINCT, which forced a temporary table for the sort.
+        products_queryset = products_queryset.filter(
+            Exists(BranchStock.objects.filter(product=OuterRef("pk"), branch=default_branch))
+        ).prefetch_related(
             Prefetch(
                 "branch_stocks",
                 queryset=BranchStock.objects.filter(branch=default_branch),

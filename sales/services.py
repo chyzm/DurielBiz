@@ -400,8 +400,18 @@ def void_sale(*, sale, voided_by, reason="", ip_address=None):
     # Use the same Customer -> Product lock order as checkout to reduce deadlocks.
     customer = Customer.objects.select_for_update().get(pk=sale.customer_id) if sale.customer_id else None
 
-    for item in sale.items.select_related("product").select_for_update(of=("product",)):
-        product = item.product
+    # MySQL/MariaDB do not support SELECT ... FOR UPDATE OF, so lock the products directly
+    # in pk order (same order as checkout) and reuse the locked instances below.
+    items = list(sale.items.all())
+    locked_products = {
+        product.pk: product
+        for product in Product.objects.select_for_update().filter(
+            pk__in=sorted({item.product_id for item in items})
+        ).order_by("pk")
+    }
+
+    for item in items:
+        product = locked_products[item.product_id]
         branch_stock = get_branch_stock(product, sale.branch) if sale.branch else None
         before_quantity = branch_stock.quantity if branch_stock is not None else product.quantity
         after_quantity = before_quantity + item.quantity
